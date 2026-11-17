@@ -20,7 +20,7 @@ describe('lib/text', () => {
 
 describe('App smoke', () => {
   it('render được mọi màn hình khi chưa nạp và đã nạp dữ liệu', () => {
-    const views: ViewId[] = ['import', 'check', 'grid', 'exec', 'cat', 'log', 'tpl', 'ver'];
+    const views: ViewId[] = ['import', 'check', 'grid', 'exec', 'cat', 'log', 'tpl', 'ver', 'rid'];
     views.forEach((v) => { useStore.setState({ view: v, tour: null }); expect(renderToString(<App />).length).toBeGreaterThan(100); });
     loadFile('x.csv', true);
     expect(useStore.getState().loaded).toBe(true);

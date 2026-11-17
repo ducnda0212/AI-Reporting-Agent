@@ -24,6 +24,6 @@ export const TOUR: TourStep[] = [
   { sel: 'footer.status', prep: goGrid, t: 'Thanh trạng thái', b: 'Đếm lỗi chặn, ô bắt buộc còn trống, ô AI chờ duyệt. Nút “Duyệt từng ô” mở chế độ tập trung: làm mờ xung quanh, đưa bạn qua từng nháp AI kèm căn cứ. Muốn duyệt cả dự án: tick ô ở cột ngoài cùng bên trái (ô trên cùng là chọn tất cả).' },
   { sel: '.cfgchip', prep: goGrid, t: 'Cấu hình cột', b: 'Tra cứu khi cần: 49 cột của mẫu lấy từ đâu, bắt buộc không, tuần này đã đủ chưa. Việc hằng tuần không cần mở phần này.' },
   { sel: '.top .tact .btn', prep: goGrid, t: 'Bước 4 · Chốt & xuất', b: 'Hết lỗi chặn thì chốt thành một phiên bản (gõ tên người chốt), rồi xuất file Excel từ đúng bản đó. Công cụ chỉ ghi vào khối tuần này, giữ nguyên các khối tuần khác.' },
-  { sel: '.rail .ri:nth-child(3)', prep: goGrid, t: 'Phiên bản & tuần đã qua', b: 'Tab Phiên bản liệt kê mọi bản đã chốt theo tuần, ai chốt, lúc nào, đổi những ô nào so với bản trước. Ô chọn tuần ở trên cùng mở bản đã chốt của tuần trước — chỉ xem, không sửa.' },
+  { sel: '.rail .ri:nth-child(4)', prep: goGrid, t: 'Phiên bản & tuần đã qua', b: 'Tab Phiên bản liệt kê mọi bản đã chốt theo tuần, ai chốt, lúc nào, đổi những ô nào so với bản trước. Ô chọn tuần ở trên cùng mở bản đã chốt của tuần trước — chỉ xem, không sửa.' },
   { t: 'Xong rồi!', b: 'Bạn có thể mở lại hướng dẫn bất cứ lúc nào bằng nút “? Hướng dẫn” trên thanh trên cùng.' },
 ];

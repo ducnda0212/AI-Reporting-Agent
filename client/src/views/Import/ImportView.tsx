@@ -6,6 +6,7 @@ import { checkCount, orphansLeft, unsortedOf } from '@/lib/selectors';
 import { fieldOf } from '@/lib/cell';
 import { loadSavedCfg } from '@/store';
 import { useAppState, useRows } from '@/hooks/useDerived';
+import { FileTypeIcon } from '@/components/common/Icons';
 import { IMPORT_STEPS, GUIDE_KEY, goStep, loadFile, replaceFile, setChk, setView, toggle, toggleGuide } from '@/store/actions/flow';
 
 /** Các lần nhập file trước đây (mock). */
@@ -24,6 +25,11 @@ const ANext = ({ t, n, cls = '', sub, tab }: { t: string; n: string | number; cl
   const done = n === 'xong';
   return <button className="anx" onClick={() => setChk('chkTab', tab)}><span>{t}</span><span className={'an ' + (cls || (done ? 'ok' : ''))}>{done ? '✓ xong' : n}</span>{sub && <small>{sub}</small>}</button>;
 };
+/** Một dòng trong danh sách "Đã sẵn sàng": bấm được nếu có `onClick`. */
+function ResRow({ kind, title, meta, onClick }: { kind: 'xls' | 'csv' | 'ver' | 'db' | 'cfg'; title: string; meta: string; onClick?: () => void }) {
+  const body = <><FileTypeIcon kind={kind} /><span className="arm"><b>{title}</b><small>{meta}</small></span>{onClick && <span className="achev" aria-hidden="true">›</span>}</>;
+  return onClick ? <button className="ares" onClick={onClick}>{body}</button> : <div className="ares">{body}</div>;
+}
 const FileIcon = () => <span className="aico" aria-hidden="true">CSV</span>;
 
 function DropZone({ loaded }: { loaded: boolean }) {
@@ -92,22 +98,24 @@ function PreLoad() {
     <div className="gridwrap gut aimp"><div className="awrap"><div className="acols">
       <div className="aleft">
         <h1 className="ah1">{s.replaceFile ? 'Thay file Jira cho tuần 3/11' : 'Nhập file Jira cho tuần 3/11'}</h1>
-        <p className="asub">Kéo file CSV hoặc Excel vừa xuất từ Jira. Bước sau sẽ tự kiểm tra cột và giá trị.</p>
+        <p className="asub">Kéo file CSV hoặc Excel vừa xuất từ Jira.</p>
         <DropZone loaded={s.loaded} />
         {s.replaceFile && <button className="alink back" onClick={() => replaceFile(false)}>Giữ file đang dùng: {s.fileName || 'Jira sample.xlsx'}</button>}
         <Guide />
       </div>
       <aside className="aright">
         <h2 className="ah2">Lần nhập gần nhất</h2>
-        <div className="alast"><FileIcon /><div><b title={L.name}>{L.name}</b><small>{L.wk.split(' · ')[0]}, {L.by} nhập lúc {L.at}</small><small>{L.issues} issue, {L.prj} dự án, {L.ver}</small></div></div>
+        <div className="alast"><FileTypeIcon kind="csv" /><div><b title={L.name}>{L.name}</b><small>{L.wk.split(' · ')[0]}, {L.by} nhập lúc {L.at}</small><small>{L.issues} issue, {L.prj} dự án, {L.ver}</small></div></div>
         <button className="alink" onClick={() => loadFile(L.name)}>Nhập lại file này</button>
         {IMPORTS.length > 1 && <button className="alink mut" onClick={() => toggle('histOpen')} aria-expanded={s.histOpen}>{s.histOpen ? 'Ẩn' : 'Xem'} {IMPORTS.length - 1} file cũ hơn</button>}
         {s.histOpen && IMPORTS.slice(1).map((x) => <button key={x.name} className="anx" onClick={() => loadFile(x.name)}><span>{x.name}</span><span className="an">{x.at.split(' ')[0]}</span></button>)}
         <h2 className="ah2" style={{ marginTop: 26 }}>Đã sẵn sàng</h2>
-        <button className="anx" onClick={() => setView('ver')}><span>Bản chốt tuần trước</span><span className="an">{prev ? `v${prev.v}, ${prev.at.split(' ')[0]}` : 'chưa có'}</span></button>
-        <button className="anx" onClick={() => setView('tpl')}><span>Mẫu báo cáo 49 cột</span><span className="an">khối AR–AT</span></button>
-        <button className="anx" onClick={() => setView('cat')}><span>Dữ liệu hệ thống</span><span className="an">{Object.keys(s.cat.projects).length} dự án</span></button>
-        <div className="anx static"><span>Cấu hình quy đổi</span><span className="an">{cfg ? 'đã lưu' : 'mặc định'}</span></div>
+        <div className="areslist">
+          <ResRow kind="ver" title="Bản chốt tuần trước" meta={prev ? `v${prev.v}, chốt ngày ${prev.at.split(' ')[0]}` : 'Chưa có bản chốt'} onClick={() => setView('ver')} />
+          <ResRow kind="xls" title="Mẫu báo cáo 49 cột" meta="Tháng 11, khối tuần đến AR–AT" onClick={() => setView('tpl')} />
+          <ResRow kind="db" title="Dữ liệu hệ thống" meta={`${Object.keys(s.cat.projects).length} dự án, cột A–H và O–W`} onClick={() => setView('cat')} />
+          <ResRow kind="cfg" title="Cấu hình quy đổi" meta={cfg ? 'Đã lưu, dùng lại khi nhập file' : 'Đang dùng mặc định'} />
+        </div>
       </aside>
     </div></div></div>
   );

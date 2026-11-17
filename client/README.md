@@ -24,12 +24,12 @@ client/
 └─ src/
    ├─ main.tsx, App.tsx
    ├─ types/        kiểu dùng chung (Row, Field, Catalog, ...)
-   ├─ data/         mock: demo.json, constants.ts, seed.ts, tour.ts
-   ├─ lib/          hàm thuần (cell, check, selectors, exec, grid, export/docx|pdf|docHtml)
-   ├─ store/        zustand: types.ts (AppState), index.ts, actions/ (flow, grid, catalog, exportReport)
+   ├─ data/         mock: demo.json, constants.ts, seed.ts, tour.ts, risk.ts (bộ tiêu chí + 8 ca rủi ro)
+   ├─ lib/          hàm thuần (cell, check, selectors, exec, grid, risk, theme, export/docx|pdf|docHtml)
+   ├─ store/        zustand: types.ts (AppState), index.ts, actions/ (flow, grid, catalog, exportReport, risk)
    ├─ hooks/        useDerived, useGridKeyboard, useColResize
    ├─ components/   layout/ grid/ panels/ modals/ layers/ common/
-   ├─ views/        Import, Check, Template, Exec, Catalog, Versions, Log
+   ├─ views/        Import, Check, Template, Exec, Risk, Catalog, Versions, Log
    ├─ styles/       *.css (global, giữ class gốc của prototype)
    └─ __tests__/    smoke + flows
 ```
@@ -69,9 +69,21 @@ Class CSS (`.ma`, `.cd`, `.tt`...) giữ nguyên, chưa đổi.
 - Thêm `src/vite-env.d.ts` (`/// <reference types="vite/client" />`) để import `.css` không báo lỗi "Cannot find module".
 - Bỏ `baseUrl` và `ignoreDeprecations` khỏi `tsconfig.json` (giá trị `"6.0"` không hợp lệ với TS 5.9). `paths` dùng `./src/*`.
 
+### 4. Đồng bộ với prototype mới (v44–v47)
+Prototype được cập nhật; client đã chuyển các thay đổi sang React (dữ liệu mock giữ nguyên, đã đối chiếu từng khoá với `DEMO` của prototype):
+- **Màn "Rủi ro" (mới, v46)** — `views/Risk/RiskView.tsx`, mục "Rủi ro" trên thanh trái (sau "Điều hành", huy hiệu = số ca chưa duyệt).
+  AI chấm 8 vấn đề/rủi ro theo Bộ tiêu chí v1; người duyệt Đồng ý / Bỏ / Sửa (bắt buộc ghi lý do) / Hoàn tác, mọi thao tác ghi vào Nhật ký.
+  Điểm do hệ thống tính ở `lib/risk.ts` (hàm thuần, có test): Impact = mức cao nhất của 5 khía cạnh, Urgency theo số ngày đến hạn ± điều chỉnh (tồn ≥3 tuần +1, thiếu PIC +1, Risk xác suất thấp −1), Điểm = Impact × Urgency → P1–P4 và màu Đỏ/Vàng/Xanh/Lưu ý dữ liệu.
+  State `rid` trong store, action ở `store/actions/risk.ts`, dữ liệu ở `data/risk.ts`.
+- **Đổi giao diện sáng/tối (v47)** — nút ở thanh trên, lưu `pmo-theme` trong localStorage, gắn `data-theme` lên `<html>` (`lib/theme.ts`).
+- **Màn Nhập file (v44–v45)** — tóm tắt chữ lớn có số gạch chân màu, nhãn vuông có chấm màu thay pill bo tròn; "Đã sẵn sàng" thành danh sách có biểu tượng loại file (XLSX/CSV/cơ sở dữ liệu/cấu hình) và mũi tên `›`; phụ đề rút gọn theo prototype.
+- Đã đối chiếu lại với bản prototype mới nhất: không còn khác biệt về chuỗi giao diện hay class CSS (trừ phần code chết của prototype như màn nhập/kiểm tra cũ).
+- 142 rule CSS mới nằm ở `styles/refine-risk.css` (import cuối cùng, chỉ thêm, không sửa rule cũ).
+- Bước hướng dẫn "Phiên bản" đổi bộ chọn sang `.rail .ri:nth-child(4)` vì thanh trái có thêm mục Rủi ro.
+
 ## Màn hình
 
-Ảnh chụp ở 1440×900, dữ liệu mock sau khi bấm "Dùng dữ liệu mẫu".
+Ảnh chụp ở 1440×900, giao diện sáng, dữ liệu mock sau khi bấm "Dùng dữ liệu mẫu".
 
 ### Bước 1 · Nhập file
 Kéo thả hoặc chọn CSV Jira. Hiện tại chỉ giả lập đọc file (chưa gửi backend).
@@ -99,17 +111,27 @@ Báo cáo điều hành: xem trước như file PDF, có thể nhờ AI soạn n
 
 ![Điều hành](docs/screenshots/08-exec.png)
 
+### Rủi ro
+Danh sách vấn đề do AI chấm, lọc theo mức; chi tiết gồm phân loại, điểm, dấu hiệu, action đề xuất, ca mẫu tương tự.
+
+![Rủi ro](docs/screenshots/09-risk.png)
+
+Sửa kết quả của AI (bắt buộc ghi lý do) và giao diện tối (nút mặt trăng/mặt trời ở thanh trên):
+
+![Rủi ro — sửa kết quả AI](docs/screenshots/14-risk-edit.png)
+![Rủi ro — giao diện tối](docs/screenshots/15-risk-dark.png)
+
 ### Các màn phụ
 
-![Phiên bản](docs/screenshots/09-versions.png)
-![Nhật ký](docs/screenshots/10-log.png)
-![Hệ thống (danh mục)](docs/screenshots/11-catalog.png)
-![Cấu hình quy đổi](docs/screenshots/12-config.png)
+![Phiên bản](docs/screenshots/10-versions.png)
+![Nhật ký](docs/screenshots/11-log.png)
+![Hệ thống (danh mục)](docs/screenshots/12-catalog.png)
+![Cấu hình quy đổi](docs/screenshots/13-config.png)
 
 ### Bước 4 · Chốt & xuất
 Kiểm tra trước khi chốt, chốt thành phiên bản, rồi xuất file.
 
-![Chốt & xuất](docs/screenshots/13-export.png)
+![Chốt & xuất](docs/screenshots/16-export.png)
 
 ## Trạng thái và hạn chế đã biết
 - Mọi dữ liệu là mock (`src/data/`). Việc nối backend sẽ làm sau, bắt đầu từ màn Nhập file.

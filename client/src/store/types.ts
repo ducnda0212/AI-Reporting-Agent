@@ -1,7 +1,7 @@
-import type { Catalog, Field, LogEntry, Row, Version } from '@/types';
+import type { Catalog, Field, LogEntry, RiskDecision, RiskFilter, Row, Version } from '@/types';
 import type { AskResult } from '@/lib/exec';
 
-export type ViewId = 'import' | 'check' | 'grid' | 'exec' | 'cat' | 'log' | 'tpl' | 'ver';
+export type ViewId = 'import' | 'check' | 'grid' | 'exec' | 'cat' | 'log' | 'tpl' | 'ver' | 'rid';
 export type PanelId = 'issues' | 'rev' | 'ask' | 'note' | 'ai' | 'project' | null;
 
 export interface Sel { i: number; f: string }
@@ -60,6 +60,9 @@ export interface AppState {
   notes: Note[];
   askLog: Array<{ q: string; a: AskResult }>;
   aiList: boolean;
+
+  /* ---- đánh giá rủi ro ---- */
+  rid: { sel: string; flt: RiskFilter; decisions: Record<string, RiskDecision>; edit: string | null };
 
   /* ---- luồng ---- */
   view: ViewId;

@@ -45,6 +45,7 @@ function createInitialState(): AppState {
     ],
     askLog: [],
     aiList: false,
+    rid: { sel: 'RI-01', flt: 'all', decisions: {}, edit: null },
 
     view: 'import', loaded: false, importing: null, replaceFile: false, histOpen: false, cfgUsed: null,
     newCodes: 'pending', labelOk: true, dupDone: true, dupMerged: false, orphanDone: {},

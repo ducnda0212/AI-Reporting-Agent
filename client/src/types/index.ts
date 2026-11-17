@@ -79,3 +79,28 @@ export interface Version {
 }
 
 export interface LogEntry { t: string; a: string; o: string; d: string; r: string }
+
+/* ---------- đánh giá rủi ro & vấn đề ---------- */
+export interface RiskCriteria {
+  version: string; updatedAt: string;
+  delayDays: [number, number, number]; financePct: [number, number, number];
+  urgentDays: number; soonDays: number; staleWeeks: number;
+  priority: [number, number, number];
+}
+export type RiskKind = 'Issue' | 'Risk' | 'Dependency';
+export interface RiskAction { ref: string; text: string; owner: string; due: string }
+export interface RiskCase {
+  id: string; rowIndex: number; kind: RiskKind; category: string; source: string;
+  text: string; why: string;
+  impact: { delayDays: number; financePct: number; contract: number; quality: number; dataControl: number };
+  daysToDue: number; blocked: boolean; weeksOpen: number; noOwner: boolean; probability: '' | 'Thấp' | 'Trung bình' | 'Cao';
+  signals: Array<[code: string, note: string]>;
+  actions: RiskAction[];
+  closeWhen: string; similarCases: string[]; confidence: 'high' | 'low'; uncertainty?: string; alternativeCategory?: string;
+  missingInfo: string[];
+}
+export type RiskPriority = 'P1' | 'P2' | 'P3' | 'P4';
+export type RiskColor = 'Đỏ' | 'Vàng' | 'Xanh' | 'Lưu ý dữ liệu';
+/** Quyết định của người duyệt cho một ca: đồng ý, bỏ, hoặc sửa kết quả AI. */
+export interface RiskDecision { kind: 'ok' | 'drop' | 'edit'; at: string; priority?: RiskPriority; category?: string; from?: RiskPriority; reason?: string }
+export type RiskFilter = 'all' | 'pend' | 'un' | 'e' | 'w' | 'o';

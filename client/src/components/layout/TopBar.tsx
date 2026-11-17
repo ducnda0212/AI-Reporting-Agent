@@ -3,7 +3,9 @@ import { checkCount, fillCount } from '@/lib/selectors';
 import { changedSinceLock, lastCur } from '@/lib/versions';
 import { useAppState, useRows } from '@/hooks/useDerived';
 import { curStep, goStep, setMenu, setModal, switchWeek, toast, tourGo } from '@/store/actions/flow';
-import { Calendar, Chevron, Help, Logo } from '../common/Icons';
+import { useState } from 'react';
+import { currentTheme, toggleTheme } from '@/lib/theme';
+import { Calendar, Chevron, Help, Logo, Moon, Sun } from '../common/Icons';
 import { TestMenu } from './TestBanner';
 
 function Step({ n, label, done, now, cur, cnt }: { n: number; label: string; done: boolean; now: boolean; cur: boolean; cnt: number }) {
@@ -12,6 +14,12 @@ function Step({ n, label, done, now, cur, cnt }: { n: number; label: string; don
       <i>{done ? '✓' : n}</i><span className="lb">{label}</span>{cnt ? <b>{cnt}</b> : null}
     </button>
   );
+}
+function ThemeButton() {
+  const [dark, setDark] = useState(() => currentTheme() === 'dark');
+  const label = dark ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối';
+  const onClick = () => { const next = toggleTheme(); setDark(next === 'dark'); toast(next === 'dark' ? 'Đã chuyển sang giao diện tối' : 'Đã chuyển sang giao diện sáng'); };
+  return <button className="ticon" onClick={onClick} title={label} aria-label={label}>{dark ? <Sun /> : <Moon />}</button>;
 }
 const Link = ({ done }: { done: boolean }) => <span className={'ln' + (done ? ' done' : '')} aria-hidden="true" />;
 
@@ -56,6 +64,7 @@ export function TopBar() {
           </button>
           <TestMenu />
         </span>
+        <ThemeButton />
         <button className="ticon" onClick={() => tourGo(0)} title="Hướng dẫn sử dụng" aria-label="Hướng dẫn sử dụng"><Help /></button>
         <button className={'btn' + (cs >= 3 ? ' pri' : '')} onClick={() => {
           if (!s.loaded) { toast('Chưa có dữ liệu — nhập file CSV ở bước 1 trước'); return; }

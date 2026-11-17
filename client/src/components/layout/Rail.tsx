@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { ViewId } from '@/store/types';
 import { blockers, missingCat, pendingAI, warnings } from '@/lib/selectors';
 import { exPending } from '@/lib/exec';
+import { riskPending } from '@/lib/risk';
 import { useAppState, useRows } from '@/hooks/useDerived';
 import { setPanel, setView } from '@/store/actions/flow';
 import { RailIcon } from '../common/Icons';
@@ -37,6 +38,7 @@ export function Rail() {
     <nav className="rail" aria-label="Điều hướng">
       <ViewItem v="grid" label="Bảng" icon={<RailIcon name="grid" />} />
       <ViewItem v="exec" label="Điều hành" icon={<RailIcon name="exec" />} badge={<Badge n={s.loaded ? exPending(s) : 0} c="a" />} />
+      <ViewItem v="rid" label="Rủi ro" icon={<RailIcon name="rid" />} badge={<Badge n={s.loaded ? riskPending(s) : 0} c="e" />} />
       <ViewItem v="ver" label="Phiên bản" icon={<RailIcon name="ver" />} />
       <ViewItem v="log" label="Nhật ký" icon={<RailIcon name="log" />} />
       <ViewItem v="cat" label="Hệ thống" icon={<RailIcon name="cat" />} badge={<Badge n={catN} c="w" />} />
