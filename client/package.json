@@ -1,5 +1,5 @@
 {
-  "name": "ai-reporting-agent",
+  "name": "@ai-reporting-agent/client",
   "private": true,
   "version": "0.1.0",
   "type": "module",
