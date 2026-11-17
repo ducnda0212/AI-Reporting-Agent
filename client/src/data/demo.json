@@ -1,0 +1,2700 @@
+{
+  "fileStats": {
+    "cols": 277,
+    "dupGroups": 14,
+    "dupCols": 41,
+    "uniq": 250,
+    "empty": 228,
+    "issues": 2
+  },
+  "fileCols": [
+    "Summary",
+    "Issue key",
+    "Issue id",
+    "Issue Type",
+    "Status",
+    "Project key",
+    "Project name",
+    "Project type",
+    "Project lead",
+    "Project lead id",
+    "Project description",
+    "Priority",
+    "Resolution",
+    "Assignee",
+    "Assignee Id",
+    "Reporter",
+    "Reporter Id",
+    "Creator",
+    "Creator Id",
+    "Created",
+    "Updated",
+    "Last Viewed",
+    "Resolved",
+    "Due date",
+    "Votes",
+    "Labels",
+    "Description",
+    "Environment",
+    "Watchers",
+    "Watchers Id",
+    "Original estimate",
+    "Remaining Estimate",
+    "Time Spent",
+    "Work Ratio",
+    "Σ Original Estimate",
+    "Σ Remaining Estimate",
+    "Σ Time Spent",
+    "Security Level",
+    "Custom field (% testing)",
+    "Custom field (Actual end)",
+    "Custom field (Actual start)",
+    "Custom field (Affected Area)",
+    "Custom field (Affected System)",
+    "Custom field (Affected hardware)",
+    "Custom field (Affected services)",
+    "Custom field (Affects version)",
+    "Custom field (Application)",
+    "Custom field (Approvals)",
+    "Custom field (Apps Version)",
+    "Custom field (Apps Version IDN)",
+    "Custom field (Atlassian Project)",
+    "Custom field (Atlassian project)",
+    "Custom field (Atlassian project status)",
+    "Custom field (Backout plan)",
+    "Custom field (Board of Management)",
+    "Custom field (Board of Management)Id",
+    "Custom field (Bug Description)",
+    "Custom field (Business Affected)",
+    "Custom field (Business Goal)",
+    "Custom field (Business Owner)",
+    "Custom field (Category)",
+    "Custom field (Change reason)",
+    "Custom field (Change request type)",
+    "Custom field (Change risk)",
+    "Custom field (Change type)",
+    "Custom field (Checklist Completed)",
+    "Custom field (Comments)",
+    "Custom field (Component)",
+    "Custom field (Confident)",
+    "Custom field (Config Change)",
+    "Custom field (Config Changes)",
+    "Custom field (Country)",
+    "Custom field (DB Change)",
+    "Custom field (DEV Due Date)",
+    "Custom field (Definition of Done)",
+    "Custom field (Delivery progress)",
+    "Custom field (Delivery status)",
+    "Custom field (Department)",
+    "Custom field (Deploy tag)",
+    "Custom field (Description Of The Change)",
+    "Custom field (Description Vinfast)",
+    "Custom field (Dev scope)",
+    "Custom field (Dev-BE)",
+    "Custom field (Dev-FE)",
+    "Custom field (Developer)",
+    "Custom field (Developers)",
+    "Custom field (Development)",
+    "Custom field (Document Link)",
+    "Custom field (Due Date - Dev)",
+    "Custom field (Due date)",
+    "Custom field (Due date - Staging)",
+    "Custom field (Effort)",
+    "Custom field (Effort (Dev))",
+    "Custom field (Effort (Dev-BE))",
+    "Custom field (Effort (Dev-FE))",
+    "Custom field (Effort (DevOps))",
+    "Custom field (Effort (Mobile))",
+    "Custom field (Effort (PO/BA))",
+    "Custom field (Effort (QA))",
+    "Custom field (End date)",
+    "Custom field (Epic Color)",
+    "Custom field (Epic Name)",
+    "Custom field (Epic Status)",
+    "Custom field (Escalation)",
+    "Custom field (Estimated Effort (MD))",
+    "Custom field (Event Tag)",
+    "Custom field (Feature ID)",
+    "Custom field (Figma)",
+    "Custom field (Fix Verison)",
+    "Custom field (Fix Version)",
+    "Custom field (Fix version)",
+    "Custom field (Fix-version)",
+    "Custom field (Flagged)",
+    "Custom field (Focus Areas)",
+    "Custom field (Found in Build)",
+    "Custom field (Found in Environment)",
+    "Custom field (Goals)",
+    "Custom field (Hot Topic)",
+    "Custom field (Hỏng gì nếu hoãn)",
+    "Custom field (ID Epic)",
+    "Custom field (Idea)",
+    "Custom field (Idea archived)",
+    "Custom field (Idea archived on)",
+    "Custom field (Impact)",
+    "Custom field (Impact (migrated 2))",
+    "Custom field (Impacts)",
+    "Custom field (Implementation plan)",
+    "Custom field (Incident manager)",
+    "Custom field (Insights)",
+    "Custom field (Investigation reason)",
+    "Custom field (Issue color)",
+    "Custom field (Jira PRD)",
+    "Custom field (Jira SAD)",
+    "Custom field (KPI/Outcome)",
+    "Custom field (Linked items)",
+    "Custom field (Location/Department)",
+    "Custom field (Locked forms)",
+    "Custom field (Major incident)",
+    "Custom field (Master Plan ID)",
+    "Custom field (Number of affected user)",
+    "Custom field (Open forms)",
+    "Custom field (Operational categorization)",
+    "Custom field (PM)",
+    "Custom field (PO)",
+    "Custom field (PO)Id",
+    "Custom field (PRD)",
+    "Custom field (PRD (URL))",
+    "Custom field (Pending reason)",
+    "Custom field (Pending/Canceled Reason)",
+    "Custom field (Phase)",
+    "Custom field (Planned end)",
+    "Custom field (Planned start)",
+    "Custom field (Priority)",
+    "Custom field (Process)",
+    "Custom field (Product Name)",
+    "Custom field (Product categorization)",
+    "Custom field (Product manager)",
+    "Custom field (Progress)",
+    "Custom field (Progress Report)",
+    "Custom field (Project Type)",
+    "Custom field (Project manager)",
+    "Custom field (Project overview key)",
+    "Custom field (Project overview status)",
+    "Custom field (QA (Tester))",
+    "Custom field (QC (migrated))",
+    "Custom field (QC Confirm Version)",
+    "Custom field (QC Due Date)",
+    "Custom field (RICE score)",
+    "Custom field (Rank)",
+    "Custom field (Reach)",
+    "Custom field (Reason)",
+    "Custom field (Reason (Text))",
+    "Custom field (Region)",
+    "Custom field (Release Stage)",
+    "Custom field (Release Version)",
+    "Custom field (Released Note)",
+    "Custom field (Report)",
+    "Custom field (Request Date)",
+    "Custom field (Request Security Date)",
+    "Custom field (Request Type)",
+    "Custom field (Request language)",
+    "Custom field (Request participants)",
+    "Custom field (Request type)",
+    "Custom field (Requester)",
+    "Custom field (Resolution time - Incident)",
+    "Custom field (Resolution/Action Taken)",
+    "Custom field (Responders)",
+    "Custom field (Response time - Incident)",
+    "Custom field (Risk Notes)",
+    "Custom field (Root cause)",
+    "Custom field (SRS)",
+    "Satisfaction rating",
+    "Custom field (Satisfaction date)",
+    "Custom field (Scope)",
+    "Custom field (Security)",
+    "Custom field (Security Impact Severity)",
+    "Custom field (Security Ticket)",
+    "Custom field (Sentiment)",
+    "Custom field (Service)",
+    "Custom field (Service Name)",
+    "Custom field (Severity)",
+    "Custom field (Severity (migrated))",
+    "Custom field (Severity level)",
+    "Custom field (Source)",
+    "Custom field (Stage (migrated))",
+    "Custom field (Start Date - QC)",
+    "Custom field (Start date)",
+    "Custom field (Status pages)",
+    "Custom field (Story Point)",
+    "Custom field (Story Points)",
+    "Custom field (Story point estimate)",
+    "Custom field (Submitted forms)",
+    "Custom field (Success Metric)",
+    "Custom field (Support Group)",
+    "Custom field (Target end)",
+    "Custom field (Target start)",
+    "Custom field (Task progress)",
+    "Custom field (Tasks)",
+    "Team Id",
+    "Team Name",
+    "Custom field (Tech Lead )",
+    "Custom field (Tech lead)",
+    "Custom field (Technical Documents)",
+    "Custom field (Technical Specification)",
+    "Custom field (Technical docs)",
+    "Custom field (Test plan)",
+    "Custom field (Time to close after resolution)",
+    "Custom field (Time to done)",
+    "Custom field (Time to first response)",
+    "Custom field (Time to resolution)",
+    "Custom field (Time to review normal change)",
+    "Custom field (Total forms)",
+    "Custom field (Type of Bug)",
+    "Custom field (Type of Bug (migrated))",
+    "Custom field (Unit Test)",
+    "Custom field (Urgency)",
+    "Custom field (Version Code)",
+    "Custom field (Version Code BE)",
+    "Custom field (Version Code FE)",
+    "Custom field (Vulnerability)",
+    "Custom field (Work category)",
+    "Custom field (Work item created forms)",
+    "Custom field (Workaround)",
+    "Custom field ([CHART] Date of First Response)",
+    "Custom field ([CHART] Date of First Response (migrated))",
+    "Custom field ([CHART] Time in Status)",
+    "Custom field (⚙ Technical documents)",
+    "Comment",
+    "Status category",
+    "Status category changed"
+  ],
+  "workstream": {
+    "I.A.3": "I.A.3.PAI – Cá nhân hóa trải nghiệm cho từng khách",
+    "I.A.4": "I.A.4.Tối ưu Food & Express",
+    "I.A.5": "I.A.5.Tối ưu khuyến mại và thông báo",
+    "I.A.6": "I.A.6. An toàn & Cá nhân hóa thống nhất & nâng cao",
+    "I.C.1": "I.C.1.Bộ giải pháp Điều phối Cung-Cầu và Tối ưu Phát cuốc",
+    "I.C.2": "I.C.2.Tối ưu Điều phối & Định giá – Dịch vụ Ride",
+    "II.A.1": "II.A.1.Tài xế cung cấp dịch vụ 5-sao",
+    "II.A.2": "II.A.2.AI Hỗ trợ Tài xế (Data Science)",
+    "II.B.1": "II.B.1Quản lý phương tiện toàn diện",
+    "II.D.1": "II.D.1Marketplace Trust System",
+    "II.D.2": "II.D.2.AI Quản trị",
+    "II.E.1": "II.E.1Nền tảng MLOps cho triển khai khoa học dữ liệu và máy học",
+    "II.I.1": "II.I.1Setup, tổng hợp và chuẩn hóa các công cụ công nghệ phục vụ trung tâm MOC"
+  },
+  "rows": [
+    {
+      "code": "I.A.3.1",
+      "g": "I.A.3",
+      "row": 3,
+      "tpl": {
+        "C": "Xây dựng thiết lập điều phối thích ứng nhanh",
+        "D": "Xây dựng hệ thống vệ tinh cho hệ thống lõi (Dicầu tại khu vực vònản ứng và thích nghi nhanh với thay đổi của thị trường.",
+        "E": "\" Tỉ lệ chuyển đổi từ tài xế nhận Suggestion -> Arrivate tăn\n- m \"",
+        "F": "Nguyễn văn A",
+        "G": "01/06/2026",
+        "H": "08/08/2026",
+        "AA": "Đã hoàn thành Đúng tiến độ",
+        "AB": "Trung bình",
+        "AC": "Thấp",
+        "AD": "Đã đóng",
+        "AE": "Tiếp tục Duy trì (Maintain)",
+        "AF": "KHHĐ 2026",
+        "AJ": "10.Đánh giá An ninh Bảo mật (ANBM)"
+      },
+      "key": "PKD-100",
+      "task": "Xây dựng thiết lập điều phối thích ứng nhanh",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "On-track",
+      "rawPhase": "1.Xác.định.bài.toán.AI",
+      "labels": "I.A.3.Dự.án.0",
+      "assignees": ["Trần Minh", "Đặng Quân"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 1",
+      "kpi": "1. Conversion +3 %",
+      "objective": "Tăng tỉ lệ chuyển đổi đơn hàng",
+      "milestone": "30/11: Golive pilot\n31/12: Đánh giá kết quả",
+      "start": "01/06/2026",
+      "end": "31/12/2026",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Xin phê duyệt L2 và DPO"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Xin phê duyệt L2 và DPO"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        }
+      },
+      "comment": "Risk: Thiếu SA dedicate giai đoạn này",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "I.A.4.1",
+      "g": "I.A.4",
+      "row": 4,
+      "tpl": {
+        "G": "01/06/2026",
+        "H": "31/12/2026",
+        "AA": "Đang thực hiện Đúng tiến độ",
+        "AB": "Cao",
+        "AC": "Thấp",
+        "AD": "Đi tiếp",
+        "AE": "Mở rộng Quy mô (Scale)",
+        "AF": "KHHĐ 2026",
+        "AJ": "8.Tích hợp Software & Event Logging",
+        "AL": "MỤC TIÊU: Phối hợp làm rõ cơ chế trước release với KD, VH\n\nTiến độ:\nĐã clear cơ chế, chỉ số, danh sách merchant sẽ bị ảnh hưởng cho",
+        "AM": "Mục tiêu: \nLàm rõ ảnh hưởng, rủi ro, đưa ra tập merchant pilot"
+      },
+      "key": "PKD-101",
+      "task": "Tối ưu đơn Food & Express theo thời gian thực",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "Off-track",
+      "rawPhase": "6.Đánh.giá.mô.hình",
+      "labels": "I.A.4.Dự.án.1",
+      "assignees": ["Phan Ngọc", "Hồ Ruby", "Lâm Thảo"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 2",
+      "kpi": "1. ETA giảm 10 %",
+      "objective": "Giảm thời gian chờ của khách",
+      "milestone": "",
+      "start": "02/06/2026",
+      "end": "28/02/2027",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp\n• Rà soát bảo mật xong vòng 1",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp\n• Chốt danh sách người dùng pilot với nghiệp vụ\nBlockers:\n• Thiếu SA dedicate giai đoạn này",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp\n• Rà soát bảo mật xong vòng 1",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp\n• Chốt danh sách người dùng pilot với nghiệp vụ\nBlockers:\n• Thiếu SA dedicate giai đoạn này",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "I.A.4.2",
+      "g": "I.A.4",
+      "row": 5,
+      "tpl": {},
+      "key": "PKD-102",
+      "task": "Gợi ý món theo thói quen đặt",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "On-track",
+      "rawPhase": "11.Go-live",
+      "labels": "I.A.4.Dự.án.2",
+      "assignees": ["Lý Phương", "Tạ Sơn", "Vũ Hải"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 1",
+      "kpi": "",
+      "objective": "Tăng thu nhập tài xế",
+      "milestone": "",
+      "start": "03/06/2026",
+      "end": "31/03/2027",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Rà soát bảo mật xong vòng 1",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Rà soát bảo mật xong vòng 1",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "I.A.4.3",
+      "g": "I.A.4",
+      "row": 6,
+      "tpl": { "AN": "Phụ thuộc lịch " },
+      "key": "PKD-103",
+      "task": "Dự báo thời gian chuẩn bị món",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "On-track",
+      "rawPhase": "4.Thiết.kế.giải.pháp",
+      "labels": "I.A.4.Dự.án.3",
+      "assignees": ["Đặng Quân", "Lâm Thảo"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 2",
+      "kpi": "1. Chi phí vận hành giảm 8 %",
+      "objective": "",
+      "milestone": "30/11: Golive pilot\n31/12: Đánh giá kết quả",
+      "start": "04/06/2026",
+      "end": "15/11/2026",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Rà soát bảo mật xong vòng 1\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Rà soát bảo mật xong vòng 1\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "I.A.5.1",
+      "g": "I.A.5",
+      "row": 7,
+      "tpl": {},
+      "key": "PKD-11",
+      "task": "Nền tảng thực nghiệm (experimentation platform)",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "On-track",
+      "rawPhase": "2.Xác.định.yêu.cầu.nghiệp.vụ.chi.tiết",
+      "labels": "I.A.5.AI.Tối.Ưu.Khuyến.Mai&Tối.Ưu.Popup.Notification.Dựa.Trên.Causal.uplift",
+      "assignees": [],
+      "assigneeIdOnly": true,
+      "po": "Lê Ngọc Anh (VSF-KDVHGSM-QLTNKH)",
+      "tl": "",
+      "teamName": "",
+      "kpi": "1. Xây dựng hệ thống tích hợp với backend có thể được cấu hình mục đích kiểm thử hoặc lựa chọn ngẫu nhiên user theo mục đích",
+      "objective": "Nền tảng thựI/ML",
+      "milestone": "31/10: (STAGING) Chạy tdđup lif\n15/11: (PROD) Chạy tượI (test backend, chưa có frontend)\n31/12: Nghi kết quả.",
+      "start": "01/06/2026",
+      "end": "31/12/2026",
+      "pr": [
+        {
+          "date": "2026-09-11",
+          "done": "• Define với PO success metric của Platform, mục tiêu các Phase 01 & 02\n• Đang hoàn thiện tài liệu L1, L2\n• Đã hoàn thiện tài liệu: data model, data pipeline computing.",
+          "plan": "• Hoàn thiện tài liệu L1, L2.\n• Tài liệu L3 các module thuộc scope của DS.\n• Tài liệu phương pháp luận giải quyết các vấn đề critical của Platform."
+        },
+        {
+          "date": "2026-09-18",
+          "done": "Tiến độ:\n• Các tài liệu PRD, L1, L2 đã có version 1.0\n• Đã audit các repo code của hệ thống cũ, để đưa ra pros & cons của repo cũ, từ đó đưa ra phương án tái sử dụng những phần cần thiết.\n• Đã hoàn thiện tài liệu về vấn đề Overlapping Experiment.",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu PRD, L1, L2.\n• Bổ sung tiếp các tài liệu liên quan đến các vấn đề critical."
+        },
+        {
+          "date": "2026-09-25",
+          "done": "Tiến độ:\n• Đã bổ sung các tài liệu PRD, L1, L2 bản đầy đủ hơn.\n• Phần solution cho các critical problem đã thêm các phần:\n   – Targeting & Online RCT\n   – Overlapping Exp & Layer Registry\n   – Metric Layer Registry\n   – Switchback desgin",
+          "plan": "Mục tiêu:\n• Xin trình duyệt dự án tới các cấp cao hơn và các bên như ANBM, SA, Devops\n• Bổ sung & chỉnh sửa thêm tài liệu đã viết."
+        },
+        {
+          "date": "2026-10-02",
+          "done": "Tiến độ:\n• Đã raise các vấn đề liên quan đến xin resource và việc truy cập data GSM 360 lên các cấp cao hơn.\n• Dự án đã lên timeline các đầu việc nhỏ để đạt tiến độ.",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu L1, L2"
+        },
+        {
+          "date": "2026-10-09",
+          "done": "Tiến độ:\n• Dự án đã raise vấn đề thiếu SA dedicate giai đoạn này.\n• Phía BE đã bắt đầu code phần việc liên quan như chức năng phân nhánh - E3-01, AI code phần computing pipeline - E1-02, phương án Metric onboarding",
+          "plan": "Mục tiêu:\n• SA hoàn thiện L1, L2 để bắt đầu luồng xin phê duyệt với PTNT\n• Tiếp tục các đầu việc của BE, AI theo tiến độ đặt ra trong -"
+        },
+        {
+          "date": "2026-10-16",
+          "done": "Tiến độ:\n• Đã hoàn thiện các tài liệu L1, L2:\n   – L1 -  \n   – L2 -  \n• Đã giải quyết các vấn đề:\n   – Deploy Staging ở đâu, Data lưu ở đâu, hạ tầng tính toán ở đâu.\n   – Việc consume Event tracking của Exp-platform.\n• Đã implement các FR sau:\n   – BE: demo phần tính năng chia nhánh user theo features.\n   – AI: hoàn thiện computing pipeline cho use case Promotion.",
+          "plan": "Mục tiêu:\n• Hoàn thiện review kiến trúc với PTNT, review data với DPO\n• Xin pd cấp tài nguyên cho dự án: Service account, Repo Git\n• Tiếp tục implement các FR của BE, AI."
+        },
+        {
+          "date": "2026-10-30",
+          "done": "Tiến độ:\n• Trong quá trình review và phản hồi tài liệu L2 - version 2.\n• Đ't-up các phần cần thiết để hỗ trợ Stag các hạng mục này).",
+          "plan": "Mục tiêu:\n• Được p'\n• Xin 'Lops AI.\n• Test tích hợp thông luồng Staging."
+        },
+        {
+          "date": "2026-11-06",
+          "done": "Tiến độ:\n• Giải quyết các vấn đề liên quan kết nố'view DPO.\n• Test luồng từ BE SDK → Event trackin'\n• Đã dựng Stag FE + BE, các domain của platform.",
+          "plan": "Mục tiêu:\n• Được phê duyệt L2, DPO, cấp duyệt t'uction.\n• Implement các Function của Phase 02."
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-06",
+          "done": "Tiến độ:\n• Giải quyết các vấn đề liên quan kết nố'view DPO.\n• Test luồng từ BE SDK → Event trackin'\n• Đã dựng Stag FE + BE, các domain của platform.",
+          "plan": "Mục tiêu:\n• Được phê duyệt L2, DPO, cấp duyệt t'uction.\n• Implement các Function của Phase 02."
+        }
+      },
+      "comment": "2026-10-07 \nRisk: Nhân sự SA viết L1, L2 n mềm assign lại SA\n→ chậm phía phần p với team AI\n→ chậm đc truy data từ 360",
+      "priority": "High",
+      "updated": "06/11/2026",
+      "real": true,
+      "dup": false
+    },
+    {
+      "code": "I.A.5.2",
+      "g": "I.A.5",
+      "row": 8,
+      "tpl": {},
+      "key": "PKD-105",
+      "task": "Tối ưu popup thông báo theo causal uplift",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "Off-track",
+      "rawPhase": "2.Xác.định.yêu.cầu.nghiệp.vụ.chi.tiết",
+      "labels": "I.A.5.Dự.án.5",
+      "assignees": ["Tạ Sơn", "Ngô Khánh", "Trần Minh"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 2",
+      "kpi": "1. ETA giảm 10 %",
+      "objective": "Tăng tỉ lệ chuyển đổi đơn hàng",
+      "milestone": "",
+      "start": "06/06/2026",
+      "end": "31/12/2026",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Xin phê duyệt L2 và DPO"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review\n• Đã bàn giao API cho đội tích hợp\nBlockers:\n• Thiếu SA dedicate giai đoạn này",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Xin phê duyệt L2 và DPO"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review\n• Đã bàn giao API cho đội tích hợp\nBlockers:\n• Thiếu SA dedicate giai đoạn này",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        }
+      },
+      "comment": "Risk: Chờ phê duyệt ANBM, DPO",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "I.A.5.3",
+      "g": "I.A.5",
+      "row": 9,
+      "tpl": {},
+      "key": "PKD-106",
+      "task": "Cá nhân hóa ưu đãi theo phân khúc",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "On-track",
+      "rawPhase": "7.Phát.triển.phần.mềm",
+      "labels": "I.A.5.Dự.án.6",
+      "assignees": ["Lâm Thảo", "Mai Linh"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 1",
+      "kpi": "1. GMV +5 %\n2. CSAT ≥ 4,7",
+      "objective": "Giảm thời gian chờ của khách",
+      "milestone": "30/11: Golive pilot\n31/12: Đánh giá kết quả",
+      "start": "01/06/2026",
+      "end": "28/02/2027",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Xin phê duyệt L2 và DPO"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Xin phê duyệt L2 và DPO"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "I.A.6.1",
+      "g": "I.A.6",
+      "row": 10,
+      "tpl": {},
+      "key": "PKD-107",
+      "task": "Phát hiện chuyến đi bất thường",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "On-track",
+      "rawPhase": "TBD",
+      "labels": "I.A.6.Dự.án.7",
+      "assignees": ["Vũ Hải", "Trần Minh", "Lý Phương"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 2",
+      "kpi": "",
+      "objective": "Tăng thu nhập tài xế",
+      "milestone": "",
+      "start": "02/06/2026",
+      "end": "31/03/2027",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review\n• Đã bàn giao API cho đội tích hợp",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp\n• Rà soát bảo mật xong vòng 1",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review\n• Đã bàn giao API cho đội tích hợp",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp\n• Rà soát bảo mật xong vòng 1",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "I.A.6.2",
+      "g": "I.A.6",
+      "row": 11,
+      "tpl": {},
+      "key": "PKD-108",
+      "task": "Xác thực danh tính tài xế bằng khuôn mặt",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "On-track",
+      "rawPhase": "5.Huấn.luyện.mô.hình",
+      "labels": "I.A.6.Dự.án.8",
+      "assignees": ["Ngô Khánh", "Phan Ngọc", "Đặng Quân"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 1",
+      "kpi": "1. Conversion +3 %",
+      "objective": "Giảm chi phí vận hành",
+      "milestone": "",
+      "start": "03/06/2026",
+      "end": "15/11/2026",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "I.A.6.3",
+      "g": "I.A.6",
+      "row": 12,
+      "tpl": {},
+      "key": "PKD-109",
+      "task": "Cá nhân hóa trang chủ ứng dụng",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "Off-track",
+      "rawPhase": "10.Đánh.giá.ANBM",
+      "labels": "I.A.6.Dự.án.9",
+      "assignees": ["Mai Linh", "Lý Phương"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 2",
+      "kpi": "1. ETA giảm 10 %",
+      "objective": "Nâng chất lượng dịch vụ",
+      "milestone": "30/11: Golive pilot\n31/12: Đánh giá kết quả",
+      "start": "04/06/2026",
+      "end": "30/06/2027",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Rà soát bảo mật xong vòng 1\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review\nBlockers:\n• Thiếu SA dedicate giai đoạn này",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Rà soát bảo mật xong vòng 1\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review\nBlockers:\n• Thiếu SA dedicate giai đoạn này",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "I.C.1.1",
+      "g": "I.C.1",
+      "row": 13,
+      "tpl": {},
+      "key": "PKD-110",
+      "task": "Dự báo cầu theo ô lưới 15 phút",
+      "rawStatus": "TO DO",
+      "rawProgress": "On-track",
+      "rawPhase": "1.Xác.định.bài.toán.AI",
+      "labels": "I.C.1.Dự.án.10",
+      "assignees": ["Trần Minh", "Đặng Quân", "Tạ Sơn"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 1",
+      "kpi": "1. GMV +5 %\n2. CSAT ≥ 4,7",
+      "objective": "",
+      "milestone": "",
+      "start": "05/06/2026",
+      "end": "31/12/2026",
+      "pr": [
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        }
+      ],
+      "prw": {
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        }
+      },
+      "comment": "Risk: Dữ liệu nguồn chưa đủ nhãn",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "I.C.1.2",
+      "g": "I.C.1",
+      "row": 14,
+      "tpl": {},
+      "key": "PKD-111",
+      "task": "Điều phối cung – cầu, phát cuốc",
+      "rawStatus": "TO DO",
+      "rawProgress": "On-track",
+      "rawPhase": "2.Xác.định.yêu.cầu.nghiệp.vụ.chi.tiết",
+      "labels": "I.C.1.Dự.án.11",
+      "assignees": ["Phan Ngọc", "Hồ Ruby", "Lâm Thảo"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 2",
+      "kpi": "1. Chi phí vận hành giảm 8 %",
+      "objective": "Giảm thời gian chờ của khách",
+      "milestone": "",
+      "start": "06/06/2026",
+      "end": "28/02/2027",
+      "pr": [
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Rà soát bảo mật xong vòng 1\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Xin phê duyệt L2 và DPO"
+        }
+      ],
+      "prw": {
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Rà soát bảo mật xong vòng 1\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Xin phê duyệt L2 và DPO"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "I.C.1.3",
+      "g": "I.C.1",
+      "row": 15,
+      "tpl": {},
+      "key": "PKD-112",
+      "task": "Dự báo nhu cầu theo khung giờ",
+      "rawStatus": "DONE",
+      "rawProgress": "On-track",
+      "rawPhase": "N/A",
+      "labels": "I.C.1.Dự.án.12",
+      "assignees": ["Lý Phương", "Tạ Sơn"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 1",
+      "kpi": "",
+      "objective": "Tăng thu nhập tài xế",
+      "milestone": "30/11: Golive pilot\n31/12: Đánh giá kết quả",
+      "start": "01/06/2026",
+      "end": "31/03/2027",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%",
+          "plan": "Mục tiêu:\n• Xin phê duyệt L2 và DPO"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%",
+          "plan": "Mục tiêu:\n• Xin phê duyệt L2 và DPO"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "I.C.1.4",
+      "g": "I.C.1",
+      "row": 16,
+      "tpl": {},
+      "key": "PKD-113",
+      "task": "Gợi ý điểm đón tối ưu",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "Off-track",
+      "rawPhase": "6.Đánh.giá.mô.hình",
+      "labels": "I.C.1.Dự.án.13",
+      "assignees": ["Đặng Quân", "Lâm Thảo", "Ngô Khánh"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 2",
+      "kpi": "1. ETA giảm 10 %",
+      "objective": "Giảm chi phí vận hành",
+      "milestone": "",
+      "start": "02/06/2026",
+      "end": "15/11/2026",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review\n• Đã bàn giao API cho đội tích hợp",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp\n• Rà soát bảo mật xong vòng 1\nBlockers:\n• Thiếu SA dedicate giai đoạn này",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review\n• Đã bàn giao API cho đội tích hợp",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp\n• Rà soát bảo mật xong vòng 1\nBlockers:\n• Thiếu SA dedicate giai đoạn này",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "I.C.1.5",
+      "g": "I.C.1",
+      "row": 17,
+      "tpl": {},
+      "key": "PKD-114",
+      "task": "Tái phân bổ tài xế giờ cao điểm",
+      "rawStatus": "PENDING",
+      "rawProgress": "On-track",
+      "rawPhase": "11.Go-live",
+      "labels": "I.C.1.Dự.án.14",
+      "assignees": ["Hồ Ruby", "Vũ Hải", "Mai Linh"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 1",
+      "kpi": "1. GMV +5 %\n2. CSAT ≥ 4,7",
+      "objective": "Nâng chất lượng dịch vụ",
+      "milestone": "",
+      "start": "03/06/2026",
+      "end": "30/06/2027",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "I.C.1.6",
+      "g": "I.C.1",
+      "row": 18,
+      "tpl": {},
+      "key": "PKD-115",
+      "task": "Ghép chuyến đi chung",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "On-track",
+      "rawPhase": "4.Thiết.kế.giải.pháp",
+      "labels": "I.C.1.Dự.án.15",
+      "assignees": ["Tạ Sơn", "Ngô Khánh"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 2",
+      "kpi": "1. Chi phí vận hành giảm 8 %",
+      "objective": "Tăng tỉ lệ chuyển đổi đơn hàng",
+      "milestone": "30/11: Golive pilot\n31/12: Đánh giá kết quả",
+      "start": "04/06/2026",
+      "end": "31/12/2026",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp\n• Rà soát bảo mật xong vòng 1",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp\n• Rà soát bảo mật xong vòng 1",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        }
+      },
+      "comment": "Risk: Chờ cấp tài nguyên GPU",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "I.C.1.7",
+      "g": "I.C.1",
+      "row": 19,
+      "tpl": {},
+      "key": "PKD-116",
+      "task": "Ước tính ETA cho chuyến đặt trước",
+      "rawStatus": "MONITORING",
+      "rawProgress": "On-track",
+      "rawPhase": "11.Go-live",
+      "labels": "I.C.1.Dự.án.16",
+      "assignees": ["Lâm Thảo", "Mai Linh", "Phan Ngọc"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 1",
+      "kpi": "1. Conversion +3 %",
+      "objective": "Giảm thời gian chờ của khách",
+      "milestone": "",
+      "start": "05/06/2026",
+      "end": "28/02/2027",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "I.C.1.9",
+      "g": "I.C.1",
+      "row": 20,
+      "tpl": {},
+      "key": "PKD-117",
+      "task": "Mô phỏng chính sách điều phối",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "Off-track",
+      "rawPhase": "2.Xác.định.yêu.cầu.nghiệp.vụ.chi.tiết",
+      "labels": "I.C.1.Dự.án.17",
+      "assignees": ["Vũ Hải", "Trần Minh", "Lý Phương"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 2",
+      "kpi": "",
+      "objective": "",
+      "milestone": "",
+      "start": "06/06/2026",
+      "end": "31/03/2027",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Rà soát bảo mật xong vòng 1\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Xin phê duyệt L2 và DPO"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp\nBlockers:\n• Thiếu SA dedicate giai đoạn này",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Rà soát bảo mật xong vòng 1\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Xin phê duyệt L2 và DPO"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp\nBlockers:\n• Thiếu SA dedicate giai đoạn này",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "I.C.1.10",
+      "g": "I.C.1",
+      "row": 21,
+      "tpl": {},
+      "key": "PKD-118",
+      "task": "Thưởng tài xế theo vùng thiếu cung",
+      "rawStatus": "CANCELED",
+      "rawProgress": "On-track",
+      "rawPhase": "7.Phát.triển.phần.mềm",
+      "labels": "I.C.1.Dự.án.18",
+      "assignees": ["Ngô Khánh", "Phan Ngọc"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 1",
+      "kpi": "1. GMV +5 %\n2. CSAT ≥ 4,7",
+      "objective": "Giảm chi phí vận hành",
+      "milestone": "30/11: Golive pilot\n31/12: Đánh giá kết quả",
+      "start": "01/06/2026",
+      "end": "15/11/2026",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Rà soát bảo mật xong vòng 1",
+          "plan": "Mục tiêu:\n• Xin phê duyệt L2 và DPO"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Rà soát bảo mật xong vòng 1",
+          "plan": "Mục tiêu:\n• Xin phê duyệt L2 và DPO"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "I.C.1.11",
+      "g": "I.C.1",
+      "row": 22,
+      "tpl": {},
+      "key": "PKD-119",
+      "task": "Cảnh báo thiếu cung sớm",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "On-track",
+      "rawPhase": "TBD",
+      "labels": "I.C.1.Dự.án.19",
+      "assignees": ["Mai Linh", "Lý Phương", "Hồ Ruby"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 2",
+      "kpi": "1. Chi phí vận hành giảm 8 %",
+      "objective": "Nâng chất lượng dịch vụ",
+      "milestone": "",
+      "start": "02/06/2026",
+      "end": "30/06/2027",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review\n• Đã bàn giao API cho đội tích hợp",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review\n• Đã bàn giao API cho đội tích hợp",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "I.C.1.12",
+      "g": "I.C.1",
+      "row": 23,
+      "tpl": {},
+      "key": "PKD-120",
+      "task": "Tối ưu bán kính tìm tài xế",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "On-track",
+      "rawPhase": "5.Huấn.luyện.mô.hình",
+      "labels": "I.C.1.Dự.án.20",
+      "assignees": ["Trần Minh", "Đặng Quân", "Tạ Sơn"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 1",
+      "kpi": "1. Conversion +3 %",
+      "objective": "Tăng tỉ lệ chuyển đổi đơn hàng",
+      "milestone": "",
+      "start": "03/06/2026",
+      "end": "31/12/2026",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        }
+      },
+      "comment": "Risk: Thiếu SA dedicate giai đoạn này",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "I.C.1.13",
+      "g": "I.C.1",
+      "row": 24,
+      "tpl": {},
+      "key": "PKD-121",
+      "task": "Ưu tiên cuốc theo chất lượng tài xế",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "Off-track",
+      "rawPhase": "10.Đánh.giá.ANBM",
+      "labels": "I.C.1.Dự.án.21",
+      "assignees": ["Phan Ngọc", "Hồ Ruby"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 2",
+      "kpi": "1. ETA giảm 10 %",
+      "objective": "Giảm thời gian chờ của khách",
+      "milestone": "30/11: Golive pilot\n31/12: Đánh giá kết quả",
+      "start": "04/06/2026",
+      "end": "28/02/2027",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review\n• Đã bàn giao API cho đội tích hợp",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp\n• Rà soát bảo mật xong vòng 1",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%\nBlockers:\n• Thiếu SA dedicate giai đoạn này",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review\n• Đã bàn giao API cho đội tích hợp",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp\n• Rà soát bảo mật xong vòng 1",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%\nBlockers:\n• Thiếu SA dedicate giai đoạn này",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "I.C.1.14",
+      "g": "I.C.1",
+      "row": 25,
+      "tpl": {},
+      "key": "PKD-122",
+      "task": "Dashboard theo dõi cung – cầu",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "On-track",
+      "rawPhase": "3.Khảo.sát.dữ.liệu",
+      "labels": "I.C.1.Dự.án.22",
+      "assignees": ["Lý Phương", "Tạ Sơn", "Vũ Hải"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 1",
+      "kpi": "",
+      "objective": "Tăng thu nhập tài xế",
+      "milestone": "",
+      "start": "05/06/2026",
+      "end": "31/03/2027",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "I.C.2.1",
+      "g": "I.C.2",
+      "row": 26,
+      "tpl": {},
+      "key": "PKD-123",
+      "task": "Tối ưu định giá dịch vụ Ride",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "Not tracking",
+      "rawPhase": "8.Tích.hợp.Software.&.Event.Logging",
+      "labels": "I.C.2.Dự.án.23",
+      "assignees": ["Đặng Quân", "Lâm Thảo", "Ngô Khánh"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 2",
+      "kpi": "1. Chi phí vận hành giảm 8 %",
+      "objective": "Giảm chi phí vận hành",
+      "milestone": "",
+      "start": "06/06/2026",
+      "end": "15/11/2026",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Xin phê duyệt L2 và DPO"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Rà soát bảo mật xong vòng 1\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Xin phê duyệt L2 và DPO"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Rà soát bảo mật xong vòng 1\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "I.C.2.2",
+      "g": "I.C.2",
+      "row": 27,
+      "tpl": {},
+      "key": "PKD-124",
+      "task": "Thử nghiệm giá động theo vùng",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "On-track",
+      "rawPhase": "1.Xác.định.bài.toán.AI",
+      "labels": "I.C.2.Dự.án.24",
+      "assignees": ["Hồ Ruby", "Vũ Hải"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 1",
+      "kpi": "1. Conversion +3 %",
+      "objective": "",
+      "milestone": "30/11: Golive pilot\n31/12: Đánh giá kết quả",
+      "start": "01/06/2026",
+      "end": "30/06/2027",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp",
+          "plan": "Mục tiêu:\n• Xin phê duyệt L2 và DPO"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Rà soát bảo mật xong vòng 1",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp",
+          "plan": "Mục tiêu:\n• Xin phê duyệt L2 và DPO"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Rà soát bảo mật xong vòng 1",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "I.C.2.3",
+      "g": "I.C.2",
+      "row": 28,
+      "tpl": {},
+      "key": "PKD-125",
+      "task": "Định giá cho dịch vụ giao hàng",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "Off-track",
+      "rawPhase": "6.Đánh.giá.mô.hình",
+      "labels": "I.C.2.Dự.án.25",
+      "assignees": ["Tạ Sơn", "Ngô Khánh", "Trần Minh"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 2",
+      "kpi": "1. ETA giảm 10 %",
+      "objective": "Tăng tỉ lệ chuyển đổi đơn hàng",
+      "milestone": "",
+      "start": "02/06/2026",
+      "end": "31/12/2026",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Rà soát bảo mật xong vòng 1\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra\nBlockers:\n• Thiếu SA dedicate giai đoạn này",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Rà soát bảo mật xong vòng 1\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra\nBlockers:\n• Thiếu SA dedicate giai đoạn này",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        }
+      },
+      "comment": "Risk: Chờ phê duyệt ANBM, DPO",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "II.A.1.1",
+      "g": "II.A.1",
+      "row": 29,
+      "tpl": {},
+      "key": "PKD-126",
+      "task": "Chấm điểm chất lượng tài xế",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "On-track",
+      "rawPhase": "11.Go-live",
+      "labels": "II.A.1.Dự.án.26",
+      "assignees": ["Lâm Thảo", "Mai Linh", "Phan Ngọc"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 1",
+      "kpi": "1. GMV +5 %\n2. CSAT ≥ 4,7",
+      "objective": "Giảm thời gian chờ của khách",
+      "milestone": "",
+      "start": "03/06/2026",
+      "end": "28/02/2027",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "II.A.2.1",
+      "g": "II.A.2",
+      "row": 30,
+      "tpl": {},
+      "key": "PKD-127",
+      "task": "AI hỗ trợ tài xế (Data Science)",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "On-track",
+      "rawPhase": "4.Thiết.kế.giải.pháp",
+      "labels": "II.A.2.Dự.án.27",
+      "assignees": ["Vũ Hải", "Trần Minh"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 2",
+      "kpi": "",
+      "objective": "Tăng thu nhập tài xế",
+      "milestone": "30/11: Golive pilot\n31/12: Đánh giá kết quả",
+      "start": "04/06/2026",
+      "end": "31/03/2027",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review\n• Đã bàn giao API cho đội tích hợp",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp\n• Rà soát bảo mật xong vòng 1",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review\n• Đã bàn giao API cho đội tích hợp",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp\n• Rà soát bảo mật xong vòng 1",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "II.A.2.2",
+      "g": "II.A.2",
+      "row": 31,
+      "tpl": {},
+      "key": "PKD-128",
+      "task": "Cảnh báo hành vi lái xe bất thường",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "On-track",
+      "rawPhase": "9.Kiểm.thử.UAT",
+      "labels": "II.B.1.Quản.lý.phương.tiện",
+      "assignees": ["Ngô Khánh", "Phan Ngọc", "Đặng Quân"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 1",
+      "kpi": "1. Conversion +3 %",
+      "objective": "Giảm chi phí vận hành",
+      "milestone": "",
+      "start": "05/06/2026",
+      "end": "15/11/2026",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "II.B.1.1",
+      "g": "II.B.1",
+      "row": 32,
+      "tpl": {},
+      "key": "PKD-129",
+      "task": "Lịch bảo dưỡng dự đoán",
+      "rawStatus": "TO DO",
+      "rawProgress": "Off-track",
+      "rawPhase": "2.Xác.định.yêu.cầu.nghiệp.vụ.chi.tiết",
+      "labels": "II.B.1.Dự.án.29",
+      "assignees": ["Mai Linh", "Lý Phương", "Hồ Ruby"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 2",
+      "kpi": "1. ETA giảm 10 %",
+      "objective": "Nâng chất lượng dịch vụ",
+      "milestone": "",
+      "start": "06/06/2026",
+      "end": "30/06/2027",
+      "pr": [
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp\n• Rà soát bảo mật xong vòng 1",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%\nBlockers:\n• Thiếu SA dedicate giai đoạn này",
+          "plan": "Mục tiêu:\n• Xin phê duyệt L2 và DPO"
+        }
+      ],
+      "prw": {
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp\n• Rà soát bảo mật xong vòng 1",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%\nBlockers:\n• Thiếu SA dedicate giai đoạn này",
+          "plan": "Mục tiêu:\n• Xin phê duyệt L2 và DPO"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "II.D.1.2",
+      "g": "II.D.1",
+      "row": 33,
+      "tpl": {},
+      "key": "PKD-130",
+      "task": "Chấm điểm tin cậy người bán",
+      "rawStatus": "TO DO",
+      "rawProgress": "On-track",
+      "rawPhase": "1.Xác.định.bài.toán.AI",
+      "labels": "II.D.1.Dự.án.30",
+      "assignees": ["Trần Minh", "Đặng Quân"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 1",
+      "kpi": "1. GMV +5 %\n2. CSAT ≥ 4,7",
+      "objective": "Tăng tỉ lệ chuyển đổi đơn hàng",
+      "milestone": "30/11: Golive pilot\n31/12: Đánh giá kết quả",
+      "start": "01/06/2026",
+      "end": "31/12/2026",
+      "pr": [
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Xin phê duyệt L2 và DPO"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        }
+      ],
+      "prw": {
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Xin phê duyệt L2 và DPO"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        }
+      },
+      "comment": "Risk: Dữ liệu nguồn chưa đủ nhãn",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "II.D.2.1",
+      "g": "II.D.2",
+      "row": 34,
+      "tpl": {},
+      "key": "PKD-131",
+      "task": "AI quản trị nội bộ",
+      "rawStatus": "DONE",
+      "rawProgress": "On-track",
+      "rawPhase": "12.Đánh.giá.sau.Go-live",
+      "labels": "II.D.2.Dự.án.31",
+      "assignees": ["Phan Ngọc", "Hồ Ruby", "Lâm Thảo"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 2",
+      "kpi": "1. Chi phí vận hành giảm 8 %",
+      "objective": "",
+      "milestone": "",
+      "start": "02/06/2026",
+      "end": "28/02/2027",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Rà soát bảo mật xong vòng 1\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Rà soát bảo mật xong vòng 1\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "II.D.2.1",
+      "g": "II.D.2",
+      "row": 35,
+      "tpl": {},
+      "key": "PKD-132",
+      "task": "AI quản trị nội bộ",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "On-track",
+      "rawPhase": "5.Huấn.luyện.mô.hình",
+      "labels": "II.D.2.Dự.án.32",
+      "assignees": ["Lý Phương", "Tạ Sơn", "Vũ Hải"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 1",
+      "kpi": "",
+      "objective": "Tăng thu nhập tài xế",
+      "milestone": "",
+      "start": "03/06/2026",
+      "end": "31/03/2027",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Rà soát bảo mật xong vòng 1",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Rà soát bảo mật xong vòng 1",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": true
+    },
+    {
+      "code": "II.D.2.2",
+      "g": "II.D.2",
+      "row": 36,
+      "tpl": {},
+      "key": "PKD-133",
+      "task": "Trợ lý tra cứu chính sách nội bộ",
+      "rawStatus": "PENDING",
+      "rawProgress": "Off-track",
+      "rawPhase": "10.Đánh.giá.ANBM",
+      "labels": "II.D.2.Dự.án.33",
+      "assignees": ["Đặng Quân", "Lâm Thảo"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 2",
+      "kpi": "1. ETA giảm 10 %",
+      "objective": "Giảm chi phí vận hành",
+      "milestone": "30/11: Golive pilot\n31/12: Đánh giá kết quả",
+      "start": "04/06/2026",
+      "end": "15/11/2026",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review\n• Đã bàn giao API cho đội tích hợp\nBlockers:\n• Thiếu SA dedicate giai đoạn này",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review\n• Đã bàn giao API cho đội tích hợp\nBlockers:\n• Thiếu SA dedicate giai đoạn này",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "II.E.1.1",
+      "g": "II.E.1",
+      "row": 37,
+      "tpl": {},
+      "key": "PKD-134",
+      "task": "Chuẩn hóa pipeline huấn luyện mô hình",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "On-track",
+      "rawPhase": "3.Khảo.sát.dữ.liệu",
+      "labels": "II.E.1.Dự.án.34",
+      "assignees": ["Hồ Ruby", "Vũ Hải", "Mai Linh"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 1",
+      "kpi": "1. GMV +5 %\n2. CSAT ≥ 4,7",
+      "objective": "Nâng chất lượng dịch vụ",
+      "milestone": "",
+      "start": "05/06/2026",
+      "end": "30/06/2027",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "II.E.1.2",
+      "g": "II.E.1",
+      "row": 38,
+      "tpl": {},
+      "key": "PKD-39",
+      "task": "Optimize model development and deployment on ML platform",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "On-track",
+      "rawPhase": "TBD",
+      "labels": "II.E.1.Nền.Tảng.MLOPs.Phục.Vụ.Triển.Khai&Vận.hàng.AI/ML",
+      "assignees": [],
+      "assigneeIdOnly": true,
+      "po": "",
+      "tl": "",
+      "teamName": "",
+      "kpi": "1. Tự động hóa 100% quy trình deploy model lên STAG và PROD\n2. Production-ready Self-hosted vLLM Serving\n3. Đảm bảo 100% các tiêu chuẩn kỹ thuật được triển khai trên Prod (Quality & Governance Guardrails)",
+      "objective": "Chuẩn hódtính sẵn uyên và hiệu năng phục vụ cao.",
+      "milestone": "31/10: Giảm thdroonal ML (KR1)\n31/12: Optidorm (KR2 + KR3)",
+      "start": "08/08/2026",
+      "end": "31/12/2026",
+      "pr": [
+        {
+          "date": "2026-09-11",
+          "done": "AWS:\n• Chuyển các service sang platform node group - 100% - LADP-319\n• Cấu hình firewall cho Kong Admin trên staging - 100% - LADP-407\n• Dựng MLOPS platform - 70% - LADP-398\nGCP:\n• Setup Monitor system cho các instance - 100% - LADP-349\n• Disable unused SAs - 50% - LADP-348 \n• Setup - Phân quyền trên dev Instances - 80% - LADP-406 (Còn phần liên quan đến các cấu hình để không bị Wiz quét)",
+          "plan": "AWS: \n• Tiếp tục setup Kong cho service Express Clipboard(team Nho)\n• Review setup CI/CD pipeline cho Driver Assisstant(team Kien)\n• Tiếp tục Dựng MLOPS platform\n'GCP:\n• Tiếp tục fix vul, secrete keys"
+        },
+        {
+          "date": "2026-09-18",
+          "done": "Mục tiêu:\n• Hoàn thiện luồng CI/CD deploy model theo yêu cầu mới của PTNT (KR1)\n   – Setup MLflow on AWS with GCP WIF, LADP-465\n   – Set up CI/CD to retrieve the digest of the image built by the runner and attach it to the staging Merge Request, LADP-460 \n   – Applied research and development kyverno, LADP-463\n   – Applied research and development Istio federation, LADP-464\n• Production-ready Self-hosted vLLM Serving:\n   – Nghiên cứu cài đặt KServe để chạy service vLLM  \nTiến độ:\n• Hoàn thiện luồng CI/CD deploy model theo yêu cầu mới của PTNT: hoàn thành 40%\n• Production-ready Self-hosted vLLM Serving: hoàn thành 20%",
+          "plan": "• Tiếp tục hoành thiện luông CI/CD deploy model\n• Tiếp tục triển khai vLLM serving"
+        },
+        {
+          "date": "2026-09-25",
+          "done": "Mục tiêu:\n• Hoàn thiện luồng CI/CD deploy model theo yêu cầu mới của PTNT (KR1)\n   – Configure production MLflow UI OIDC access for non-admin users  -  \n   – Investigate setting up a push model registry to the bucket service from the S3 training bucket.   -  \n   – rà soát khai báo lỗi gitlab: -  \n   – tạo và move các subgroup: -  \n• Production-ready Self-hosted vLLM Serving:\n   – Nghiên cứu cài đặt KServe để chạy service vLLM -  \nTiến độ:\n• Hoàn thiện luồng CI/CD deploy model theo yêu cầu mới của PTNT: hoàn thành 50%\n• Production-ready Self-hosted vLLM Serving: hoàn thành 30%",
+          "plan": "• Tiếp tục hoành thiện luông CI/CD deploy model\n• Tiếp tục triển khai vLLM serving"
+        },
+        {
+          "date": "2026-10-02",
+          "done": "Mục tiêu:\n• Hoàn thiện luồng CI/CD deploy model theo yêu cầu mới của PTNT (KR1)\n   – Rà soát khai báo lỗi repo gitlab: -   \n   – Triển khai luồng CI/CD lên STAG theo tiêu chuẩn PTNT -  \nTiến độ:\n• Hoàn thiện luồng CI/CD deploy model theo yêu cầu mới của PTNT (KR1)\n   – Rà soát khai báo lỗi repo gitlab: hiên tại 100% lỗi đã fix theo quy chuẩn hiện tại của PTNT\n   – Triển khai luồng CI/CD lên STAG: Đã triển khai được cho 4/8 repos",
+          "plan": ""
+        },
+        {
+          "date": "2026-10-10",
+          "done": "Mục tiêu:\n• Triển khai luồng CI/CD lên STAG theo tiêu chuẩn PTNT -  \n• Hoàn thiện tài liệu kiến trúc:  \nTiến độ:\n• Hoàn thiện tài liệu kiến trúc: hoàn thành 60%\n• Triển khai luồng CI/CD lên STAG theo tiêu chuẩn PTN: hoàn thành 100%",
+          "plan": "• Hoàn thiện tài liệu kiến trúc:"
+        },
+        {
+          "date": "2026-10-16",
+          "done": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc:  \nTiến độ:\n• Hoàn thiện tài liệu kiến trúc: đã submit tài liệu trên vin3s, đang update kiến trúc theo comment của team kiến trúc.",
+          "plan": "•"
+        },
+        {
+          "date": "2026-10-23",
+          "done": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc: \nTiến độ:\n• Hoàn thiện tài liệu kiến trúc: resolved hết các comments từ team Kiến trúc,",
+          "plan": "• Tiếp tục phối hợp với team kiến trúc hoàn thiện kiến trúc hệ thống\n• Phát triển công cụ đo thời gian từ khi mô hình được phê duyệt đến khi phục vụ trên production."
+        },
+        {
+          "date": "2026-10-30",
+          "done": "Mục tiêu và tiến độ:\n• Thiết kế giả'.net/browse/LADP-398| \n   – Đã được P'F và GSM\nBlockers:\n   – Xin lùi lịch golive sang 15/11 vì phải xin PD DPO và PD ANBM",
+          "plan": "• Tiếp tục xin PD L2, xin PD ANBM, DPO"
+        },
+        {
+          "date": "2026-11-05",
+          "done": "Mục tiêu và tiến độ:\n• Thiết kế giải pháp Nền tảng MLflow: Trac'ới. Jira:",
+          "plan": "submit review ANBM, review':"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Mục tiêu và tiến độ:\n• Thiết kế giải pháp Nền tảng MLflow: Trac'ới. Jira:",
+          "plan": "submit review ANBM, review':"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "06/11/2026",
+      "real": true,
+      "dup": false
+    },
+    {
+      "code": "II.E.1.5",
+      "g": "II.E.1",
+      "row": 39,
+      "tpl": {},
+      "key": "PKD-136",
+      "task": "Dự án II.E.1.5",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "On-track",
+      "rawPhase": "1.Xác.định.bài.toán.AI",
+      "labels": "II.E.1.Dự.án.36",
+      "assignees": ["Lâm Thảo", "Mai Linh"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 1",
+      "kpi": "1. Conversion +3 %",
+      "objective": "Giảm thời gian chờ của khách",
+      "milestone": "30/11: Golive pilot\n31/12: Đánh giá kết quả",
+      "start": "01/06/2026",
+      "end": "28/02/2027",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Xin phê duyệt L2 và DPO"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp",
+          "plan": "Mục tiêu:\n• Xin phê duyệt L2 và DPO"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    },
+    {
+      "code": "II.I.1.7",
+      "g": "II.I.1",
+      "row": 40,
+      "tpl": {},
+      "key": "PKD-137",
+      "task": "Chuẩn hóa công cụ cho trung tâm MOC",
+      "rawStatus": "CANCELED",
+      "rawProgress": "Off-track",
+      "rawPhase": "6.Đánh.giá.mô.hình",
+      "labels": "II.I.1.Dự.án.37",
+      "assignees": ["Vũ Hải", "Trần Minh", "Lý Phương"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 2",
+      "kpi": "",
+      "objective": "Tăng thu nhập tài xế",
+      "milestone": "",
+      "start": "02/06/2026",
+      "end": "31/03/2027",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Rà soát bảo mật xong vòng 1\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review\nBlockers:\n• Thiếu SA dedicate giai đoạn này",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Đã bàn giao API cho đội tích hợp\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Hoàn thiện tài liệu kiến trúc theo góp ý"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Rà soát bảo mật xong vòng 1\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review\nBlockers:\n• Thiếu SA dedicate giai đoạn này",
+          "plan": "Mục tiêu:\n• Tích hợp event logging lên Production"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false,
+      "dup": false
+    }
+  ],
+  "newRows": [
+    {
+      "code": "I.A.7.1",
+      "g": "I.A.7",
+      "row": null,
+      "tpl": {},
+      "dup": false,
+      "isNew": true,
+      "key": "PKD-140",
+      "task": "Trợ lý AI cho chăm sóc khách hàng",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "On-track",
+      "rawPhase": "9.Kiểm.thử.UAT",
+      "labels": "I.A.7.Dự.án.40",
+      "assignees": ["Trần Minh", "Đặng Quân", "Tạ Sơn"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 1",
+      "kpi": "1. Conversion +3 %",
+      "objective": "Tăng tỉ lệ chuyển đổi đơn hàng",
+      "milestone": "",
+      "start": "05/06/2026",
+      "end": "31/12/2026",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Thu thập đủ dữ liệu 3 tháng, làm sạch 80%",
+          "plan": "Mục tiêu:\n• Chạy UAT với nghiệp vụ"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        }
+      },
+      "comment": "Risk: Thiếu SA dedicate giai đoạn này",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false
+    },
+    {
+      "code": "II.B.2.1",
+      "g": "II.B.2",
+      "row": null,
+      "tpl": {},
+      "dup": false,
+      "isNew": true,
+      "key": "PKD-141",
+      "task": "Dự báo hỏng hóc phương tiện",
+      "rawStatus": "IN PROGRESS",
+      "rawProgress": "Off-track",
+      "rawPhase": "2.Xác.định.yêu.cầu.nghiệp.vụ.chi.tiết",
+      "labels": "II.B.2.Dự.án.41",
+      "assignees": ["Phan Ngọc", "Hồ Ruby", "Lâm Thảo"],
+      "po": "",
+      "tl": "",
+      "teamName": "QLTT Khối 2",
+      "kpi": "1. ETA giảm 10 %",
+      "objective": "Giảm thời gian chờ của khách",
+      "milestone": "",
+      "start": "06/06/2026",
+      "end": "28/02/2027",
+      "pr": [
+        {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        },
+        {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review\n• Đã bàn giao API cho đội tích hợp",
+          "plan": "Mục tiêu:\n• Xin phê duyệt L2 và DPO"
+        },
+        {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp\n• Rà soát bảo mật xong vòng 1\nBlockers:\n• Thiếu SA dedicate giai đoạn này",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        }
+      ],
+      "prw": {
+        "w1": {
+          "date": "2026-11-05",
+          "done": "Tiến độ:\n• Chốt danh sách người dùng pilot với nghiệp vụ\n• Hoàn tất đánh giá offline, mô hình đạt ngưỡng đề ra",
+          "plan": "Mục tiêu:\n• Huấn luyện lại mô hình với dữ liệu mới"
+        },
+        "w2": {
+          "date": "2026-11-12",
+          "done": "Tiến độ:\n• Hoàn thiện tài liệu PRD bản 1.0, đã gửi PO review\n• Đã bàn giao API cho đội tích hợp",
+          "plan": "Mục tiêu:\n• Xin phê duyệt L2 và DPO"
+        },
+        "w3": {
+          "date": "2026-11-19",
+          "done": "Tiến độ:\n• Chạy thử nội bộ trên Staging, ghi nhận 3 lỗi tích hợp\n• Rà soát bảo mật xong vòng 1\nBlockers:\n• Thiếu SA dedicate giai đoạn này",
+          "plan": "Mục tiêu:\n• Triển khai A/B test 10% người dùng"
+        }
+      },
+      "comment": "",
+      "priority": "High",
+      "updated": "19/11/2026",
+      "real": false
+    }
+  ],
+  "tempCodes": [
+    "x.x.20",
+    "x.x.10",
+    "I.1.6.5",
+    "x.x.17",
+    "x.x.19",
+    "x.x.21",
+    "x.x.22",
+    "x.x.23",
+    "x.x.24",
+    "x.x.x",
+    "x.x.x",
+    "x.x.x",
+    "I.1.4.1",
+    "I.1.5.5",
+    "I.1.6.1",
+    "I.1.6.6",
+    "I.1.6.10",
+    "I.1.7.1",
+    "I.1.7.2",
+    "I.1.7.3",
+    "I.1.7.4",
+    "I.1.7.5",
+    "I.1.7.6",
+    "I.2.3.1",
+    "I.3.1.1",
+    "I.3.1.2",
+    "I.3.2.1",
+    "I.3.2.2",
+    "I.4.3.1",
+    "I.4.3.2"
+  ],
+  "stagesKnown": {
+    "1": "Xác định bài toán AI & Ý tưởng sản phẩm",
+    "2": "Xác định yêu cầu nghiệp vụ chi tiết (PRD)",
+    "8": "Tích hợp Software & Event Logging",
+    "10": "Đánh giá An ninh Bảo mật (ANBM)",
+    "11": "Phê duyệt & Triển khai Go-Live",
+    "12": "Đánh giá sau Go-Live (Post-Launch Report)"
+  },
+  "phases": [
+    "1.Xác.định.bài.toán.AI",
+    "2.Xác.định.yêu.cầu.nghiệp.vụ.chi.tiết",
+    "3.Khảo.sát.dữ.liệu",
+    "4.Thiết.kế.giải.pháp",
+    "5.Huấn.luyện.mô.hình",
+    "6.Đánh.giá.mô.hình",
+    "7.Phát.triển.phần.mềm",
+    "8.Tích.hợp.Software.&.Event.Logging",
+    "9.Kiểm.thử.UAT",
+    "10.Đánh.giá.ANBM",
+    "11.Go-live",
+    "12.Đánh.giá.sau.Go-live"
+  ]
+}
