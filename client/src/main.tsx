@@ -11,6 +11,7 @@ import './styles/search-edit-test.css';
 import './styles/excel.css';
 import './styles/import-check.css';
 import './styles/refine-risk.css';
+import './styles/refine-v2.css';
 
 applyStoredTheme();
 

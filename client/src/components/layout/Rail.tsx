@@ -9,10 +9,10 @@ import { RailIcon } from '../common/Icons';
 
 const Badge = ({ n, c = '' }: { n: number; c?: string }) => (n ? <span className={'rb ' + c}>{n > 99 ? '99+' : n}</span> : null);
 
-function ViewItem({ v, label, icon, badge, extra = '' }: { v: ViewId; label: string; icon: ReactNode; badge?: ReactNode; extra?: string }) {
+function ViewItem({ v, label, icon, badge, extra = '', also }: { v: ViewId; label: string; icon: ReactNode; badge?: ReactNode; extra?: string; also?: ViewId }) {
   const view = useAppState().view;
   return (
-    <button className={'ri' + (view === v ? ' on' : '') + extra} onClick={() => setView(v)} title={label} aria-current={view === v ? 'page' : undefined}>
+    <button className={'ri' + (view === v ? ' on' : '') + (view === also ? ' on' : '') + extra} onClick={() => setView(v)} title={label} aria-current={view === v ? 'page' : undefined}>
       {icon}{label}{badge}
     </button>
   );
@@ -47,7 +47,7 @@ export function Rail() {
       <PanelItem pn="ai" label="AI" icon={<RailIcon name="ai" />} badge={<Badge n={p} c="a" />} cls="ai" />
       <PanelItem pn="note" label="Ghi chú" icon={<RailIcon name="note" />} badge={<Badge n={openN} />} />
       <span className="rsp" />
-      <ViewItem v="tpl" label="Cấu hình" icon={<RailIcon name="cfg" />} extra=" cfgchip" />
+      <ViewItem v="tlib" label="Mẫu BC" icon={<RailIcon name="tlib" />} extra=" cfgchip" also="tpl" />
     </nav>
   );
 }

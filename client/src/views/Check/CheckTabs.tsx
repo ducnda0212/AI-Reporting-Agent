@@ -58,7 +58,6 @@ export function ColTab({ s, rows, C: c }: TabProps) {
               }) : <tr><td colSpan={5} className="ckempty">Không có cột nào ở mục này.</td></tr>}
             </tbody>
           </table>
-          <p className="cknote">Cột A–H và O–W lấy từ Dữ liệu hệ thống nên không cần khớp ở đây. Lựa chọn được nhớ cho các tuần sau.</p>
         </div>
       </section>
     </>
@@ -140,7 +139,6 @@ export function ValTab({ s, rows }: TabProps) {
               ))}</tbody>
             </table>
           </>}
-          <p className="cknote">Luật quy đổi được nhớ cho các tuần sau.</p>
         </div>
       </section>
     </>
@@ -177,7 +175,6 @@ export function FmtTab({ s }: TabProps) {
     <section className="ckmain">
       <div className="cktool"><b className="ckh2">Làm sạch nội dung lấy từ Jira</b><div className="sp" /><span className="sev2 o">✓ Tự động · {S.all} chỗ</span></div>
       <div className="ckscroll">
-        <p className="cknote" style={{ marginTop: 0 }}>Chỉ đổi cách trình bày, không đổi nội dung. Bản gốc vẫn xem được trong khung soạn ô (nút “Xem bản gốc”).</p>
         <table className="cktb">
           <thead><tr><th>Lỗi định dạng trong file Jira</th><th style={{ width: 250 }}>Chuẩn hoá thành</th><th style={{ width: 80, textAlign: 'right' }}>Số chỗ</th></tr></thead>
           <tbody>
@@ -242,7 +239,6 @@ export function PrjTab({ s, rows, C: c }: TabProps) {
               </div></td></tr>
           );
         })}</tbody></table>
-      <p className="cknote">Đề xuất dựa trên từ khoá trong Summary.</p>
     </>;
   } else if (curI.id === 'dup') {
     det = <>

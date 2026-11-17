@@ -6,7 +6,6 @@ export function LogView() {
     <div className="gridwrap gut" style={{ paddingBlock: 18 }}>
       <div style={{ maxWidth: 1180, margin: '0 auto' }}>
         <h1 style={{ fontSize: 17, fontWeight: 600, margin: '0 0 4px' }}>Nhật ký</h1>
-        <p style={{ fontSize: 12.5, color: 'var(--mut)', margin: '0 0 12px' }}>Ai làm gì, lúc nào, trên dữ liệu tuần này. Mới nhất ở trên.</p>
         <div className="card" style={{ overflowX: 'auto' }}>
           <table className="tb" style={{ width: '100%' }}>
             <thead><tr><th>Giờ</th><th>Hành động</th><th>Đối tượng</th><th>Chi tiết</th><th>Kết quả</th></tr></thead>

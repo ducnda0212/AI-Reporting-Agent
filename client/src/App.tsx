@@ -29,6 +29,7 @@ import { ExecView } from '@/views/Exec/ExecView';
 import { ImportView } from '@/views/Import/ImportView';
 import { LogView } from '@/views/Log/LogView';
 import { RiskView } from '@/views/Risk/RiskView';
+import { TemplateLibView } from '@/views/TemplateLib/TemplateLibView';
 import { TemplateView } from '@/views/Template/TemplateView';
 import { VersionsView } from '@/views/Versions/VersionsView';
 
@@ -41,6 +42,7 @@ function MainView() {
     case 'cat': return <CatalogView />;
     case 'log': return <LogView />;
     case 'tpl': return <TemplateView />;
+    case 'tlib': return <TemplateLibView />;
     case 'ver': return <VersionsView />;
     case 'rid': return <RiskView />;
     default: return <Grid />;

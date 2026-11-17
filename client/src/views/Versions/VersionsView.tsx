@@ -84,7 +84,6 @@ export function VersionsView() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', marginBottom: 14 }}>
           <div style={{ flex: '1 1 320px', minWidth: 0 }}>
             <h1 style={{ fontSize: 17, fontWeight: 600, margin: '0 0 3px' }}>Phiên bản đã chốt</h1>
-            <p style={{ fontSize: 12.5, color: 'var(--mut)', margin: 0, maxWidth: '74ch' }}>Mỗi lần chốt tạo một bản không đổi được; file luôn xuất từ một bản đã chốt. Tuần đã qua chỉ xem.</p>
           </div>
           <button className="btn pri" onClick={openExport}>{canExport ? `Xuất từ v${lc!.v}` : 'Chốt bản mới'}</button>
         </div>
@@ -97,7 +96,7 @@ export function VersionsView() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-start' }}>
           <div className="card" style={{ flex: '1 1 270px', minWidth: 0, maxWidth: 340, padding: 4 }}>
             <div className="vtl">
-              {WEEKS.map((w) => {
+              {WEEKS.filter((w) => !w.future).reverse().map((w) => {
                 const vs: Version[] = all.filter((v) => v.wk === w.k);
                 return (
                   <div key={w.k}>

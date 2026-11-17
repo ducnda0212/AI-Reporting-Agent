@@ -43,8 +43,7 @@ export function docHtml(s: AppState, word = false): string {
       D.nx.map((r, k) => tr([c(k + 1), d(r.code), d(V(r, 'task')), d(aiText(r, 'w3Plan'))])).join(''))
     + bar('6. Ý KIẾN CẦN CHỈ ĐẠO CỦA BAN GIÁM ĐỐC')
     + table([['STT', '5%'], ['Mã DA', '9%'], ['Công việc', '28%'], ['Nội dung cần chỉ đạo', '58%']],
-      D.directives.map((r, k) => tr([c(k + 1), d(r.code), d(V(r, 'task')), d(exOf(s, r).directive!.text)])).join(''))
-    + '<p class="note">Báo cáo lấy từ dữ liệu tuần 3/11, chỉ các dự án có Trạng thái = Đang thực hiện. Mục 4 và 6 chỉ hiện dự án có nội dung. Ô nháp AI chưa duyệt để trống.</p>';
+      D.directives.map((r, k) => tr([c(k + 1), d(r.code), d(V(r, 'task')), d(exOf(s, r).directive!.text)])).join(''));
   const ns = word ? ' xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"' : '';
   return `<!DOCTYPE html><html${ns}><head><meta charset="utf-8"><title>Bao cao dieu hanh PMO tuan 3-11</title><style>${css}</style></head><body>${word ? `<div class="WordSection1">${html}</div>` : html}</body></html>`;
 }

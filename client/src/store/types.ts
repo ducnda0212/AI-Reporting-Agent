@@ -1,7 +1,7 @@
 import type { Catalog, Field, LogEntry, RiskDecision, RiskFilter, Row, Version } from '@/types';
 import type { AskResult } from '@/lib/exec';
 
-export type ViewId = 'import' | 'check' | 'grid' | 'exec' | 'cat' | 'log' | 'tpl' | 'ver' | 'rid';
+export type ViewId = 'import' | 'check' | 'grid' | 'exec' | 'cat' | 'log' | 'tpl' | 'ver' | 'rid' | 'tlib';
 export type PanelId = 'issues' | 'rev' | 'ask' | 'note' | 'ai' | 'project' | null;
 
 export interface Sel { i: number; f: string }
@@ -31,6 +31,12 @@ export interface SysRequest {
 
 export interface ReqForm {
   type: 'new' | 'edit'; code: string; task?: string; g?: string; field?: string; to?: string; reason?: string;
+}
+
+export type TplStatus = 'use' | 'draft' | 'arch';
+export interface Tpl {
+  id: string; name: string; file: string; fmt: 'xlsx' | 'docx'; size: string; st: TplStatus; main?: boolean;
+  used: string; by: string; at: string; desc: string; cols?: string[];
 }
 
 export interface ExDraft { text: string; ok: boolean; why?: string }
@@ -143,6 +149,15 @@ export interface AppState {
   catQ: string;
   catAdmin: boolean;
   reqForm: ReqForm | null;
+
+  /* ---- thư viện mẫu / cấu hình mẫu ---- */
+  tpls: Tpl[];
+  tlFlt: 'all' | TplStatus;
+  tlQ: string;
+  tlDraft: string | null;
+  tpK: string;
+  tpMiss: boolean;
+  tpQ: string;
 
   /* ---- chế độ test ---- */
   test: string | null;

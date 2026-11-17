@@ -120,9 +120,10 @@ export const DEPARTMENT_OF: Record<string, string> = {
 };
 
 export const WEEKS = [
-  { k: 'w3', name: 'Tuần 3/11 · 15–22/11', cur: true },
-  { k: 'w2', name: 'Tuần 02/11 · 07–14/11', cur: false },
-  { k: 'w1', name: 'Tuần 01/11 · 31/10–06/11', cur: false },
+  { k: 'w1', t: 'Tuần 1', r: '31/10–06/11', name: 'Tuần 01/11 · 31/10–06/11', cur: false, future: false },
+  { k: 'w2', t: 'Tuần 2', r: '07–14/11', name: 'Tuần 02/11 · 07–14/11', cur: false, future: false },
+  { k: 'w3', t: 'Tuần 3', r: '15–22/11', name: 'Tuần 3/11 · 15–22/11', cur: true, future: false },
+  { k: 'w4', t: 'Tuần 4', r: '23–30/11', name: 'Tuần 4/11 · 23–30/11', cur: false, future: true },
 ];
 
 export const ORPHANS = [{ key: 'PKD-202', sum: '[Bug] Lỗi đồng bộ event tracking trên Staging' }];

@@ -5,15 +5,16 @@ import { cleanStats } from '@/lib/cleanStats';
 import { jiraDiffs } from '@/lib/catalog';
 import { useAppState, useRows } from '@/hooks/useDerived';
 import { setChk, toggle } from '@/store/actions/flow';
+import { Ico } from '@/components/common/Icons';
 import { ColFoot, ColTab, DoneFoot, DoneTab, FmtFoot, FmtTab, PrjFoot, PrjTab, ValFoot, ValTab } from './CheckTabs';
 
 type TabId = 'col' | 'val' | 'fmt' | 'prj' | 'done';
 
-function NavItem({ id, tab, n, t, cnt, sev, sub }: { id: TabId; tab: string; n: number; t: string; cnt: number; sev: string; sub: string }) {
+function NavItem({ id, tab, t, cnt, sev, sub }: { id: TabId; tab: string; t: string; cnt: number; sev: string; sub: string }) {
   const ok = !cnt;
   return (
     <button className={'cknav' + (tab === id ? ' on' : '')} data-t={id} onClick={() => setChk('chkTab', id)}>
-      <span className={'ckn ' + (ok ? 'ok' : sev)}>{ok ? '✓' : n}</span>
+      <span className={'ckn ckic ' + (ok ? 'ok' : sev)}><Ico k={id} /></span>
       <span className="ckt"><b>{t}</b><small>{sub}</small></span>
       {cnt ? <span className={'ckc2 ' + sev}>{cnt}</span> : null}
     </button>
@@ -63,10 +64,10 @@ export function CheckView() {
             <aside className="ckside">
               <div className="ckgrp">{block + warn ? `${block + warn} việc còn lại${block ? `, ${block} chặn xuất` : ''}` : 'Đã xong cả 4 mục'}</div>
               <div className="ckrail">
-                <NavItem id="col" tab={tab} n={1} t="Khớp cột" cnt={C.col} sev="e" sub={C.col ? `${C.col} cột chưa có nguồn` : `${chkCols(s).length} cột Jira đã khớp`} />
-                <NavItem id="val" tab={tab} n={2} t="Quy đổi giá trị" cnt={C.val} sev="w" sub={C.val ? `${C.val} giá trị lạ` : 'Mọi giá trị có luật'} />
-                <NavItem id="fmt" tab={tab} n={3} t="Làm sạch nội dung" cnt={0} sev="o" sub={S.all ? `${S.all} chỗ đã làm gọn` : 'Không có lỗi định dạng'} />
-                <NavItem id="prj" tab={tab} n={4} t="Ghép dự án" cnt={C.prj.length} sev={C.prjE ? 'e' : 'w'} sub={C.prj.length ? `${C.prjE ? C.prjE + ' chặn · ' : ''}${C.prjW} nên xử lý` : `${rows.length} dự án đã ghép`} />
+                <NavItem id="col" tab={tab} t="Khớp cột" cnt={C.col} sev="e" sub={C.col ? `${C.col} cột chưa có nguồn` : `${chkCols(s).length} cột Jira đã khớp`} />
+                <NavItem id="val" tab={tab} t="Quy đổi giá trị" cnt={C.val} sev="w" sub={C.val ? `${C.val} giá trị lạ` : 'Mọi giá trị có luật'} />
+                <NavItem id="fmt" tab={tab} t="Làm sạch nội dung" cnt={0} sev="o" sub={S.all ? `${S.all} chỗ đã làm gọn` : 'Không có lỗi định dạng'} />
+                <NavItem id="prj" tab={tab} t="Ghép dự án" cnt={C.prj.length} sev={C.prjE ? 'e' : 'w'} sub={C.prj.length ? `${C.prjE ? C.prjE + ' chặn · ' : ''}${C.prjW} nên xử lý` : `${rows.length} dự án đã ghép`} />
               </div>
               <button className="ckinfo" onClick={() => toggle('infoOpen')} aria-expanded={s.infoOpen}>Để biết · {info.length} {s.infoOpen ? '▾' : '▸'}</button>
               {s.infoOpen && <ul className="ckinfol">{info.map((x) => <li key={x}>{x}</li>)}</ul>}

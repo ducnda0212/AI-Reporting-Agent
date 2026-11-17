@@ -113,7 +113,6 @@ export function Spotlight() {
               <button className="btn sm" onClick={reviewDrop}>Bỏ nháp</button><div style={{ flex: '1 1 10px' }} />
               <button className="btn sm" disabled={!review.pos} onClick={() => reviewMove(-1)}>← Trước</button>
               <button className="btn sm pri" onClick={() => reviewApprove(item!.id === 'riskLevel' ? seg : text)}>{item.d && item.d.ok ? 'Tiếp →' : 'Duyệt & tiếp →'}</button></div>
-            <div style={{ fontSize: 10.5, color: 'var(--mut2)', marginTop: 7 }}>Enter: duyệt · đang gõ thì Ctrl+Enter · ← → chuyển ô · sửa chữ xong bấm duyệt là lưu luôn</div>
           </>
         ) : tour !== null ? (
           <>

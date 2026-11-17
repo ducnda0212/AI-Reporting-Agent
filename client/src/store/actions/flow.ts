@@ -17,7 +17,7 @@ import { getState, loadSavedCfg, mutate, writeJson } from '../index';
 /** Luồng 4 bước, nhập file, kiểm tra, AI, duyệt, hướng dẫn, chốt & xuất, hệ thống. */
 
 const REDUCED = typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-export const IMPORT_STEPS = ['Đọc file và nhận diện 277 cột', 'Gộp 14 nhóm cột trùng tên', 'Tách mã dự án, ghép vào 49 cột mẫu', 'So với tuần trước và cấu hình đã lưu'];
+export const IMPORT_STEPS = ['Đọc file và nhận diện cột', 'Gộp các cột trùng tên', 'Tách mã dự án, ghép vào mẫu 49 cột', 'So với tuần trước và cấu hình đã lưu'];
 export const GUIDE_KEY = 'pmo-guide-seen';
 
 /* ---------- điều hướng ---------- */
@@ -40,7 +40,7 @@ export function goStep(n: number) {
   });
 }
 
-export const setView = (v: ViewId) => mutate((d) => { d.view = v; d.modal = null; });
+export const setView = (v: ViewId) => mutate((d) => { d.view = v; d.modal = null; if (v === 'tlib') d.tlDraft = null; });
 export const setPanel = (p: PanelId) => mutate((d) => { d.panel = p || null; });
 export const setModal = (m: string | null) => mutate((d) => { d.modal = m; d.pop = null; if (!m) { d.exported = null; d.lockMsg = null; } });
 export const setMenu = (m: string | null) => mutate((d) => { d.menu = d.menu === m ? null : m; });
@@ -459,6 +459,7 @@ export const reExport = (k: string) => mutate((d) => { pushLog(d, 'Tải lại f
 export const setExOut = (k: 'f49' | 'exec', v: boolean) => mutate((d) => { d.exOut[k] = v; });
 export const setExFmt = (v: string) => mutate((d) => { d.exFmt = v; });
 export const switchWeek = (wk: string) => mutate((d) => {
+  d.menu = null;
   if (wk === 'w3') return;
   const vv = d.versions.find((v) => v.wk === wk);
   d.view = 'ver'; d.verSel = vv ? `${vv.wk}|${vv.v}` : null;
@@ -532,3 +533,6 @@ export const setCleanIdx = (delta: number) => mutate((d) => { d.cleanIdx = Math.
 
 /* ---------- hệ thống (catalog) ---------- */
 export { seedCatalog, clone, writeJson };
+
+export const cancelImport = () => mutate((d) => { d.importing = null; setToast(d, 'Đã huỷ đọc file'); });
+export const openVersions = () => mutate((d) => { d.menu = null; d.view = 'ver'; });

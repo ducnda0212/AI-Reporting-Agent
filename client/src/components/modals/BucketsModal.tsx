@@ -25,7 +25,6 @@ export function BucketsModal() {
       <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line2)', display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
         <div style={{ flex: '1 1 200px', minWidth: 0 }}>
           <div style={{ fontSize: 15, fontWeight: 600 }}>Rổ gom giá trị</div>
-          <div style={{ fontSize: 11.5, color: 'var(--mut)', marginTop: 3 }}>Đổi tên giá trị trong báo cáo thì sửa ở đây, không phải sửa code.</div>
         </div>
         <select className="sel" style={{ height: 34 }} value={s.bucketCol} onChange={(e) => setBucketCol(e.target.value)}>
           <option value="buoc">AJ · AI Lifecycle</option><option value="buocso">L · Bước trong AI Lifecycle</option>

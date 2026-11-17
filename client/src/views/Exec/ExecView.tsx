@@ -42,7 +42,6 @@ export function ExecView() {
     return (
       <div className="gridwrap gut" style={{ paddingBlock: 60, textAlign: 'center' }}>
         <div style={{ fontSize: 15, fontWeight: 600 }}>Chưa có dữ liệu tuần này</div>
-        <div style={{ fontSize: 12.5, color: 'var(--mut)', margin: '6px 0 14px' }}>Báo cáo điều hành dựng từ cùng dữ liệu với bảng 49 cột.</div>
         <button className="btn pri" onClick={() => setView('import')}>Tới bước Nhập file</button>
       </div>
     );
@@ -67,7 +66,7 @@ export function ExecView() {
   return (
     <div className="gridwrap pdesk">
       <div className="ptool">
-        <div className="ptool-l"><b>Báo cáo điều hành</b><span>Xem trước đúng như file PDF · ô nền tím là nháp AI, bấm ✓ để duyệt · bấm Mã DA để mở dòng trên bảng 49 cột</span></div>
+        <div className="ptool-l"><b>Báo cáo điều hành</b></div>
         {pend > 0 && <span className="chip" style={{ color: 'var(--ai)', borderColor: 'var(--aiLine)' }}>{pend} nháp chờ duyệt</span>}
         <button className="btn" onClick={runExAiDraft}>Nhờ AI soạn</button>
         <button className="btn" onClick={exportWord}>Tải Word</button>
@@ -123,7 +122,6 @@ export function ExecView() {
             {addable.map((r) => <option key={r.i} value={r.i}>{r.code + ' · ' + V(r, 'task')}</option>)}
           </select>
         </div>
-        <p className="pnote">Báo cáo lấy từ dữ liệu tuần 3/11, chỉ các dự án có Trạng thái = Đang thực hiện. Mục 4 và 6 chỉ hiện dự án có nội dung. Ô nháp AI chưa duyệt để trống khi xuất. Có nguy cơ chậm = còn ≤ 14 ngày tới hạn mà chưa xong, hoặc Mức độ rủi ro (AC) = Cao.</p>
       </article></div>
     </div>
   );

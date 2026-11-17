@@ -1,6 +1,7 @@
 import { createStore, useStore as useZustandStore } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { FIELDS, BASE_PHASE_BUCKET, BASE_PROG_MAP, BASE_STATUS_MAP, PHASE_UNSORTED, STORAGE } from '@/data/constants';
+import { SEED_TPLS } from '@/data/templates';
 import { SEED_VERSIONS, seedCatalog, seedRows } from '@/data/seed';
 import { clone } from '@/lib/text';
 import type { AppState, FileCfg } from './types';
@@ -68,6 +69,8 @@ function createInitialState(): AppState {
     exOut: { f49: true, exec: true }, exFmt: 'pdf', exNote: null, ex: {},
 
     catTab: 'proj', catQ: '', catAdmin: false, reqForm: null,
+
+    tpls: clone(SEED_TPLS), tlFlt: 'all', tlQ: '', tlDraft: null, tpK: '', tpMiss: false, tpQ: '',
 
     test: null, testSeed: 7, cleanIdx: 0,
 

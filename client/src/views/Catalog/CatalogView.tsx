@@ -118,7 +118,6 @@ export function CatalogView() {
               </tr>
             ))}</tbody></table></div>
         ) : <div className="card" style={{ padding: 22, textAlign: 'center', fontSize: 12.5, color: 'var(--mut)' }}>Chưa có yêu cầu nào. Nhập Mã DA ở trên rồi bấm “Gửi yêu cầu sửa”.</div>}
-        {!admin && pr.length > 0 && <div style={{ fontSize: 11.5, color: 'var(--mut)' }}>Xem thử phía hệ thống: chuyển sang “Quản trị hệ thống” ở góc trên để cập nhật yêu cầu.</div>}
       </>
     );
   } else if (tab === 'diff') {
@@ -145,7 +144,6 @@ export function CatalogView() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
           <div style={{ flex: '1 1 340px', minWidth: 0 }}>
             <h1 style={{ fontSize: 17, fontWeight: 600, margin: '0 0 4px' }}>Dữ liệu hệ thống · dự án, đơn vị, nhân sự</h1>
-            <p style={{ fontSize: 12.5, color: 'var(--mut)', margin: 0 }}>Lưu sẵn trên hệ thống theo bảng mẫu (cột A–H, O–W). Nhập Mã DA là toàn bộ thông tin tự hiện ra; người lập báo cáo không sửa được. Muốn đổi (vd đổi PIC) thì gửi yêu cầu → hệ thống cập nhật → chạy lại báo cáo mới ra giá trị mới.</p>
           </div>
           <div className="seg" role="group" aria-label="Vai trò xem thử">
             <button className={!admin ? 'on' : ''} onClick={() => C.setCatAdmin(false)}>Người lập báo cáo</button>
@@ -169,7 +167,6 @@ export function CatalogView() {
             </div>
             {q && <button className="btn" onClick={() => C.setCatQuery('')} style={{ height: 38 }}>Xoá</button>}
           </div>
-          {!q && <div style={{ fontSize: 11.5, color: 'var(--mut2)', marginTop: 7 }}>Hoặc bấm một dòng trong bảng bên dưới.</div>}
           {result}
         </div>
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>

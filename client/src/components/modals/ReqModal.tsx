@@ -28,7 +28,6 @@ export function ReqModal() {
     <Modal onClose={close} width="min(520px,100%)" label="Gửi yêu cầu">
       <div style={{ padding: '18px 20px' }}>
         <div style={{ fontSize: 15, fontWeight: 650 }}>{isNew ? 'Yêu cầu tạo dự án trên hệ thống' : 'Yêu cầu sửa thông tin · ' + f.code}</div>
-        <div style={{ fontSize: 12, color: 'var(--mut)', marginTop: 4, lineHeight: 1.5 }}>Báo cáo giữ giá trị hiện tại cho đến khi hệ thống cập nhật và bạn chạy lại báo cáo.</div>
         {isNew ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
             <div className="kv"><span style={{ color: 'var(--mut)' }}>Mã DA</span><b className="mono">{f.code}</b></div>

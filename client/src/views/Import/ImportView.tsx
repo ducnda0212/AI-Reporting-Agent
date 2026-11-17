@@ -6,8 +6,8 @@ import { checkCount, orphansLeft, unsortedOf } from '@/lib/selectors';
 import { fieldOf } from '@/lib/cell';
 import { loadSavedCfg } from '@/store';
 import { useAppState, useRows } from '@/hooks/useDerived';
-import { FileTypeIcon } from '@/components/common/Icons';
-import { IMPORT_STEPS, GUIDE_KEY, goStep, loadFile, replaceFile, setChk, setView, toggle, toggleGuide } from '@/store/actions/flow';
+import { FileTypeIcon, Ico } from '@/components/common/Icons';
+import { IMPORT_STEPS, GUIDE_KEY, cancelImport, goStep, loadFile, replaceFile, setChk, setView, toggle, toggleGuide } from '@/store/actions/flow';
 
 /** Các lần nhập file trước đây (mock). */
 export const IMPORTS = [
@@ -23,7 +23,8 @@ const ARow = ({ glyph, cls, title, sub, label, onClick }: { glyph: string; cls: 
 );
 const ANext = ({ t, n, cls = '', sub, tab }: { t: string; n: string | number; cls?: string; sub?: string; tab: string }) => {
   const done = n === 'xong';
-  return <button className="anx" onClick={() => setChk('chkTab', tab)}><span>{t}</span><span className={'an ' + (cls || (done ? 'ok' : ''))}>{done ? '✓ xong' : n}</span>{sub && <small>{sub}</small>}</button>;
+  const c = cls || (done ? 'ok' : '');
+  return <button className="anx ai2" onClick={() => setChk('chkTab', tab)}><span className={'anic ' + c}><Ico k={tab} /></span><span>{t}</span><span className={'an ' + c}>{done ? '✓ xong' : n}</span>{sub && <small>{sub}</small>}</button>;
 };
 /** Một dòng trong danh sách "Đã sẵn sàng": bấm được nếu có `onClick`. */
 function ResRow({ kind, title, meta, onClick }: { kind: 'xls' | 'csv' | 'ver' | 'db' | 'cfg'; title: string; meta: string; onClick?: () => void }) {
@@ -63,28 +64,58 @@ function Guide() {
           <li><span>2</span>Chọn <b>Export → Export Excel CSV (all fields)</b></li>
           <li><span>3</span>Kéo file vừa tải vào ô phía trên. Không cần sửa gì trong file — tên cột khác thì bước 2 sẽ hỏi</li>
         </ol>
-        <p className="imgnote">Quản trị có thể gắn sẵn tên bộ lọc của nhóm vào đây ở <b>Cấu hình</b>.</p>
       </>}
     </div>
   );
 }
 
+/** Đang đọc file: các bước dọc có kết quả, bên phải hiện dần những gì đã tìm thấy. */
 function Importing() {
   const s = useAppState();
+  const rows = useRows();
   const imp = s.importing!;
   const st = imp.step;
+  const nIss = rows.length + 2 + ORPHANS.length; const nCol = DEMO.fileStats.cols; const nPrj = rows.length;
+  const nOrph = ORPHANS.length; const nNew = DEMO.newRows.length;
+  const done: Array<[string, string]> = [
+    [IMPORT_STEPS[0], `${nCol} cột, ${nIss} issue`],
+    [IMPORT_STEPS[1], `${DEMO.fileStats.dupGroups} nhóm cột đã gộp`],
+    [IMPORT_STEPS[2], `${nPrj} dự án ghép được${nOrph ? `, ${nOrph} issue chưa có mã` : ''}`],
+    [IMPORT_STEPS[3], `${nNew} mã mới, 1 mã biến mất`],
+  ];
+  const pct = Math.round(((st + 0.5) / done.length) * 100);
+  const found: Array<[string, number, number, string?]> = [
+    ['Issue trong file', nIss, 0], ['Cột Jira', nCol, 0], ['Nhóm cột trùng đã gộp', DEMO.fileStats.dupGroups, 1],
+    ['Dự án ghép vào mẫu', nPrj, 2], ['Issue chưa có Mã DA', nOrph, 2, 'e'], ['Mã mới so với tuần trước', nNew, 3, 'w'],
+  ];
   return (
-    <div className="gridwrap gut imwrap"><div className="imgrid one">
-      <div className="imcard improc">
-        <div className="improchd"><span className="spin" aria-hidden="true" /><div><div className="imfn">Đang đọc {imp.name}</div><div className="imsub">Giữ nguyên trang này, chỉ mất vài giây</div></div></div>
-        <div className="xbar improcbar"><i style={{ width: Math.round(((st + 0.5) / IMPORT_STEPS.length) * 100) + '%' }} /></div>
-        <ol className="improcl">
-          {IMPORT_STEPS.map((t, k) => (
-            <li key={t} className={k < st ? 'ok' : k === st ? 'now' : ''}><span className="pst">{k < st ? '✓' : k === st ? <span className="spin sm" /> : k + 1}</span>{t}</li>
+    <div className="gridwrap gut aimp"><div className="awrap"><div className="acols">
+      <div className="aleft">
+        <div className="lfile"><FileTypeIcon kind={/\.xlsx?$/i.test(imp.name) ? 'xls' : 'csv'} />
+          <div><b>{imp.name}</b><small>Tuần 3/11, nhập lúc {new Date().toTimeString().slice(0, 5)}</small></div></div>
+        <h1 className="ah1">Đang đọc file Jira</h1>
+        <p className="asub">Chỉ mất vài giây. Xong sẽ tự chuyển sang phần tóm tắt.</p>
+        <div className="lbar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label="Tiến độ đọc file"><i style={{ width: pct + '%' }} /></div>
+        <ol className="lsteps" aria-live="polite">
+          {done.map(([t, res], k) => (
+            <li key={t} className={'lst ' + (k < st ? 'ok' : k === st ? 'now' : '')}>
+              <span className="ldot">{k < st ? <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg> : k === st ? <span className="spin sm" aria-hidden="true" /> : k + 1}</span>
+              <div className="ltx"><b>{t}</b><small>{k < st ? res : k === st ? 'Đang xử lý…' : 'Chờ'}</small></div>
+            </li>
           ))}
         </ol>
+        <button className="btn" onClick={cancelImport}>Huỷ, chọn file khác</button>
       </div>
-    </div></div>
+      <aside className="aright">
+        <h2 className="ah2">Đã tìm thấy</h2>
+        <ul className="lfound">
+          {found.map(([l, v, at, c]) => (
+            <li key={l} className={'lf' + (st > at ? ' in' : '')}><span>{l}</span>{st > at ? <b className={c || ''}>{v}</b> : <i className="skel" aria-hidden="true" />}</li>
+          ))}
+        </ul>
+        <p className="lnote">Phần tóm tắt và các việc cần xử lý sẽ hiện ngay sau khi đọc xong.</p>
+      </aside>
+    </div></div></div>
   );
 }
 

@@ -1,3 +1,4 @@
+import { Ico } from '@/components/common/Icons';
 import { useRef, useState } from 'react';
 import type { RiskFilter, RiskPriority } from '@/types';
 import { RISK_CATEGORIES, RISK_CRITERIA, RISK_MATRIX, RISK_SIGNALS } from '@/data/risk';
@@ -72,7 +73,7 @@ function Detail({ item, editing }: { item: RiskItem; editing: boolean }) {
 
       <div className="rsec">
         <h3>Phân loại <span className="by ai">AI</span></h3>
-        <p><b>{o.kind}{o.probability ? `, xác suất ${o.probability.toLowerCase()}` : ''}</b> · <b>{category} {RISK_CATEGORIES[category]}</b></p>
+        <p className="rcat"><span className="rci"><Ico k={category} /></span><span><b>{o.kind}{o.probability ? `, xác suất ${o.probability.toLowerCase()}` : ''}</b> · <b>{category} {RISK_CATEGORIES[category]}</b></span></p>
         <p className="rwhy">{o.why}</p>
       </div>
 
@@ -178,7 +179,7 @@ export function RiskView() {
               <li key={x.c.id}>
                 <button className={'rit ' + cls + (on ? ' on' : '') + (d?.kind === 'drop' ? ' dropped' : '')} onClick={() => riskSelect(x.c.id)} aria-current={on ? 'true' : undefined}>
                   <span className={'rp ' + cls}>{x.priority}</span>
-                  <span className="rtx"><b>{x.row.code} · {RISK_CATEGORIES[d?.category || x.c.category]}</b><small>{x.c.text}</small></span>
+                  <span className="rtx"><b><span className="rci2"><Ico k={d?.category || x.c.category} size={15} /></span>{x.row.code} · {RISK_CATEGORIES[d?.category || x.c.category]}</b><small>{x.c.text}</small></span>
                   <span className="rme">
                     {x.c.confidence === 'low' && <span className="run" title="AI chưa chắc">?</span>}
                     {d && <span className={'rst ' + (d.kind === 'ok' ? 'ok' : d.kind === 'drop' ? 'mut' : 'ed')}>{d.kind === 'ok' ? 'Đã đồng ý' : d.kind === 'drop' ? 'Đã bỏ' : 'Đã sửa'}</span>}

@@ -23,7 +23,7 @@ export function MappingPop() {
   return (
     <Modal onClose={close} width="min(340px,100%)" style={{ alignItems: 'center' }}>
       <div style={{ padding: '13px 15px', borderBottom: '1px solid var(--line2)', display: 'flex', alignItems: 'center', gap: 9 }}>
-        <div style={{ flex: '1 1 auto', minWidth: 0 }}><div style={{ fontSize: 13, fontWeight: 600 }}>Cột “{f.name}”</div><div style={{ fontSize: 11, color: 'var(--mut2)' }}>Ánh xạ ngay tại đầu cột</div></div>
+        <div style={{ flex: '1 1 auto', minWidth: 0 }}><div style={{ fontSize: 13, fontWeight: 600 }}>Cột “{f.name}”</div></div>
         <button className="chip" onClick={close} style={{ cursor: 'pointer' }}>Đóng</button>
       </div>
       <div style={{ padding: '14px 15px', display: 'flex', flexDirection: 'column', gap: 11 }}>
