@@ -8,10 +8,7 @@ Giao diện báo cáo PMO: nhập file Jira, kiểm tra dữ liệu, điền & d
 ```bash
 cd client
 npm install
-npm run dev        # http://localhost:5173  (proxy /api -> http://localhost:8000)
-npm run typecheck  # tsc --noEmit
-npm test           # vitest: smoke render mọi view + luồng nghiệp vụ
-npm run build      # typecheck + vite build
+npm run dev        # http://localhost:5173
 ```
 
 ## Công nghệ
@@ -123,5 +120,4 @@ Kiểm tra trước khi chốt, chốt thành phiên bản, rồi xuất file.
 
 ## Quy ước làm việc (cho PR)
 - Mỗi thay đổi kèm cập nhật tài liệu: mục "Những việc đã làm" trong README này (hoặc file trong `docs/`), và chụp lại ảnh màn hình nếu giao diện đổi.
-- Chạy `npm run typecheck && npm test && npm run build` trước khi mở PR.
 - Tên biến/hàm/field bằng tiếng Anh; chuỗi hiển thị cho người dùng giữ tiếng Việt.
