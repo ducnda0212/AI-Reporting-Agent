@@ -75,7 +75,6 @@ function Importing() {
   const nIss = s.fileStats.totalIssues; const nCol = s.fileStats.cols; const nPrj = rows.length;
   const real = !!s.realFile; // upload thật: chỉ số liệu thật, ghép mẫu 49 cột là Đợt 2
   const nOrph = ORPHANS.length; const nNew = DEMO.newRows.length;
-  const wkNum = s.realFile?.week.match(/^w(\d+)$/)?.[1];
   const done: Array<[string, string]> = real ? [
     [IMPORT_STEPS[0], `${nCol} cột, ${nIss} issue`],
     [IMPORT_STEPS[1], `${s.fileStats.dupGroups} nhóm cột đã gộp`],
@@ -96,7 +95,7 @@ function Importing() {
     <div className="gridwrap gut aimp"><div className="awrap"><div className="acols">
       <div className="aleft">
         <div className="lfile"><FileTypeIcon kind={/\.xlsx?$/i.test(imp.name) ? 'xls' : 'csv'} />
-          <div><b>{imp.name}</b><small>{real ? (wkNum ? `Tuần ${wkNum}` : s.realFile!.week) : 'Tuần 3/11'}, nhập lúc {new Date().toTimeString().slice(0, 5)}</small></div></div>
+          <div><b>{imp.name}</b><small>{real ? period(s.realFile!.week, s.realFile!.month) : 'Tuần 3/11'}, nhập lúc {new Date().toTimeString().slice(0, 5)}</small></div></div>
         <h1 className="ah1">Đang đọc file Jira</h1>
         <p className="asub">Chỉ mất vài giây. Xong sẽ tự chuyển sang phần tóm tắt.</p>
         <div className="lbar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label="Tiến độ đọc file"><i style={{ width: pct + '%' }} /></div>
@@ -124,17 +123,18 @@ function Importing() {
 }
 
 /** Trước khi nạp file (hoặc đang thay file). */
+const period = (w: string, m?: string) => `${/^w(\d+)$/.test(w) ? 'Tuần ' + w.slice(1) : w}${Number(m?.slice(5)) ? ' tháng ' + Number(m!.slice(5)) : ''}`;
 function PreLoad() {
   const s = useAppState();
   const H = s.importHistory;
   const L = H[0];
-  useEffect(() => { loadHistoryList(); }, []);
+  useEffect(() => { loadHistoryList(); }, [s.activeMonth]);
   const prev = s.versions.find((v) => v.wk === 'w2');
   const cfg = loadSavedCfg();
   return (
     <div className="gridwrap gut aimp"><div className="awrap"><div className="acols">
       <div className="aleft">
-        <h1 className="ah1">{s.replaceFile ? 'Thay file Jira cho tuần 3/11' : 'Nhập file Jira cho tuần 3/11'}</h1>
+        <h1 className="ah1">{s.replaceFile ? 'Thay' : 'Nhập'} file Jira cho {period(s.activeWeek, s.activeMonth)}</h1>
         <p className="asub">Kéo file CSV hoặc Excel vừa xuất từ Jira.</p>
         <DropZone />
         {s.replaceFile && <button className="alink back" onClick={() => replaceFile(false)}>Giữ file đang dùng: {s.fileName || 'Jira sample.xlsx'}</button>}
@@ -144,11 +144,11 @@ function PreLoad() {
         <h2 className="ah2">Lần nhập gần nhất</h2>
         {!L && <small>Chưa có lần nhập nào.</small>}
         {L && <>
-          <div className="alast"><FileTypeIcon kind="csv" /><div><b title={L.filename}>{L.filename}</b><small>Nhập lúc {fmtAt(L.uploaded_at)}</small><small>{L.total_issues} issue, {L.total_cols} cột</small></div></div>
+          <div className="alast"><FileTypeIcon kind="csv" /><div><b title={L.filename}>{L.filename}</b><small>{period(L.target_week, L.target_month)}, nhập lúc {fmtAt(L.uploaded_at)}</small><small>{L.total_issues} issue, {L.total_cols} cột</small></div></div>
           <button className="alink" onClick={() => reapplyHistory(L.id, L.filename)}>Nhập lại file này</button>
         </>}
         {H.length > 1 && <button className="alink mut" onClick={() => toggle('histOpen')} aria-expanded={s.histOpen}>{s.histOpen ? 'Ẩn' : 'Xem'} {H.length - 1} file cũ hơn</button>}
-        {s.histOpen && H.slice(1).map((x) => <button key={x.id} className="anx" onClick={() => reapplyHistory(x.id, x.filename)}><span>{x.filename}</span><span className="an">{fmtAt(x.uploaded_at)}</span></button>)}
+        {s.histOpen && H.slice(1).map((x) => <button key={x.id} className="anx" onClick={() => reapplyHistory(x.id, x.filename)}><span>{x.filename}<small> · {period(x.target_week, x.target_month)}</small></span><span className="an">{fmtAt(x.uploaded_at)}</span></button>)}
         <h2 className="ah2" style={{ marginTop: 26 }}>Đã sẵn sàng</h2>
         <div className="areslist">
           <ResRow kind="ver" title="Bản chốt tuần trước" meta={prev ? `v${prev.v}, chốt ngày ${prev.at.split(' ')[0]}` : 'Chưa có bản chốt'} onClick={() => setView('ver')} />
@@ -186,7 +186,7 @@ function PostLoad() {
       <div className="ahead"><FileIcon />
         <div className="ahm"><h1 className="ah1">{s.fileName || 'Jira sample.xlsx'}</h1><p className="asub">{nIss} issue, {nCols} cột{real ? `, ${s.fileStats.dupGroups} nhóm cột trùng đã gộp` : ''}, nhập lúc {s.loadedAt}</p></div>
         <button className="btn" onClick={() => replaceFile(true)}>Thay file khác</button></div>
-      {s.isDuplicateAlert && <p className="asum" role="alert"><b className="hl w">File này đã được nạp trước đó</b> (trùng nội dung với một lần nhập cho cùng tuần), dùng lại bản đã lưu, không tạo bản mới.</p>}
+      {s.isDuplicateAlert && <p className="asum" role="alert"><b className="hl w">File này đã được nạp trước đó</b> (trùng nội dung với một lần nhập cho {period(s.realFile?.week ?? s.activeWeek, s.realFile?.month ?? s.activeMonth)}), dùng lại bản đã lưu, không tạo bản mới.</p>}
       {real ? <p className="asum">Đã đọc <b className="hl ok">{nIss} issue</b> và <b className="hl ok">{nCols} cột</b> từ file. Việc ghép vào mẫu 49 cột sẽ có ở bước tiếp theo của dự án.</p> : <p className="asum">Ghép được <b className="hl ok">{rows.length} dự án</b> vào mẫu 49 cột. So với {wk} có{' '}
         {parts.map((p, k) => <span key={k}>{k > 0 && (k === parts.length - 1 ? ' và ' : ', ')}{p}</span>)}.
         {orph > 0 && <> <b className="hl e">{orph} issue</b> chưa có Mã DA cần ghép trước khi xuất.</>}</p>}
@@ -212,7 +212,7 @@ function PostLoad() {
           </div></>}
           <h2 className="ah2" style={real ? undefined : { marginTop: 24 }}>Lần nhập trước</h2>
           <div className="arows">
-            {s.importHistory.filter((x) => x.id !== s.realFile?.id).slice(0, 2).map((x) => <div key={x.id} className="anx static"><span>{x.filename}</span><span className="an">{fmtAt(x.uploaded_at)}</span></div>)}
+            {s.importHistory.filter((x) => x.id !== s.realFile?.id).slice(0, 2).map((x) => <div key={x.id} className="anx static"><span>{x.filename}<small> · {period(x.target_week, x.target_month)}</small></span><span className="an">{fmtAt(x.uploaded_at)}</span></div>)}
           </div>
         </aside>
       </div>

@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cancelImport, handleUploadSuccess, loadFile, loadHistoryList, uploadFileReal } from '@/store/actions/flow';
+import { cancelImport, handleUploadSuccess, loadFile, loadHistoryList, neighbourWeek, switchWeek, uploadFileReal } from '@/store/actions/flow';
 import { getState, store } from '@/store';
 
 const resp = (dup = false) => ({
-  file_info: { id: 'file-123', filename: 'jira_real.csv', is_duplicate: dup, file_hash: 'h', file_size: 1, uploaded_at: 't', target_week: 'w3' },
+  file_info: { id: 'file-123', filename: 'jira_real.csv', is_duplicate: dup, file_hash: 'h', file_size: 1, uploaded_at: 't', target_month: '2026-11', target_week: 'w3' },
   file_stats: { total_cols: 277, total_issues: 39, duplicate_groups: 12, loaded_at: '10:00' },
   columns: [{ index: 0, name: 'Summary', non_null_count: 39, sample_values: ['I.A.5.1 Task 1'] }],
   issues_sample: [],
@@ -46,6 +46,30 @@ describe('Real Import Flow Action', () => {
     expect(s.isDuplicateAlert).toBe(true);
   });
 
+  it('uploads and loads history for the active week/month', async () => {
+    store.setState({ ...getState(), activeWeek: 'w4', activeMonth: '2026-11' }, true);
+    const f = vi.fn().mockResolvedValueOnce(ok({ ...resp(), file_info: { ...resp().file_info, target_week: 'w4' } })).mockResolvedValue(ok([]));
+    vi.stubGlobal('fetch', f);
+    await uploadFileReal(new File(['x'], 'a.csv'));
+    expect(f.mock.calls[0][0]).toBe('/api/import/upload?target_month=2026-11&target_week=w4');
+    expect(getState().realFile).toMatchObject({ week: 'w4', month: '2026-11' });
+    expect(f.mock.calls[1][0]).toBe('/api/import/history?target_month=2026-11');
+  });
+
+  it('switchWeek updates the active period and stays on the page for w4', () => {
+    switchWeek('w4');
+    expect(getState()).toMatchObject({ activeWeek: 'w4', activeMonth: '2026-11' });
+    expect(getState().view).not.toBe('ver');
+  });
+
+  it('locked weeks do not change the upload period; arrows use WEEKS neighbours', () => {
+    switchWeek('w2');
+    expect(getState()).toMatchObject({ activeWeek: 'w3', view: 'ver' });
+    switchWeek('w4');
+    expect(getState()).toMatchObject({ activeWeek: 'w4', view: 'import' });
+    expect([neighbourWeek('w1', -1), neighbourWeek('w3', -1), neighbourWeek('w3', 1), neighbourWeek('w4', 1)]).toEqual([null, 'w2', 'w4', null]);
+  });
+
   it('rejects non-csv client-side without calling the backend', async () => {
     const f = vi.fn(); vi.stubGlobal('fetch', f);
     await uploadFileReal(new File(['x'], 'a.xlsx'));
@@ -70,7 +94,7 @@ describe('Real Import Flow Action', () => {
   it('records the real file id so the sample/tour path is distinguishable', () => {
     expect(getState().realFile).toBeNull();
     handleUploadSuccess(resp());
-    expect(getState().realFile).toEqual({ id: 'file-123', week: 'w3' });
+    expect(getState().realFile).toEqual({ id: 'file-123', week: 'w3', month: '2026-11' });
   });
 
   it('treats a 500 with a non-JSON body (Vite proxy, backend down) as offline', async () => {

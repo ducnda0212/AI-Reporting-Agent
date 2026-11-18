@@ -3,7 +3,7 @@ import type { AppState } from '@/store/types';
 import { checkCount, fillCount } from '@/lib/selectors';
 import { changedSinceLock, lastCur } from '@/lib/versions';
 import { useAppState, useRows } from '@/hooks/useDerived';
-import { curStep, goStep, openVersions, setMenu, setModal, switchWeek, toast, tourGo } from '@/store/actions/flow';
+import { curStep, goStep, neighbourWeek, openVersions, setMenu, setModal, switchWeek, toast, tourGo } from '@/store/actions/flow';
 import { useState } from 'react';
 import { currentTheme, toggleTheme } from '@/lib/theme';
 import { Calendar, Chevron, Help, Logo, Moon, Sun, WeekChevron } from '../common/Icons';
@@ -35,13 +35,15 @@ function wkStatus(s: AppState, k: string): WkStatus {
 function WeekPicker() {
   const s = useAppState();
   const open = s.menu === 'week';
-  const st = wkStatus(s, 'w3');
+  const st = wkStatus(s, s.activeWeek);
+  const prevK = neighbourWeek(s.activeWeek, -1), nextK = neighbourWeek(s.activeWeek, 1);
+  const aw = WEEKS.find((x) => x.k === s.activeWeek)!;
   return (
     <div className="wkp">
-      <button className="wkn" onClick={() => switchWeek('w2')} title="Tuần trước (Tuần 2, đã chốt)" aria-label="Tuần trước"><WeekChevron dir={-1} /></button>
+      <button className="wkn" onClick={() => prevK && switchWeek(prevK)} disabled={!prevK} title="Tuần trước" aria-label="Tuần trước"><WeekChevron dir={-1} /></button>
       <span className="mwrap">
-        <button className="wkb" onClick={() => setMenu('week')} aria-haspopup="true" aria-expanded={open} aria-label="Kỳ báo cáo: Tuần 3 tháng 11, 15 đến 22/11">
-          <Calendar /><span className="wkt"><b>Tuần 3 · Th11</b><small>15–22/11</small></span><span className={'wkdot ' + st[0]} title={st[1]} /><Chevron />
+        <button className="wkb" onClick={() => setMenu('week')} aria-haspopup="true" aria-expanded={open} aria-label={`Kỳ báo cáo: ${aw.t} tháng 11, ${aw.r}`}>
+          <Calendar /><span className="wkt"><b>{aw.t} · Th11</b><small>{aw.r}</small></span><span className={'wkdot ' + st[0]} title={st[1]} /><Chevron />
         </button>
         {open && (
           <div className="menu wkm" data-stop="1" role="dialog" aria-label="Chọn kỳ báo cáo">
@@ -50,11 +52,11 @@ function WeekPicker() {
               {WEEKS.map((w) => {
                 const I = wkStatus(s, w.k);
                 return (
-                  <button key={w.k} className={'wkr' + (w.cur ? ' on' : '')} onClick={() => switchWeek(w.k)} disabled={w.future} aria-current={w.cur ? 'true' : undefined}>
+                  <button key={w.k} className={'wkr' + (w.k === s.activeWeek ? ' on' : '')} onClick={() => switchWeek(w.k)} aria-current={w.k === s.activeWeek ? 'true' : undefined}>
                     <span className="wkno">{w.t.replace('Tuần ', 'T')}</span>
                     <span className="wkrt"><b>{w.t}</b><small>{w.r}</small></span>
                     <span className={'wks ' + I[0]}>{I[1]}</span>
-                    <span className="wkck" aria-hidden="true">{w.cur ? '✓' : ''}</span>
+                    <span className="wkck" aria-hidden="true">{w.k === s.activeWeek ? '✓' : ''}</span>
                   </button>
                 );
               })}
@@ -63,7 +65,7 @@ function WeekPicker() {
           </div>
         )}
       </span>
-      <button className="wkn" disabled title="Tuần 4 chưa mở" aria-label="Tuần sau"><WeekChevron dir={1} /></button>
+      <button className="wkn" onClick={() => nextK && switchWeek(nextK)} disabled={!nextK} title="Tuần sau" aria-label="Tuần sau"><WeekChevron dir={1} /></button>
     </div>
   );
 }

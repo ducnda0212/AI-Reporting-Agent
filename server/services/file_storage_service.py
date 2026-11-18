@@ -20,6 +20,7 @@ class FileMetadata(BaseModel):
     uploaded_at: str
     total_issues: int
     total_cols: int
+    target_month: str = ""  # default so pre-period entries still load
     target_week: str
 
 
@@ -48,14 +49,14 @@ class FileStorageService:
         tmp.write_text(json.dumps([m.model_dump() for m in items], ensure_ascii=False, indent=2), encoding="utf-8")
         os.replace(tmp, path)
 
-    def check_duplicate(self, content: bytes, target_week: str) -> tuple[bool, FileMetadata | None]:
+    def check_duplicate(self, content: bytes, target_month: str, target_week: str) -> tuple[bool, FileMetadata | None]:
         h = hashlib.sha256(content).hexdigest()
         for m in reversed(self._read()):  # appended in time order, so newest first
-            if m.file_hash == h and m.target_week == target_week:
+            if m.file_hash == h and m.target_month == target_month and m.target_week == target_week:
                 return True, m
         return False, None
 
-    def save_file(self, content: bytes, filename: str, target_week: str, total_issues: int, total_cols: int) -> FileMetadata:
+    def save_file(self, content: bytes, filename: str, target_month: str, target_week: str, total_issues: int, total_cols: int) -> FileMetadata:
         h = hashlib.sha256(content).hexdigest()
         now = datetime.now(timezone.utc)
         uploads = Path(config.UPLOADS_DIR)
@@ -66,13 +67,13 @@ class FileStorageService:
         meta = FileMetadata(
             id=uuid.uuid4().hex, filename=safe, file_path=str(dest), file_hash=h,
             file_size=len(content), uploaded_at=now.isoformat(), total_issues=total_issues,
-            total_cols=total_cols, target_week=target_week,
+            total_cols=total_cols, target_month=target_month, target_week=target_week,
         )
         self._write([*self._read(), meta])
         return meta
 
-    def get_history(self) -> list[FileMetadata]:
-        return list(reversed(self._read()))
+    def get_history(self, target_month: str | None = None) -> list[FileMetadata]:
+        return [m for m in reversed(self._read()) if target_month is None or m.target_month == target_month]
 
     def get_file_by_id(self, file_id: str) -> tuple[FileMetadata, bytes]:
         for m in self._read():

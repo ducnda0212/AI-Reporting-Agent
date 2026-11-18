@@ -108,9 +108,9 @@ export type RiskFilter = 'all' | 'pend' | 'un' | 'e' | 'w' | 'o';
 /* ---- API nhập file Jira (server/routers/import_router.py) ---- */
 export interface JiraColumnInfo { index: number; name: string; non_null_count: number; sample_values: string[] }
 export interface ImportUploadResponse {
-  file_info: { id: string; filename: string; is_duplicate: boolean; file_hash: string; file_size: number; uploaded_at: string; target_week: string };
+  file_info: { id: string; filename: string; is_duplicate: boolean; file_hash: string; file_size: number; uploaded_at: string; target_month: string; target_week: string };
   file_stats: { total_cols: number; total_issues: number; duplicate_groups: number; loaded_at: string };
   columns: JiraColumnInfo[];
   issues_sample: Record<string, unknown>[];
 }
-export interface ImportHistoryItem { id: string; filename: string; uploaded_at: string; target_week: string; total_issues: number; total_cols: number; file_size: number }
+export interface ImportHistoryItem { id: string; filename: string; uploaded_at: string; target_month: string; target_week: string; total_issues: number; total_cols: number; file_size: number }

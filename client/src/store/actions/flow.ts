@@ -1,7 +1,7 @@
 import type { ImportUploadResponse, Row } from '@/types';
 import { getImportHistory, reapplyHistoryFile, uploadJiraCsv } from '@/api/importApi';
 import type { AppState, PanelId, ViewId } from '../types';
-import { AI_IDS, DEMO, FIELDS, STORAGE, UNASSIGNED } from '@/data/constants';
+import { AI_IDS, DEMO, FIELDS, STORAGE, UNASSIGNED, WEEKS } from '@/data/constants';
 import { seedCatalog } from '@/data/seed';
 import { TOUR } from '@/data/tour';
 import { ck, fieldOf, labelBad, selectRows } from '@/lib/cell';
@@ -141,7 +141,7 @@ export function handleUploadSuccess(r: ImportUploadResponse) {
     d.rawCols = r.columns;
     d.fileStats = { cols: r.file_stats.total_cols, totalIssues: r.file_stats.total_issues, dupGroups: r.file_stats.duplicate_groups };
     d.isDuplicateAlert = r.file_info.is_duplicate;
-    d.realFile = { id: r.file_info.id, week: r.file_info.target_week };
+    d.realFile = { id: r.file_info.id, week: r.file_info.target_week, month: r.file_info.target_month };
   });
 }
 
@@ -169,13 +169,13 @@ async function runImport(name: string, call: () => Promise<ImportUploadResponse>
 
 export async function uploadFileReal(file: File) {
   if (!/\.csv$/i.test(file.name)) { toast('Chỉ nhận file .csv export từ Jira'); return; }
-  await runImport(file.name, () => uploadJiraCsv(file));
+  await runImport(file.name, () => uploadJiraCsv(file, getState().activeWeek, getState().activeMonth));
 }
 
 export const reapplyHistory = (id: string, name: string) => runImport(name, () => reapplyHistoryFile(id));
 
 export async function loadHistoryList() {
-  try { const h = await getImportHistory(); mutate((d) => { d.importHistory = h; }); }
+  try { const h = await getImportHistory(getState().activeMonth); mutate((d) => { d.importHistory = h; }); }
   catch (e) { if (isOffline(e)) toast(OFFLINE); } // lỗi khác: im lặng, danh sách lịch sử chỉ trống
 }
 
@@ -506,9 +506,16 @@ export const pickVersion = (k: string) => mutate((d) => { d.verSel = k; });
 export const reExport = (k: string) => mutate((d) => { pushLog(d, 'Tải lại file đã xuất', k.replace('|', ' · v'), 'Lấy đúng file của bản đã chốt'); setToast(d, 'Bản thử: file đã xuất được tải lại từ bản đã chốt'); });
 export const setExOut = (k: 'f49' | 'exec', v: boolean) => mutate((d) => { d.exOut[k] = v; });
 export const setExFmt = (v: string) => mutate((d) => { d.exFmt = v; });
+/** Tuần kề theo thứ tự WEEKS; null ở hai đầu. */
+export const neighbourWeek = (k: string, dir: -1 | 1) => WEEKS[WEEKS.findIndex((w) => w.k === k) + dir]?.k ?? null;
 export const switchWeek = (wk: string) => mutate((d) => {
   d.menu = null;
-  if (wk === 'w3') return;
+  if (wk === 'w3' || wk === 'w4') { // tuần mở: đổi kỳ nhập file; w4 chưa chốt nên ở lại màn hiện tại
+    // shortcut: month fixed to 2026-11, upgrade when TopBar gets a month picker
+    d.activeWeek = wk; d.activeMonth = '2026-11';
+    if (d.view === 'ver') d.view = 'import';
+    return;
+  } // tuần đã chốt (w1/w2): chỉ xem, không đổi kỳ nhập
   const vv = d.versions.find((v) => v.wk === wk);
   d.view = 'ver'; d.verSel = vv ? `${vv.wk}|${vv.v}` : null;
   setToast(d, `Tuần đã chốt chỉ xem, không sửa — đang mở bản v${vv ? vv.v : 1}`);

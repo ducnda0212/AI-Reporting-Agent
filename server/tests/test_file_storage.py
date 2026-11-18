@@ -12,22 +12,37 @@ def service(tmp_path, monkeypatch):
 
 def test_file_storage_save_and_duplicate(tmp_path, service):
     content = b"Summary,Status\nIssue 1,Open"
-    meta1 = service.save_file(content, "jira_report.csv", "w3", total_issues=1, total_cols=2)
+    meta1 = service.save_file(content, "jira_report.csv", "2026-11", "w3", total_issues=1, total_cols=2)
     assert meta1.filename == "jira_report.csv"
     assert (tmp_path / "uploads").exists()
 
-    is_dup, dup_meta = service.check_duplicate(content, "w3")
+    is_dup, dup_meta = service.check_duplicate(content, "2026-11", "w3")
     assert is_dup is True
     assert dup_meta.id == meta1.id
+
+    assert meta1.target_month == "2026-11" and meta1.target_week == "w3"
+    assert service.check_duplicate(content, "2026-12", "w3") == (False, None)
+    assert service.check_duplicate(content, "2026-11", "w4") == (False, None)
 
     history = service.get_history()
     assert len(history) == 1
     assert history[0].id == meta1.id
+    assert service.get_history("2026-11") == history
+    assert service.get_history("2026-12") == []
+
+
+def test_legacy_meta_without_month_loads(tmp_path, service):
+    import json
+    (tmp_path / "uploads_meta.json").write_text(json.dumps([{
+        "id": "a", "filename": "f.csv", "file_path": "p", "file_hash": "h", "file_size": 1,
+        "uploaded_at": "t", "total_issues": 1, "total_cols": 1, "target_week": "w1"}]))
+    assert service.get_history()[0].target_month == ""
+    assert not (tmp_path / "uploads_meta.json.corrupt").exists()
 
 
 def test_path_traversal_filename_stays_in_uploads(tmp_path, service):
     for name in ["../../evil.csv", r"..\..\evil.csv", r"C:\x\y.csv", "a<b>:c?.csv", "..", ""]:
-        m = service.save_file(b"x" + name.encode(), name, "w1", 1, 1)
+        m = service.save_file(b"x" + name.encode(), name, "2026-11", "w1", 1, 1)
         p = (tmp_path / "uploads").resolve()
         assert p in __import__("pathlib").Path(m.file_path).resolve().parents
     assert not (tmp_path.parent / "evil.csv").exists()
@@ -36,22 +51,22 @@ def test_path_traversal_filename_stays_in_uploads(tmp_path, service):
 
 def test_different_week_not_duplicate_and_check_writes_nothing(tmp_path, service):
     content = b"a,b\n1,2"
-    service.save_file(content, "r.csv", "w3", 1, 2)
+    service.save_file(content, "r.csv", "2026-11", "w3", 1, 2)
     before = sorted((tmp_path / "uploads").iterdir())
-    assert service.check_duplicate(content, "w4") == (False, None)
+    assert service.check_duplicate(content, "2026-11", "w4") == (False, None)
     assert sorted((tmp_path / "uploads").iterdir()) == before
     assert len(service.get_history()) == 1
 
 
 def test_history_newest_first_and_hash_fields(service):
-    m1 = service.save_file(b"one", "a.csv", "w1", 1, 1)
-    m2 = service.save_file(b"two", "b.csv", "w1", 1, 1)
+    m1 = service.save_file(b"one", "a.csv", "2026-11", "w1", 1, 1)
+    m2 = service.save_file(b"two", "b.csv", "2026-11", "w1", 1, 1)
     assert [m.id for m in service.get_history()] == [m2.id, m1.id]
     assert len(m1.file_hash) == 64 and m1.file_size == 3
 
 
 def test_get_file_by_id_round_trip_and_unknown(service):
-    m = service.save_file(b"hello", "a.csv", "w1", 1, 1)
+    m = service.save_file(b"hello", "a.csv", "2026-11", "w1", 1, 1)
     meta, data = service.get_file_by_id(m.id)
     assert meta.id == m.id and data == b"hello"
     with pytest.raises(KeyError):
@@ -65,5 +80,5 @@ def test_corrupt_meta_is_preserved(tmp_path, service):
 
 
 def test_long_filename_is_capped_and_keeps_extension(service):
-    m = service.save_file(b"long", "x" * 400 + ".csv", "w1", 1, 1)
+    m = service.save_file(b"long", "x" * 400 + ".csv", "2026-11", "w1", 1, 1)
     assert len(m.filename) <= 100 and m.filename.endswith(".csv")

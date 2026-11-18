@@ -10,13 +10,14 @@ async function json<T>(r: Response): Promise<T> {
   return r.json();
 }
 
-export async function uploadJiraCsv(file: File, targetWeek = 'w3'): Promise<ImportUploadResponse> {
+export async function uploadJiraCsv(file: File, targetWeek = 'w3', targetMonth = '2026-11'): Promise<ImportUploadResponse> {
   const body = new FormData();
   body.append('file', file);
-  return json(await fetch(`/api/import/upload?target_week=${encodeURIComponent(targetWeek)}`, { method: 'POST', body }));
+  return json(await fetch(`/api/import/upload?target_month=${encodeURIComponent(targetMonth)}&target_week=${encodeURIComponent(targetWeek)}`, { method: 'POST', body }));
 }
 
-export const getImportHistory = async (): Promise<ImportHistoryItem[]> => json(await fetch('/api/import/history'));
+export const getImportHistory = async (targetMonth?: string): Promise<ImportHistoryItem[]> =>
+  json(await fetch('/api/import/history' + (targetMonth ? `?target_month=${encodeURIComponent(targetMonth)}` : '')));
 
 export const reapplyHistoryFile = async (fileId: string): Promise<ImportUploadResponse> =>
   json(await fetch(`/api/import/history/${encodeURIComponent(fileId)}`));

@@ -170,7 +170,7 @@ git commit -m "feat(server): implement 277-col Jira CSV parser with duplicate he
 
 ---
 
-### Task 3: Dịch vụ Lưu trữ File, SHA-256 Checksum & Lịch sử Nạp
+### Task 3: Dịch vụ Lưu trữ File, SHA-256 Checksum & Lịch sử Nạp theo Kỳ Báo cáo
 
 **Files:**
 - Create: `server/services/file_storage_service.py`
@@ -178,13 +178,13 @@ git commit -m "feat(server): implement 277-col Jira CSV parser with duplicate he
 
 **Interfaces:**
 - Produces:
-  - `class FileMetadata(BaseModel): id: str, filename: str, file_path: str, file_hash: str, file_size: int, uploaded_at: str, total_issues: int, total_cols: int, target_week: str`
-  - `FileStorageService.save_file(content: bytes, filename: str, target_week: str, total_issues: int, total_cols: int) -> FileMetadata`
-  - `FileStorageService.check_duplicate(content: bytes, target_week: str) -> tuple[bool, FileMetadata | None]`
-  - `FileStorageService.get_history() -> list[FileMetadata]`
+  - `class FileMetadata(BaseModel): id: str, filename: str, file_path: str, file_hash: str, file_size: int, uploaded_at: str, total_issues: int, total_cols: int, target_month: str, target_week: str`
+  - `FileStorageService.save_file(content: bytes, filename: str, target_month: str, target_week: str, total_issues: int, total_cols: int) -> FileMetadata`
+  - `FileStorageService.check_duplicate(content: bytes, target_month: str, target_week: str) -> tuple[bool, FileMetadata | None]`
+  - `FileStorageService.get_history(target_month: str | None = None) -> list[FileMetadata]`
   - `FileStorageService.get_file_by_id(file_id: str) -> tuple[FileMetadata, bytes]`
 
-- [ ] **Step 1: Viết test cho lưu trữ, hash trùng lặp và lịch sử**
+- [ ] **Step 1: Viết test cho lưu trữ, hash trùng lặp theo kỳ và lịch sử**
 ```python
 # server/tests/test_file_storage.py
 import pytest
@@ -198,15 +198,21 @@ def test_file_storage_save_and_duplicate(tmp_path, monkeypatch):
     service = FileStorageService()
     content = b"Summary,Status\nIssue 1,Open"
     
-    # Lần 1: Lưu file mới
-    meta1 = service.save_file(content, "jira_report.csv", "w3", total_issues=1, total_cols=2)
-    assert meta1.filename == "jira_report.csv"
+    # Lần 1: Lưu file cho Tuần 4 Tháng 11
+    meta1 = service.save_file(content, "jira_report_w4.csv", target_month="2026-11", target_week="w4", total_issues=1, total_cols=2)
+    assert meta1.filename == "jira_report_w4.csv"
+    assert meta1.target_week == "w4"
+    assert meta1.target_month == "2026-11"
     assert (tmp_path / "uploads").exists()
     
-    # Lần 2: Kiểm tra file trùng lặp
-    is_dup, dup_meta = service.check_duplicate(content, "w3")
+    # Lần 2: Kiểm tra file trùng lặp trong cùng Tuần 4 Tháng 11 -> is_dup = True
+    is_dup, dup_meta = service.check_duplicate(content, target_month="2026-11", target_week="w4")
     assert is_dup is True
     assert dup_meta.id == meta1.id
+
+    # Lần 3: Cùng file đó nhưng nạp cho kỳ khác (Tuần 1 Tháng 12) -> is_dup = False (kỳ mới)
+    is_dup_dec, _ = service.check_duplicate(content, target_month="2026-12", target_week="w1")
+    assert is_dup_dec is False
     
     # Lấy lịch sử nạp
     history = service.get_history()
@@ -222,8 +228,8 @@ Expected: FAIL
   - Tự động tạo thư mục `storage/uploads/` nếu chưa có.
   - Tính mã băm `hashlib.sha256(content).hexdigest()`.
   - Lưu file vật lý với tên `{timestamp}_{hash[:8]}_{filename}`.
-  - Đọc/ghi file `storage/uploads_meta.json` an toàn dưới dạng mảng JSON.
-  - Cung cấp các hàm kiểm tra trùng theo hash + tuần mục tiêu, lấy lịch sử sắp xếp theo thời gian mới nhất trước.
+  - Đọc/ghi file `storage/uploads_meta.json` an toàn dưới dạng mảng JSON kèm `target_month` và `target_week`.
+  - Cung cấp các hàm kiểm tra trùng theo hash + kỳ báo cáo (`target_month` + `target_week`), lấy lịch sử sắp xếp theo thời gian mới nhất trước.
 
 - [ ] **Step 4: Chạy test xác nhận pass**
 Run: `python -m pytest server/tests/test_file_storage.py -v`
@@ -232,12 +238,12 @@ Expected: PASS
 - [ ] **Step 5: Commit mã nguồn Task 3**
 ```bash
 git add server/services/file_storage_service.py server/tests/test_file_storage.py
-git commit -m "feat(server): implement physical file storage, SHA-256 duplicate check, and upload history"
+git commit -m "feat(server): implement physical file storage, SHA-256 duplicate check by period, and upload history"
 ```
 
 ---
 
-### Task 4: API Endpoints Upload & Quản lý Lịch sử File (`/api/import`)
+### Task 4: API Endpoints Upload & Quản lý Lịch sử File theo Kỳ Báo cáo (`/api/import`)
 
 **Files:**
 - Create: `server/routers/import_router.py`
@@ -246,11 +252,11 @@ git commit -m "feat(server): implement physical file storage, SHA-256 duplicate 
 
 **Interfaces:**
 - Produces:
-  - `POST /api/import/upload`: Upload file CSV Jira, kiểm tra trùng, trả về metadata và thông tin 277 cột.
-  - `GET /api/import/history`: Lấy danh sách các lần nạp trước đây.
+  - `POST /api/import/upload`: Upload file CSV Jira, nhận `target_week` (w1..w4) & `target_month` (YYYY-MM), kiểm tra trùng trong kỳ, trả về metadata và thông tin 277 cột.
+  - `GET /api/import/history`: Lấy danh sách các lần nạp trước đây (có thể lọc theo `target_month`).
   - `GET /api/import/history/{file_id}`: Xem lại dữ liệu của file đã nạp.
 
-- [ ] **Step 1: Viết test API cho upload và history**
+- [ ] **Step 1: Viết test API cho upload linh hoạt tuần và tháng**
 ```python
 # server/tests/test_import_router.py
 from fastapi.testclient import TestClient
@@ -258,7 +264,7 @@ from server.main import app
 
 client = TestClient(app)
 
-def test_api_upload_jira_csv(tmp_path, monkeypatch):
+def test_api_upload_jira_csv_dynamic_week(tmp_path, monkeypatch):
     monkeypatch.setattr("server.core.config.STORAGE_DIR", tmp_path)
     monkeypatch.setattr("server.core.config.UPLOADS_DIR", tmp_path / "uploads")
     monkeypatch.setattr("server.core.config.META_FILE", tmp_path / "uploads_meta.json")
@@ -266,20 +272,19 @@ def test_api_upload_jira_csv(tmp_path, monkeypatch):
     sample_csv = b"""Summary,Status,Assignee\n"I.A.1 Project 1",IN PROGRESS,User A\n"I.A.2 Project 2",DONE,User B"""
     files = {"file": ("test_jira.csv", sample_csv, "text/csv")}
     
-    # 1. Upload lần đầu
-    res = client.post("/api/import/upload?target_week=w3", files=files)
+    # 1. Upload cho Tuần 4 Tháng 11
+    res = client.post("/api/import/upload?target_month=2026-11&target_week=w4", files=files)
     assert res.status_code == 200
     data = res.json()
     assert data["file_info"]["filename"] == "test_jira.csv"
+    assert data["file_info"]["target_week"] == "w4"
+    assert data["file_info"]["target_month"] == "2026-11"
     assert data["file_info"]["is_duplicate"] is False
     assert data["file_stats"]["total_cols"] == 3
     assert data["file_stats"]["total_issues"] == 2
-    assert len(data["columns"]) == 3
-    assert data["columns"][0]["name"] == "Summary"
-    assert len(data["columns"][0]["sample_values"]) == 2
 
-    # 2. Upload lại cùng file -> is_duplicate: True
-    res2 = client.post("/api/import/upload?target_week=w3", files={"file": ("test_jira.csv", sample_csv, "text/csv")})
+    # 2. Upload lại cùng file đó trong Tuần 4 -> is_duplicate: True
+    res2 = client.post("/api/import/upload?target_month=2026-11&target_week=w4", files={"file": ("test_jira.csv", sample_csv, "text/csv")})
     assert res2.status_code == 200
     assert res2.json()["file_info"]["is_duplicate"] is True
 
@@ -287,6 +292,7 @@ def test_api_upload_jira_csv(tmp_path, monkeypatch):
     hist_res = client.get("/api/import/history")
     assert hist_res.status_code == 200
     assert len(hist_res.json()) >= 1
+    assert hist_res.json()[0]["target_week"] == "w4"
 ```
 
 - [ ] **Step 2: Chạy test xác nhận fail**
@@ -294,11 +300,11 @@ Run: `python -m pytest server/tests/test_import_router.py -v`
 Expected: FAIL
 
 - [ ] **Step 3: Cài đặt `server/routers/import_router.py` và đăng ký router vào `main.py`**
-  - Nhận `file: UploadFile`, `target_week: str = "w3"`.
+  - Nhận `file: UploadFile`, `target_week: str = "w3"`, `target_month: str = "2026-11"`.
   - Giới hạn file size tối đa (25MB). Nếu vượt quá trả về lỗi HTTP 400.
-  - Đọc file bytes, kiểm tra SHA-256 duplicate.
-  - Parse qua `jira_csv_parser.py` để lấy danh sách cột và số liệu thống kê.
-  - Lưu file qua `file_storage_service.py`.
+  - Đọc file bytes, kiểm tra SHA-256 duplicate trong cùng `target_month` và `target_week`.
+  - Parse qua `jira_csv_parser.py` để lấy danh sách 277 cột và số liệu thống kê.
+  - Lưu file qua `file_storage_service.py` kèm thông tin tháng và tuần.
   - Trả về payload JSON chứa đầy đủ `file_info`, `file_stats`, `columns` và preview dữ liệu.
 
 - [ ] **Step 4: Chạy test xác nhận pass**
@@ -308,12 +314,12 @@ Expected: PASS
 - [ ] **Step 5: Commit mã nguồn Task 4**
 ```bash
 git add server/routers/import_router.py server/main.py server/tests/test_import_router.py
-git commit -m "feat(server): implement upload CSV inspection and history REST endpoints"
+git commit -m "feat(server): implement upload CSV inspection with dynamic target_week and month support"
 ```
 
 ---
 
-### Task 5: Tích hợp Frontend Client — Gọi API Thật & Hiển thị Lịch sử File
+### Task 5: Tích hợp Frontend Client — Chọn Kỳ Báo cáo, Gọi API Thật & Hiển thị Lịch sử
 
 **Files:**
 - Create: `client/src/api/importApi.ts`
@@ -325,9 +331,9 @@ git commit -m "feat(server): implement upload CSV inspection and history REST en
 
 **Interfaces:**
 - Consumes: Backend `/api/import/upload`, `/api/import/history`
-- Produces: Kéo thả file CSV thật, thanh trạng thái đọc file thật, hiển thị cảnh báo file trùng, nạp lại file cũ từ lịch sử thật.
+- Produces: Kéo thả file CSV thật theo kỳ báo cáo đang chọn (`targetWeek`, `targetMonth`), thanh trạng thái đọc file thật, hiển thị cảnh báo file trùng, nạp lại file cũ từ lịch sử thật.
 
-- [ ] **Step 1: Viết test cho API client và hành động upload file thật**
+- [ ] **Step 1: Viết test cho API client và hành động upload file thật theo kỳ báo cáo**
 ```typescript
 // client/src/__tests__/importView.test.ts
 import { describe, it, expect } from 'vitest';
@@ -335,9 +341,9 @@ import { handleUploadSuccess } from '@/store/actions/flow';
 import { getState } from '@/store';
 
 describe('Real Import Flow Action', () => {
-  it('updates store with real parsed columns and file stats', () => {
+  it('updates store with real parsed columns, file stats, and reporting period', () => {
     const mockUploadResponse = {
-      file_info: { id: 'file-123', filename: 'jira_real.csv', is_duplicate: false },
+      file_info: { id: 'file-123', filename: 'jira_w4.csv', is_duplicate: false, target_month: '2026-11', target_week: 'w4' },
       file_stats: { total_cols: 277, total_issues: 39, duplicate_groups: 12, loaded_at: '10:00' },
       columns: [
         { index: 0, name: 'Summary', non_null_count: 39, sample_values: ['I.A.5.1 Task 1'] }
@@ -346,7 +352,7 @@ describe('Real Import Flow Action', () => {
     };
     handleUploadSuccess(mockUploadResponse);
     const s = getState();
-    expect(s.fileName).toBe('jira_real.csv');
+    expect(s.fileName).toBe('jira_w4.csv');
     expect(s.fileStats.cols).toBe(277);
     expect(s.fileStats.dupGroups).toBe(12);
   });
@@ -359,18 +365,17 @@ Expected: FAIL
 
 - [ ] **Step 3: Cài đặt code Frontend**
   - Tạo `client/src/api/importApi.ts`:
-    * `uploadJiraCsv(file: File, targetWeek?: string)`
-    * `getImportHistory()`
-    * `reapplyHistoryFile(fileId: str)`
-  - Cập nhật `client/src/store/types.ts`: Bổ sung `rawCols: JiraColumnInfo[]`, `fileStats`, `isDuplicateAlert`.
+    * `uploadJiraCsv(file: File, targetWeek: string = 'w3', targetMonth: string = '2026-11')`
+    * `getImportHistory(targetMonth?: string)`
+    * `reapplyHistoryFile(fileId: string)`
+  - Cập nhật `client/src/store/types.ts`: Bổ sung `rawCols: JiraColumnInfo[]`, `fileStats`, `isDuplicateAlert`, `activeWeek: string`, `activeMonth: string`.
   - Cập nhật `client/src/store/actions/flow.ts`:
-    * Hàm `uploadFileReal(file: File)`: kích hoạt animation đọc file thật, gọi API, cập nhật state với số liệu thực tế.
-    * Hàm `loadHistoryList()`: tải danh sách file thật từ backend.
+    * Hàm `uploadFileReal(file: File)`: lấy tuần (`s.activeWeek`) và tháng (`s.activeMonth`) đang chọn từ TopBar truyền vào API upload.
+    * Hàm `loadHistoryList()`: tải danh sách file thật từ backend theo tháng/tuần.
   - Cập nhật `client/src/views/Import/ImportView.tsx`:
-    * `DropZone`: nhận file `File` thật từ kéo thả hoặc input `onChange`.
-    * `PreLoad`: gọi `loadHistoryList()` để render danh sách "Lần nhập gần nhất" từ API thay cho mảng tĩnh `IMPORTS`.
-    * `Importing`: hiển thị số liệu thực tế (`${s.fileStats.cols} cột`, `${s.fileStats.totalIssues} issue`) trong tiến trình đọc.
-    * Hiển thị banner cảnh báo nếu `isDuplicateAlert` được bật (file đã nạp trước đó).
+    * `DropZone`: hiển thị rõ tuần và tháng đang chọn (ví dụ: *"Nhập file Jira cho Tuần 4 tháng 11"*), nhận file thật từ kéo thả hoặc input.
+    * `PreLoad`: gọi `loadHistoryList()` để render danh sách "Lần nhập gần nhất" từ API.
+    * Hiển thị banner cảnh báo nếu `isDuplicateAlert` được bật (file đã nạp trước đó cho kỳ này).
 
 - [ ] **Step 4: Chạy test xác nhận pass**
 Run: `npm test client/src/__tests__/importView.test.ts`
@@ -383,7 +388,7 @@ Expected: All tests PASS
 - [ ] **Step 6: Commit mã nguồn Task 5**
 ```bash
 git add client/src/
-git commit -m "feat(client): connect real CSV upload, parsing stats, duplicate alert, and history list"
+git commit -m "feat(client): connect real CSV upload with dynamic week/month period, duplicate alert, and history"
 ```
 
 ---
@@ -392,9 +397,9 @@ git commit -m "feat(client): connect real CSV upload, parsing stats, duplicate a
 
 **Files:**
 - Test file: `server/tests/test_e2e_real_sample.py`
-- Test sample data: Lưu trữ file sample 277 cột ẩn danh của người dùng tại `server/tests/data/sample_jira_277_cols.csv`
+- Test sample data: `docs/samples/sample_jira_277_cols.csv`
 
-- [ ] **Step 1: Tạo test E2E với chính file sample thực tế của người dùng**
+- [ ] **Step 1: Tạo test E2E kiểm thử nạp file sample thật cho Tuần 4**
 ```python
 # server/tests/test_e2e_real_sample.py
 from fastapi.testclient import TestClient
@@ -402,37 +407,49 @@ from server.main import app
 
 client = TestClient(app)
 
-def test_real_sample_csv_e2e():
-    with open("server/tests/data/sample_jira_277_cols.csv", "rb") as f:
+def test_real_sample_csv_e2e_week_4():
+    with open("docs/samples/sample_jira_277_cols.csv", "rb") as f:
         file_bytes = f.read()
     
-    res = client.post("/api/import/upload?target_week=w3", files={"file": ("Jira_Sample.csv", file_bytes, "text/csv")})
+    # 1. Upload cho Tuần 4 Tháng 11
+    res = client.post("/api/import/upload?target_month=2026-11&target_week=w4", files={"file": ("Jira_Sample_w4.csv", file_bytes, "text/csv")})
     assert res.status_code == 200
     data = res.json()
+    assert data["file_info"]["target_week"] == "w4"
+    assert data["file_info"]["target_month"] == "2026-11"
     assert data["file_stats"]["total_cols"] == 277
     assert data["file_stats"]["total_issues"] >= 2
-    # Kiểm tra cột trùng tên Custom field (PRD) có đủ các index
+    
+    # 2. Kiểm tra cột trùng tên Custom field (PRD) có đủ các index
     prd_cols = [c for c in data["columns"] if c["name"] == "Custom field (PRD)"]
     assert len(prd_cols) >= 2
-    # Kiểm tra các cột quan trọng có sample values
+    
+    # 3. Kiểm tra các cột quan trọng có sample values
     summary_col = next(c for c in data["columns"] if c["name"] == "Summary")
     assert any("I.A.5.1" in v for v in summary_col["sample_values"])
+
+    # 4. Kiểm tra lịch sử nạp đã ghi nhận
+    hist = client.get("/api/import/history").json()
+    assert len(hist) > 0
+    assert hist[0]["target_week"] == "w4"
 ```
 
 - [ ] **Step 2: Chạy test E2E backend xác nhận pass**
 Run: `python -m pytest server/tests/test_e2e_real_sample.py -v`
 Expected: PASS
 
-- [ ] **Step 3: Chạy thực tế cả Backend và Frontend để người dùng trải nghiệm**
+- [ ] **Step 3: Chạy thực tế cả Backend và Frontend để kiểm tra trên trình duyệt**
   - Chạy `uvicorn server.main:app --port 8000`
   - Chạy `npm run dev` trên `client` (proxy `/api` trỏ về port 8000)
+  - Chọn **Tuần 4** trên thanh TopBar `WeekPicker`.
+  - Màn hình Import tự động cập nhật: *"Nhập file Jira cho Tuần 4/11"*.
   - Kéo thả file sample thật vào trình duyệt:
     * Màn hình "Đang đọc file" hiện dần các số liệu thật: 277 cột, issue, nhóm cột trùng.
-    * Sang màn hình tóm tắt với đúng tên file thật.
-    * Reload lại trang -> Mục "Lần nhập gần nhất" hiển thị đúng file vừa nạp.
-    * Thử kéo thả lại đúng file đó -> Nhận thông báo phát hiện file trùng lặp.
+    * Sang màn hình tóm tắt với đúng tên file và kỳ báo cáo Tuần 4.
+    * Reload lại trang -> Mục "Lần nhập gần nhất" hiển thị đúng file vừa nạp cho Tuần 4.
+    * Kéo thả lại đúng file đó cho Tuần 4 -> Nhận thông báo phát hiện file trùng lặp trong kỳ.
 
 - [ ] **Step 4: Commit hoàn tất Đợt 1**
 ```bash
-git commit -m "test(e2e): complete Phase 1 Jira CSV upload, storage, 277-col profiling, and frontend integration"
+git commit -m "test(e2e): complete Phase 1 Jira CSV upload with dynamic week/month period and sample verification"
 ```

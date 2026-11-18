@@ -175,14 +175,15 @@ Một profile cấu hình ánh xạ được thiết kế bằng các **khoá ng
 - `POST /api/import`: Nhận `multipart/form-data`:
   - `file`: File CSV (bắt buộc)
   - `config_id`: ID của cấu hình muốn áp dụng (tùy chọn; nếu không gửi sẽ dùng cấu hình `is_default`)
-  - `target_week`: Tuần báo cáo cần ghi dữ liệu (mặc định: `w3`)
+  - `target_week`: Tuần báo cáo cần ghi dữ liệu (ví dụ: `w1`, `w2`, `w3`, `w4`, linh hoạt theo tuần đang chọn trên TopBar, không fix cứng)
+  - `target_month`: Tháng báo cáo (ví dụ: `2026-11`, `2026-12`, linh hoạt theo tháng đang chọn)
   - `existing_rows`: Chuỗi JSON danh sách các dòng hiện tại trên Client (tùy chọn, dùng để bảo toàn ô đã sửa tay hoặc duyệt nháp khi re-import)
 - **Cơ chế xử lý thông minh (Smart Processing):**
-  1. Tính hash SHA-256: Nếu trùng 100% với file gần nhất của kỳ này -> trả về cờ `is_duplicate: true` kèm thông báo *"File trùng khớp 100% với lần nạp trước"*.
-  2. Lưu file vật lý vào `storage/uploads/` và cập nhật `uploads_meta.json`.
+  1. Tính hash SHA-256: Nếu trùng 100% với file gần nhất của cùng kỳ báo cáo (`target_month` + `target_week`) -> trả về cờ `is_duplicate: true` kèm thông báo *"File trùng khớp 100% với lần nạp trước của kỳ này"*.
+  2. Lưu file vật lý vào `storage/uploads/` và cập nhật `uploads_meta.json` kèm `target_month` và `target_week`.
   3. Incremental Diff: So sánh theo `Issue key` + `Updated`. Chỉ cập nhật các trường động từ Jira cho các issue có thay đổi hoặc mới; giữ nguyên 100% các ô người dùng đã ghi đè (`ovr`) hoặc AI đã duyệt (`ai.ok`).
 - **Dữ liệu trả về (Response Payload):**
-  - `file_stats`: `{ total_cols: 277, total_issues: 39, dup_groups: 12, loaded_at: "...", file_hash: "...", is_duplicate: false }`
+  - `file_stats`: `{ total_cols: 277, total_issues: 39, dup_groups: 12, loaded_at: "...", file_hash: "...", is_duplicate: false, target_month: "2026-11", target_week: "w3" }`
   - `jira_columns`: Danh sách 277 cột Jira phát hiện được (kèm index, tên, kiểu dữ liệu, sample values).
   - `column_status`: Trạng thái đối chiếu của 49 cột (cột nào khớp tốt, cột nào bị đổi tên, cột nào để trống).
   - `rows`: Danh sách các dòng dữ liệu 49 cột hoàn chỉnh.
@@ -190,7 +191,7 @@ Một profile cấu hình ánh xạ được thiết kế bằng các **khoá ng
   - `orphan_issues`: Các issue không bóc tách được mã dự án từ Summary.
   - `new_codes`: Các mã dự án mới xuất hiện trong file Jira nhưng chưa có trong danh mục mẫu.
   - `unmapped_values`: Các giá trị trạng thái/tiến độ mới xuất hiện chưa có trong từ điển quy đổi.
-- `GET /api/import/history`: Trả về danh sách các lần nạp gần nhất (tên file, thời gian nạp, tuần, số issue, số cột, phiên bản liên quan) phục vụ hiển thị trên giao diện "Lần nhập gần nhất".
+- `GET /api/import/history`: Trả về danh sách các lần nạp gần nhất (tên file, thời gian nạp, tháng, tuần, số issue, số cột, phiên bản liên quan) phục vụ hiển thị trên giao diện "Lần nhập gần nhất".
 - `POST /api/import/reapply/{file_id}`: Nạp lại một file trong lịch sử mà không cần tải lại file lên.
 
 ---
@@ -199,7 +200,8 @@ Một profile cấu hình ánh xạ được thiết kế bằng các **khoá ng
 
 1. **API Client:** Tạo `client/src/api/importApi.ts` và `client/src/api/mappingApi.ts` giao tiếp với proxy `/api`.
 2. **Màn hình Nhập File (`views/Import/ImportView.tsx`):**
-   - Sự kiện kéo thả / chọn file thật trong `DropZone` sẽ gọi `importApi.uploadJiraFile(file, selectedConfigId, 'w3')`.
+   - Sự kiện kéo thả / chọn file thật trong `DropZone` sẽ gọi `importApi.uploadJiraFile(file, selectedConfigId, s.targetWeek || 'w3', s.targetMonth || '2026-11')`.
+   - Hiển thị tuần và tháng đang chọn, có thể đổi tuần từ TopBar WeekPicker hoặc menu chọn tuần.
    - Hiển thị dropdown chọn Cấu hình ánh xạ trước khi nạp.
    - Nạp dữ liệu thực nhận từ API vào Zustand store (`allRows`, `fields`, `fileStats`, `statusMap`, v.v.).
 3. **Màn hình Kiểm tra - Khớp Cột & Quy Đổi (`views/Check/CheckTabs.tsx`):**

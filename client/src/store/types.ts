@@ -80,7 +80,9 @@ export interface AppState {
   fileStats: { cols: number; totalIssues: number; dupGroups: number };
   isDuplicateAlert: boolean;
   /** có khi file đến từ upload thật (id file backend + tuần); null: nạp mẫu/tour */
-  realFile: { id: string; week: string } | null;
+  realFile: { id: string; week: string; month: string } | null;
+  activeWeek: string; // kỳ báo cáo đang chọn ở TopBar
+  activeMonth: string; // YYYY-MM
   importHistory: ImportHistoryItem[];
   importing: { name: string; step: number } | null;
   replaceFile: boolean;

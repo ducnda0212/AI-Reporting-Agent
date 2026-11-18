@@ -101,5 +101,5 @@ Hiện có 18 test (health, parser, lưu trữ/trùng lặp, API, E2E với file
 
 - `storage/` được git-ignore; xóa thư mục này để reset lịch sử nạp.
 - Ghi file meta chưa có khóa (lock): phù hợp chạy một tiến trình, chưa an toàn cho nhiều worker ghi đồng thời.
-- File mẫu `tests/data/sample_jira_277_cols.csv` đã ẩn danh host/tài khoản/tên; bản gốc nằm trong `docs/samples/` (chưa tracked).
+- File mẫu `docs/samples/sample_jira_277_cols.csv` đã được tracked và test E2E đọc trực tiếp file này (bản trong `server/tests/data` không còn được dùng). Đây là bản export Jira thô, chứa hostname công ty; không sửa file CSV.
 - CORS chỉ cho phép `http://localhost:5173`; khi chạy qua Vite proxy thì cùng origin nên không cần thay đổi.

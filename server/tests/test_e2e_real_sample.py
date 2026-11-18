@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from server.main import app
 
 client = TestClient(app)
-SAMPLE = Path(__file__).parent / "data" / "sample_jira_277_cols.csv"
+SAMPLE = Path(__file__).resolve().parents[2] / "docs" / "samples" / "sample_jira_277_cols.csv"
 
 
 @pytest.fixture(autouse=True)
@@ -17,10 +17,10 @@ def storage(tmp_path, monkeypatch):
     monkeypatch.setattr("server.core.config.META_FILE", tmp_path / "uploads_meta.json")
 
 
-def up():
+def up(month="2026-11", week="w4"):
     return client.post(
-        "/api/import/upload?target_week=w3",
-        files={"file": ("Jira_Sample.csv", SAMPLE.read_bytes(), "text/csv")},
+        f"/api/import/upload?target_month={month}&target_week={week}",
+        files={"file": (f"Jira_Sample_{week}.csv", SAMPLE.read_bytes(), "text/csv")},
     )
 
 
@@ -35,6 +35,8 @@ def test_real_sample_csv_e2e():
     stats = data["file_stats"]
     assert (stats["total_cols"], stats["total_issues"], stats["duplicate_groups"]) == (277, 2, 14)
     assert data["file_info"]["is_duplicate"] is False
+    assert data["file_info"]["target_week"] == "w4"
+    assert data["file_info"]["target_month"] == "2026-11"
 
     cols = data["columns"]
     prd = [c for c in cols if c["name"] == "Custom field (PRD)"]
@@ -56,5 +58,10 @@ def test_real_sample_csv_e2e():
     assert second["file_info"]["id"] == fid
     hist = client.get("/api/import/history").json()
     assert [h["id"] for h in hist] == [fid]
+    assert hist[0]["target_week"] == "w4"
+
+    # same file, other week / other month -> not a duplicate
+    assert up(week="w1").json()["file_info"]["is_duplicate"] is False
+    assert up(month="2026-12", week="w4").json()["file_info"]["is_duplicate"] is False
     detail = client.get(f"/api/import/history/{fid}").json()
     assert len(detail["columns"]) == 277

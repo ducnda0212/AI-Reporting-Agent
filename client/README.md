@@ -99,7 +99,7 @@ Prototype được cập nhật; client chuyển các thay đổi sang React (d�
 Ảnh chụp ở 1440×900, giao diện sáng. Nút "Dùng dữ liệu mẫu" đã bỏ: bước 1 nhập file CSV Jira thật qua backend (`python -m uvicorn server.main:app --port 8000`). Các màn sau bước 1 vẫn dùng dữ liệu mock. Lưu ý: ảnh `01-import-empty.png` và `03-import-loaded.png` chụp trước khi bỏ nút mẫu, cần chụp lại.
 
 ### Bước 1 · Nhập file
-Kéo thả hoặc chọn CSV Jira; file được gửi lên backend, lưu lại, kiểm tra trùng (SHA-256) và đọc số cột/issue/nhóm cột trùng thật. Cột "Lần nhập gần nhất" lấy từ lịch sử backend.
+Kéo thả hoặc chọn CSV Jira cho kỳ đang chọn ở thanh trên; file được gửi lên backend, lưu lại, kiểm tra trùng (SHA-256) và đọc số cột/issue/nhóm cột trùng thật. Cột "Lần nhập gần nhất" lấy từ lịch sử backend.
 
 ![Nhập file — trống](docs/screenshots/01-import-empty.png)
 
@@ -145,7 +145,7 @@ Thư viện mẫu (mục "Mẫu BC" cuối thanh trái) và màn cấu hình m�
 ![Cấu hình mẫu 49 cột](docs/screenshots/15-template-config.png)
 
 ### Chọn kỳ báo cáo
-Nút lùi/tới và bảng chọn tuần ở thanh trên; tuần đã chốt chỉ để xem.
+Nút lùi/tới và bảng chọn tuần ở thanh trên (chọn được Tuần 4); tuần đã chốt chỉ để xem. Kỳ đang chọn (`activeWeek`/`activeMonth` trong store) là kỳ của file Jira khi nhập: màn Nhập file hiển thị "Nhập file Jira cho Tuần 4 tháng 11", upload gửi `target_month`/`target_week`, lịch sử lọc theo tháng.
 
 ![Chọn tuần](docs/screenshots/16-week-picker.png)
 
