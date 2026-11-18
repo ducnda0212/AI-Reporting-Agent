@@ -99,7 +99,16 @@ Prototype được cập nhật; client chuyển các thay đổi sang React (d�
 Ảnh chụp ở 1440×900, giao diện sáng, dữ liệu mock sau khi bấm "Dùng dữ liệu mẫu".
 
 ### Bước 1 · Nhập file
-Kéo thả hoặc chọn CSV Jira. Hiện tại chỉ giả lập đọc file (chưa gửi backend).
+Kéo thả hoặc chọn file CSV / Excel (`.csv .tsv .txt .xlsx .xlsm .xls`). Chọn xong thì **xem trước ngay** ở cột phải (16 dòng × 9 cột đầu, chọn sheet nếu có nhiều sheet), bấm **Đọc file này** mới nạp. Việc nạp vẫn là giả lập (chưa gửi backend); xem trước đọc file thật tại trình duyệt (`src/lib/filePreview.ts`).
+- Nút phóng to: lưới toàn màn hình cuộn ảo, ô địa chỉ + nội dung đầy đủ, tìm trong sheet (Enter / Shift+Enter), phím mũi tên, Esc để đóng.
+- `.xls` cũ và `.xlsx` lỗi đọc trực tiếp sẽ tải SheetJS từ CDN làm dự phòng.
+- File chọn lưu ở `store/preview.ts` (tách khỏi store chính, không ghi localStorage).
+
+![Nhập file — xem trước](docs/screenshots/20-import-preview.png)
+
+Xem toàn màn hình, đang tìm "Phan":
+
+![Nhập file — xem trước toàn màn hình](docs/screenshots/21-import-preview-fullscreen.png)
 
 ![Nhập file — trống](docs/screenshots/01-import-empty.png)
 
@@ -110,6 +119,11 @@ Kéo thả hoặc chọn CSV Jira. Hiện tại chỉ giả lập đọc file (c
 Sau khi nạp: tóm tắt thay đổi so với tuần trước và việc còn lại ở bước Kiểm tra.
 
 ![Nhập file — đã nạp](docs/screenshots/03-import-loaded.png)
+
+### Cấu hình mẫu (panel bên phải)
+Mở từ màn Mẫu 49 cột hoặc menu "Cột" ở bảng: chọn 1 / 2 / 3 tuần, thêm khối tuần sau, ẩn/hiện cột theo nhóm, lưu thành phiên bản (`store/tplVersions.ts`, localStorage). Bảng và ghi chú ở modal Xuất đổi theo cấu hình.
+
+![Cấu hình mẫu](docs/screenshots/22-template-config.png)
 
 ### Bước 2 · Kiểm tra dữ liệu
 Gồm 4 tab con: khớp cột Jira với mẫu, quy đổi giá trị, làm sạch nội dung, ghép dự án.

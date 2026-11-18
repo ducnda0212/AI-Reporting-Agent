@@ -12,6 +12,7 @@ import './styles/excel.css';
 import './styles/import-check.css';
 import './styles/refine-risk.css';
 import './styles/refine-v2.css';
+import './styles/file-preview.css';
 
 applyStoredTheme();
 

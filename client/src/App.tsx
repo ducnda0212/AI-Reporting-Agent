@@ -12,6 +12,7 @@ import { FormatBar, SelBar } from '@/components/grid/FormatBar';
 import { Grid } from '@/components/grid/Grid';
 import { FillHandle } from '@/components/grid/FillHandle';
 import { HubPanel } from '@/components/panels/HubPanel';
+import { TplConfigPanel } from '@/components/panels/TplConfigPanel';
 import { ProjectPanel } from '@/components/panels/ProjectPanel';
 import { AiDoneModal } from '@/components/modals/AiDoneModal';
 import { BucketsModal } from '@/components/modals/BucketsModal';
@@ -79,7 +80,7 @@ export function App() {
 
   const flow = s.view === 'import' || s.view === 'check';
   const grid = s.view === 'grid' && s.loaded;
-  const panel = s.panel === 'issues' || s.panel === 'ai' || s.panel === 'rev' || s.panel === 'ask' || s.panel === 'note' ? <HubPanel /> : s.panel === 'project' ? <ProjectPanel /> : null;
+  const panel = s.panel === 'issues' || s.panel === 'ai' || s.panel === 'rev' || s.panel === 'ask' || s.panel === 'note' ? <HubPanel /> : s.panel === 'project' ? <ProjectPanel /> : s.panel === 'tvcfg' ? <TplConfigPanel /> : null;
   const inner = (
     <>
       {s.loaded && s.catPend > 0 && (s.view === 'grid' || s.view === 'check') && <RerunBar />}
