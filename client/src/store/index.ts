@@ -64,6 +64,7 @@ function createInitialState(): AppState {
     issDis: {}, issFlt: 'all', issSkipOpen: false,
 
     aiRun: null, review: null, tour, demoFilled: false,
+    rawCols: [], fileStats: { cols: 0, totalIssues: 0, dupGroups: 0 }, isDuplicateAlert: false, realFile: null, importHistory: [],
 
     lockBy: 'Khuê', lockMsg: null, verSel: null, exported: null, doneExport: false,
     exOut: { f49: true, exec: true }, exFmt: 'pdf', exNote: null, ex: {},

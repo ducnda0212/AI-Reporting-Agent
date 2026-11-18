@@ -1,0 +1,267 @@
+Summary,Issue key,Issue id,Issue Type,Status,Project key,Project name,Project type,Project lead,Project lead id,Project description,Priority,Resolution,Assignee,Assignee Id,Reporter,Reporter Id,Creator,Creator Id,Created,Updated,Last Viewed,Resolved,Due date,Votes,Labels,Description,Environment,Watchers,Watchers Id,Original estimate,Remaining Estimate,Time Spent,Work Ratio,Σ Original Estimate,Σ Remaining Estimate,Σ Time Spent,Security Level,Custom field (% testing),Custom field (Actual end),Custom field (Actual start),Custom field (Affected Area),Custom field (Affected System),Custom field (Affected hardware),Custom field (Affected services),Custom field (Affects version),Custom field (Application),Custom field (Approvals),Custom field (Apps Version),Custom field (Apps Version IDN),Custom field (Atlassian Project),Custom field (Atlassian project),Custom field (Atlassian project status),Custom field (Backout plan),Custom field (Board of Management),Custom field (Board of Management)Id,Custom field (Bug Description),Custom field (Business Affected),Custom field (Business Goal),Custom field (Business Owner),Custom field (Category),Custom field (Change reason),Custom field (Change request type),Custom field (Change risk),Custom field (Change type),Custom field (Checklist Completed),Custom field (Comments),Custom field (Component),Custom field (Confident),Custom field (Config Change),Custom field (Config Changes),Custom field (Config Changes),Custom field (Country),Custom field (DB Change),Custom field (DB Change),Custom field (DB Change),Custom field (DEV Due Date),Custom field (Definition of Done),Custom field (Delivery progress),Custom field (Delivery status),Custom field (Department),Custom field (Deploy tag),Custom field (Description Of The Change),Custom field (Description Of The Change),Custom field (Description Vinfast),Custom field (Dev scope),Custom field (Dev-BE),Custom field (Dev-FE),Custom field (Developer),Custom field (Developers),Custom field (Development),Custom field (Document Link),Custom field (Due Date - Dev),Custom field (Due date),Custom field (Due date - Staging),Custom field (Effort),Custom field (Effort (Dev)),Custom field (Effort (Dev-BE)),Custom field (Effort (Dev-FE)),Custom field (Effort (DevOps)),Custom field (Effort (Mobile)),Custom field (Effort (PO/BA)),Custom field (Effort (QA)),Custom field (End date),Custom field (Epic Color),Custom field (Epic Name),Custom field (Epic Status),Custom field (Escalation),Custom field (Estimated Effort (MD)),Custom field (Event Tag),Custom field (Feature ID),Custom field (Figma),Custom field (Fix Verison),Custom field (Fix Version),Custom field (Fix version),Custom field (Fix-version),Custom field (Flagged),Custom field (Focus Areas),Custom field (Found in Build),Custom field (Found in Build),Custom field (Found in Build),Custom field (Found in Environment),Custom field (Found in Environment),Custom field (Found in Environment),Custom field (Found in Environment),Custom field (Goals),Custom field (Hot Topic),Custom field (Hỏng gì nếu hoãn),Custom field (ID Epic),Custom field (Idea),Custom field (Idea archived),Custom field (Idea archived on),Custom field (Impact),Custom field (Impact (migrated 2)),Custom field (Impacts),Custom field (Implementation plan),Custom field (Incident manager),Custom field (Insights),Custom field (Investigation reason),Custom field (Issue color),Custom field (Jira PRD),Custom field (Jira SAD),Custom field (KPI/Outcome),Custom field (Linked items),Custom field (Location/Department),Custom field (Locked forms),Custom field (Major incident),Custom field (Master Plan ID),Custom field (Number of affected user),Custom field (Open forms),Custom field (Operational categorization),Custom field (PM),Custom field (PO),Custom field (PO)Id,Custom field (PRD),Custom field (PRD),Custom field (PRD),Custom field (PRD (URL)),Custom field (Pending reason),Custom field (Pending/Canceled Reason),Custom field (Phase),Custom field (Planned end),Custom field (Planned start),Custom field (Priority),Custom field (Process),Custom field (Product Name),Custom field (Product categorization),Custom field (Product manager),Custom field (Progress),Custom field (Progress Report),Custom field (Project Type),Custom field (Project manager),Custom field (Project overview key),Custom field (Project overview status),Custom field (QA (Tester)),Custom field (QC (migrated)),Custom field (QC Confirm Version),Custom field (QC Confirm Version),Custom field (QC Confirm Version),Custom field (QC Due Date),Custom field (RICE score),Custom field (Rank),Custom field (Reach),Custom field (Reason),Custom field (Reason (Text)),Custom field (Region),Custom field (Release Stage),Custom field (Release Version),Custom field (Released Note),Custom field (Released Note),Custom field (Released Note),Custom field (Released Note),Custom field (Report),Custom field (Request Date),Custom field (Request Security Date),Custom field (Request Security Date),Custom field (Request Type),Custom field (Request language),Custom field (Request participants),Custom field (Request type),Custom field (Requester),Custom field (Resolution time - Incident),Custom field (Resolution/Action Taken),Custom field (Responders),Custom field (Response time - Incident),Custom field (Risk Notes),Custom field (Root cause),Custom field (SRS),Custom field (SRS),Custom field (SRS),Custom field (SRS),Satisfaction rating,Custom field (Satisfaction date),Custom field (Scope),Custom field (Security),Custom field (Security Impact Severity),Custom field (Security Ticket),Custom field (Sentiment),Custom field (Service),Custom field (Service Name),Custom field (Severity),Custom field (Severity),Custom field (Severity),Custom field (Severity),Custom field (Severity (migrated)),Custom field (Severity level),Custom field (Source),Custom field (Stage (migrated)),Custom field (Start Date - QC),Custom field (Start date),Custom field (Status pages),Custom field (Story Point),Custom field (Story Points),Custom field (Story point estimate),Custom field (Submitted forms),Custom field (Success Metric),Custom field (Support Group),Custom field (Target end),Custom field (Target start),Custom field (Task progress),Custom field (Tasks),Team Id,Team Name,Custom field (Tech Lead ),Custom field (Tech lead),Custom field (Technical Documents),Custom field (Technical Documents),Custom field (Technical Specification),Custom field (Technical docs),Custom field (Test plan),Custom field (Time to close after resolution),Custom field (Time to done),Custom field (Time to first response),Custom field (Time to resolution),Custom field (Time to review normal change),Custom field (Total forms),Custom field (Type of Bug),Custom field (Type of Bug (migrated)),Custom field (Unit Test),Custom field (Unit Test),Custom field (Urgency),Custom field (Version Code),Custom field (Version Code),Custom field (Version Code),Custom field (Version Code BE),Custom field (Version Code FE),Custom field (Vulnerability),Custom field (Work category),Custom field (Work item created forms),Custom field (Workaround),Custom field ([CHART] Date of First Response),Custom field ([CHART] Date of First Response (migrated)),Custom field ([CHART] Time in Status),Custom field (⚙ Technical documents),Comment,Status category,Status category changed
+I.A.5.1 Nền tảng thực nghiệm (experimentation platform),PKD-11,401291,Task,IN PROGRESS,PKD,PMO - KSM AI,software,Lưu Quốc Tuấn,712020:c8bea68a-836b-437e-8fdd-9cbb0d85f8c0,,High,,,712020:d6905244-66d7-431a-8da5-d521d83fde0e,Lưu Quốc Tuấn,712020:c8bea68a-836b-437e-8fdd-9cbb0d85f8c0,Lưu Quốc Tuấn,712020:c8bea68a-836b-437e-8fdd-9cbb0d85f8c0,9/14/2026 14:44,11/6/2026 9:50,11/7/2026 17:52,,12/31/2026 0:00,0,I.A.5.AI.Tối.Ưu.Khuyến.Mai&Tối.Ưu.Popup.Notification.Dựa.Trên.Causal.uplift,"Nền tảng thựI/ML
+
+MILESTONE:
+
+{{2026-10-31}} (STAGING) Chạy tdđup lif
+
+{{2026-11-15}} (PROD) Chạy tượI (test backend, chưa có frontend)
+
+{{2026-12-31}} Nghi kết quả.",,hoàng anh tuấn,712020:c8bea68a-836b-437e-8fdd-9cbb0d85f8c0,,,,,,,,,,,,,,,,,,ApprovalsCFValue{approvals=[]},,,,,,,Fajar Putra,712020:1ceabcea-2cd8-40bb-991f-dac59e702aeb,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,{},,,,,,,,,,,,,,,,,No,,,,,,,,,,,,,,,,,,,,,,"ONE-LINE PITCH
+What it is, in a sentence a stranger would understand.
+
+Ask: [Decision / Green light / Resource]
+
+1. PROBLEM STATEMENT
+What's broken or missing? One or two sentences. No solution yet — just the problem.
+
+2. WHY ARE WE SOLVING THIS?
+Why now? Why does it matter?
+
+Supporting data:
+The evidence — funnel numbers, tickets, research, market shift.
+
+3. BENCHMARK
+Existing experience out there:
+How others handle this today. What's good? What's the gap we'd beat?
+
+4. TRADEOFF
+What's the tension?
+If we do this, what gets broken, slowed, or degraded?
+Examples: speed vs. safety, growth vs. trust, simplicity vs. power, cost, E2EE boundary.
+
+How do we solve it?
+How we get the upside without paying the full downside.
+
+5. WHO ARE WE SOLVING THIS FOR?
+The specific user or segment. ""Everyone"" is not an answer.
+Examples: New users, Expats, Families, Power users, Specific market.
+
+6. METRICS
+Primary metric wedntion / K-factor / ...]
+
+Defensive metric to watch:
+The guardd
+If it moves the wrong way, we stop.
+
+7. WHAT IT LOOKS LIKE IN THE PRODUCT
+A key snapsdg.
+
+8. LANDMINES
+[ ] Privdance
+[ ] None
+
+If any box is checked, explain briefly.
+
+9. FEEDBACK LOOPS
+How wdardd interviews, support tickets, beta cohort.
+
+10. GTM — GO-TO-MARKET
+How thdaged rollout, docs, Sales/CS enablement, or ""No GTMdded"".",,,,,,,,,,,,,"||*STT*||*KPI*||*Chỉ số chính*||*Kết quả thực tế*||*Kết Luận*||
+|1|Xây dựng hệ thống tích hợp với backend có thể được cấu hình mục đích kiểm thử hoặc lựa chọn ngẫu nhiên user theo mục đích| | | |",,VinFast VN,,,,,,,,Lê Ngọc Anh (VSF-KDVHGSM-QLTNKH),712020:b9852c4c-2a0c-4ccf-889a-2f48e2dfbf8c,,Link: PRD,,,,,2.Xác.định.yêu.cầu.nghiệp.vụ.chi.tiết,,,,,,,,On-track,"||*Week*||*Mục tiêu/Tiến Độ*||*Công việc sẽ làm*||
+|{{2026-09-11}}|*  Define với PO success metric của Platform, mục tiêu các Phase 01 & 02
+* Đang hoàn thiện tài liệu L1, L2
+* Đã hoàn thiện tài liệu: data model, data pipeline computing.|* Hoàn thiện tài liệu L1, L2.
+* Tài liệu L3 các module thuộc scope của DS.
+* Tài liệu phương pháp luận giải quyết các vấn đề critical của Platform.|
+|{{2026-09-18}}|*Tiến độ:*
+* Các tài liệu PRD, L1, L2 đã có version 1.0
+* Đã audit các repo code của hệ thống cũ, để đưa ra pros & cons của repo cũ, từ đó đưa ra phương án tái sử dụng những phần cần thiết.
+* Đã hoàn thiện tài liệu về vấn đề [Overlapping Experiment|https://xanhsm.atlassian.net/wiki/spaces/PD/pages/1830748300/Mutual+Exclusion+-+Overlapping+Experiment+Infrastructure].|*Mục tiêu:*
+* Hoàn thiện tài liệu PRD, L1, L2.
+* Bổ sung tiếp các tài liệu liên quan đến các vấn đề critical.|
+|{{2026-09-25}}|*Tiến độ:*
+* Đã bổ sung các tài liệu PRD, L1, L2 bản đầy đủ hơn.
+* Phần solution cho các critical problem đã thêm các phần:
+** [Targeting & Online RCT|https://xanhsm.atlassian.net/wiki/spaces/PD/pages/1838908484/Target+user+Online+randomization]
+** [Overlapping Exp & Layer Registry|https://xanhsm.atlassian.net/wiki/spaces/PD/pages/1839400128/Overlapping+Experiments+and+Layer+Registry+Mechanisms+and+Management+Solutions]
+** [Metric Layer Registry|https://xanhsm.atlassian.net/wiki/spaces/PD/pages/1836777569/Metric+Registry+Layer]
+** [Switchback desgin|https://xanhsm.atlassian.net/wiki/spaces/PD/pages/1839171424/Switchback+Design+Key+Principles+and+Use+Cases+for+Experimentation]|*Mục tiêu:*
+* Xin trình duyệt dự án tới các cấp cao hơn và các bên như ANBM, SA, Devops
+* Bổ sung & chỉnh sửa thêm tài liệu đã viết.|
+|{{2026-10-02}}|*Tiến độ:*
+* Đã raise các vấn đề liên quan đến xin resource và việc truy cập data GSM 360 lên các cấp cao hơn.
+* Dự án đã lên timeline các đầu việc nhỏ để đạt tiến độ.|*Mục tiêu:*
+* Hoàn thiện tài liệu L1, L2|
+|{{2026-10-09}}|*Tiến độ:*
+* Dự án đã raise vấn đề thiếu SA dedicate giai đoạn này.
+* Phía BE đã bắt đầu code phần việc liên quan như chức năng phân nhánh - {{E3-01}}, AI code phần computing pipeline - {{E1-02}}, phương án Metric onboarding|*Mục tiêu:*
+* SA hoàn thiện L1, L2 để bắt đầu luồng xin phê duyệt với PTNT
+* Tiếp tục các đầu việc của BE, AI theo tiến độ đặt ra trong - [https://vingroupjsc-my.sharepoint.com/:x:/r/personal/anhln60_vingroup_net/Documents/20260928%20ExP%20Platform%20-%20Scope.xlsx?d=w13a1e62f6b6a4dad89908aca3b32c33d&csf=1&web=1&e=hpA0xM|https://vingroupjsc-my.sharepoint.com/:x:/r/personal/anhln60_vingroup_net/Documents/20260928%20ExP%20Platform%20-%20Scope.xlsx?d=w13a1e62f6b6a4dad89908aca3b32c33d&csf=1&web=1&e=hpA0xM|smart-link]|
+|{{2026-10-16}}|*Tiến độ:*
+* Đã hoàn thiện các tài liệu L1, L2:
+** L1 - [https://xanhsm.atlassian.net/wiki/spaces/PD/folder/1862730376?atlOrigin=eyJpIjoiMmQyNmIzZWY2ZjNkNGQ5ZDkzZDUyYmJkM2E5NDUzZTMiLCJwIjoiYyJ9|https://xanhsm.atlassian.net/wiki/spaces/PD/folder/1862730376?atlOrigin=eyJpIjoiMmQyNmIzZWY2ZjNkNGQ5ZDkzZDUyYmJkM2E5NDUzZTMiLCJwIjoiYyJ9|smart-link] 
+** L2 - [https://xanhsm.atlassian.net/wiki/spaces/PD/pages/1821639697/T+i+li+u+L2?atlOrigin=eyJpIjoiZGFmODVhMWU4OTcyNDcwN2E1MDYxZmU2NWY5MzFiMWQiLCJwIjoiYyJ9|https://xanhsm.atlassian.net/wiki/spaces/PD/pages/1821639697/T+i+li+u+L2?atlOrigin=eyJpIjoiZGFmODVhMWU4OTcyNDcwN2E1MDYxZmU2NWY5MzFiMWQiLCJwIjoiYyJ9|smart-link] 
+* Đã giải quyết các vấn đề:
+** Deploy Staging ở đâu, Data lưu ở đâu, hạ tầng tính toán ở đâu.
+** Việc consume Event tracking của Exp-platform.
+* Đã implement các FR sau:
+** BE: demo phần tính năng chia nhánh user theo features.
+** AI: hoàn thiện computing pipeline cho use case Promotion.|*Mục tiêu:*
+* Hoàn thiện review kiến trúc với PTNT, review data với DPO
+* Xin pd cấp tài nguyên cho dự án: Service account, Repo Git
+* Tiếp tục implement các FR của BE, AI.|
+|{{2026-10-30}}|*Tiến độ:*
+* Trong quá trình review và phản hồi tài liệu L2 - version 2.
+* Đ't-up các phần cần thiết để hỗ trợ Stag các hạng mục này).|*Mục tiêu:*
+* Được p'
+* Xin 'Lops AI.
+* Test tích hợp thông luồng Staging.|
+|{{2026-11-06}}|*Tiến độ:*
+* Giải quyết các vấn đề liên quan kết nố'view DPO.
+* Test luồng từ BE SDK → Event trackin'
+* Đã dựng Stag FE + BE, các domain của platform.|*Mục tiêu:*
+* Được phê duyệt L2, DPO, cấp duyệt t'uction.
+* Implement các Function của Phase 02.|",,,,,,,,,,,,2|i1rvvt:,,,,,Golive1.1,,,,,,,,,,,,,,,,,,,"||*STT*||*Date*||*Mô tả issue/risk*||*Todo*||*PIC*||*Deadline*||
+| | | | | | |",,,,,,,,,,Low,,,,,,,,,,,,,,6/1/2026 0:00,,,,,,,,,,,,0a16e214-b79e-4892-850a-4a88997a6c63,,,,"* -1. Xác định bài toán AI & Ý tưởng sản phẩm-
+* -2. Xác định yêu cầu nghiệp vụ chi tiết (PRD)-
+ (Event Logging, Dashboard)
+*cáo ANBM)
+* 11. Phê duyệt & Triển khai Go-Live
+* 12. Đánh giá sau Go-Live (Post-Launch Report)",,,,,,,,,,,,,,,,,,,,,,,,,,,,,"07/Oct/26 5:09 PM;712020:c8bea68a-836b-437e-8fdd-9cbb0d85f8c0;{{2026-10-07}} 
+
+Risk: Nhân sự SA viết L1, L2 n mềm assign lại SA
+
+→ chậm phía phần p với team AI
+
+→ chậm đc truy data từ 360 ",In Progress,9/14/2026 15:00
+II.E.1.2 Optimize model development and deployment on ML platform,PKD-39,402214,Task,IN PROGRESS,PKD,PMO - KSM AI,software,Lưu Quốc Tuấn,712020:c8bea68a-836b-437e-8fdd-9cbb0d85f8c0,,High,,,712020:1d648610-7cff-4a87-b49b-6ac63e521e84,Lưu Quốc Tuấn,712020:c8bea68a-836b-437e-8fdd-9cbb0d85f8c0,Lưu Quốc Tuấn,712020:c8bea68a-836b-437e-8fdd-9cbb0d85f8c0,9/15/2026 10:12,11/6/2026 9:37,,,12/31/2026 0:00,0,II.E.1.Nền.Tảng.MLOPs.Phục.Vụ.Triển.Khai&Vận.hàng.AI/ML,"Chuẩn hódtính sẵn uyên và hiệu năng phục vụ cao.
+
+*MILESTONES*
+
+{{2026-10-31}} Giảm thdroonal ML (KR1)
+
++ Golive baseldan  ML d
+
+{{2026-12-31}}Optidorm (KR2 + KR3)
+
++ Productddving
+
++ Đảm bảodn kỹ thuật được triển khai trên Prod",,hoàng anh tuấn,712020:c8bea68a-836b-437e-8fdd-9cbb0d85f8c0,,,,,,,,,,,,,,,,,,ApprovalsCFValue{approvals=[]},,,,,,,Fajar Putra,712020:1ceabcea-2cd8-40bb-991f-dac59e702aeb,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,{},,,,,,,,,,,,,,,,,No,,,,,,,,,,,,,,,,,,,,,,"ONE-LINE PITCH
+What it is, in a sentence a stranger would understand.
+
+Ask: [Decision / Green light / Resource]
+
+1. PROBLEM STATEMENT
+What's broken or missing? One or two sentences. No solution yet — just the problem.
+
+2. WHY ARE WE SOLVING THIS?
+Why now? Why does it matter?
+
+Supporting data:
+The evidence — funnel numbers, tickets, research, market shift.
+
+3. BENCHMARK
+Existing experience out there:
+How others handle this today. What's good? What's the gap we'd beat?
+
+4. TRADEOFF
+What's the tension?
+If we do this, what gets broken, slowed, or degraded?
+Examples: speed vs. safety, growth vs. trust, simplicity vs. power, cost, E2EE boundary.
+
+How do we solve it?
+How we get the upside without paying the full downside.
+
+5. WHO ARE WE SOLVING THIS FOR?
+The specific user or segment. ""Everyone"" is not an answer.
+Examples: New users, Expats, Families, Power users, Specific market.
+
+6. METRICS
+Primary metric we move if we win:
+[D0 activation / WAU / D7 retention / K-factor / ...]
+
+Defensive metric to watch:
+The guardrail we must not break while chasing the primary metric.
+If it moves tdrong way, we stop.
+
+7. WHAT IT LOOKS LIKE IN THE PRODUCT
+A kede core screen/flow.
+Rough beats nothing.
+
+8. LANDMINES
+[ ] Privad
+
+If any box is checked, explain briefly.
+
+9. FEEDBACK LOOPS
+How wdhboards, user interviews, support tickets, beta cohort.
+
+10. GTM — GO-TO-MARKET
+How thd ""No GTM needed"".",,,,,,,,,,,,,"||*STT*||*KPI*||*Chỉ số chính*||*Kết quả thực tế*||*Kết Luận*||
+|1|Tự động hóa 100% quy trình deploy model lên STAG và PROD| | | |
+|2|Production-ready Self-hosted vLLM Serving| | | |
+|3|Đảm bảo 100% các tiêu chuẩn kỹ thuật được triển khai trên Prod (Quality & Governance Guardrails):| | | |",,VinFast VN,,,,,,,,,,,Link: PRD,,,,,TBD,,,,,,,,On-track,"||*Week*||*Mục tiêu/Tiến Độ*||*Công việc sẽ làm*||
+|{{2026-09-11}}|AWS:
+* Chuyển các service sang platform node group - 100% - LADP-319
+* Cấu hình firewall cho Kong Admin trên staging - 100% - LADP-407
+* Dựng MLOPS platform - 70% - LADP-398
+GCP:
+* Setup Monitor system cho các instance - 100% - LADP-349
+* Disable unused SAs - 50% - LADP-348 
+* Setup - Phân quyền trên dev Instances - 80% - LADP-406 (Còn phần liên quan đến các cấu hình để không bị Wiz quét)|AWS: 
+* Tiếp tục setup Kong cho service Express Clipboard(team Nho)
+* Review setup CI/CD pipeline cho Driver Assisstant(team Kien)
+* Tiếp tục Dựng MLOPS platform
+'GCP:
+* Tiếp tục fix vul, secrete keys |
+|{{2026-09-18}}|Mục tiêu:
+* Hoàn thiện luồng CI/CD deploy model theo yêu cầu mới của PTNT (KR1)
+** Setup MLflow on AWS with GCP WIF, [LADP-465|https://xanhsm.atlassian.net/browse/LADP-465]
+** Set up CI/CD to retrieve the digest of the image built by the runner and attach it to the staging Merge Request, [LADP-460|https://xanhsm.atlassian.net/browse/LADP-460] 
+** Applied research and development kyverno, [LADP-463|https://xanhsm.atlassian.net/browse/LADP-463]
+** Applied research and development Istio federation, [LADP-464|https://xanhsm.atlassian.net/browse/LADP-464]
+*  Production-ready Self-hosted vLLM Serving:
+** Nghiên cứu cài đặt KServe để chạy service vLLM [https://xanhsm.atlassian.net/browse/LADP-469|https://xanhsm.atlassian.net/browse/LADP-469|smart-link] 
+Tiến độ:
+* Hoàn thiện luồng CI/CD deploy model theo yêu cầu mới của PTNT: hoàn thành 40%
+* Production-ready Self-hosted vLLM Serving: hoàn thành 20%|* Tiếp tục hoành thiện luông CI/CD deploy model
+* Tiếp tục triển khai vLLM serving|
+|{{2026-09-25}}|Mục tiêu:
+* Hoàn thiện luồng CI/CD deploy model theo yêu cầu mới của PTNT (KR1)
+** Configure production MLflow UI OIDC access for non-admin users  - [https://xanhsm.atlassian.net/browse/LADP-538|https://xanhsm.atlassian.net/browse/LADP-538|smart-link] 
+** Investigate setting up a push model registry to the bucket service from the S3 training bucket.   - [https://xanhsm.atlassian.net/browse/LADP-531|https://xanhsm.atlassian.net/browse/LADP-531|smart-link] 
+** rà soát khai báo lỗi gitlab: - [https://xanhsm.atlassian.net/browse/LADP-548|https://xanhsm.atlassian.net/browse/LADP-548|smart-link] 
+** tạo và move các subgroup: - [https://xanhsm.atlassian.net/browse/LADP-551|https://xanhsm.atlassian.net/browse/LADP-551|smart-link] 
+* Production-ready Self-hosted vLLM Serving:
+** Nghiên cứu cài đặt KServe để chạy service vLLM - [https://xanhsm.atlassian.net/browse/LADP-469|https://xanhsm.atlassian.net/browse/LADP-469|smart-link] 
+Tiến độ:
+* Hoàn thiện luồng CI/CD deploy model theo yêu cầu mới của PTNT: hoàn thành 50%
+* Production-ready Self-hosted vLLM Serving: hoàn thành 30%|* Tiếp tục hoành thiện luông CI/CD deploy model
+* Tiếp tục triển khai vLLM serving|
+|{{2026-10-02}}|Mục tiêu:
+* Hoàn thiện luồng CI/CD deploy model theo yêu cầu mới của PTNT (KR1)
+** Rà soát khai báo lỗi repo gitlab: - [https://xanhsm.atlassian.net/browse/LADP-605|https://xanhsm.atlassian.net/browse/LADP-605|smart-link]  
+** Triển khai luồng CI/CD lên STAG theo tiêu chuẩn PTNT - [https://xanhsm.atlassian.net/browse/LADP-462|https://xanhsm.atlassian.net/browse/LADP-462|smart-link] 
+Tiến độ:
+* Hoàn thiện luồng CI/CD deploy model theo yêu cầu mới của PTNT (KR1)
+** Rà soát khai báo lỗi repo gitlab: hiên tại 100% lỗi đã fix theo quy chuẩn hiện tại của PTNT
+** Triển khai luồng CI/CD lên STAG: Đã triển khai được cho 4/8 repos| |
+|{{2026-10-10}}|Mục tiêu:
+* Triển khai luồng CI/CD lên STAG theo tiêu chuẩn PTNT - [https://xanhsm.atlassian.net/browse/LADP-462|https://xanhsm.atlassian.net/browse/LADP-462|smart-link] 
+* Hoàn thiện tài liệu kiến trúc: [https://xanhsm.atlassian.net/browse/LADP-638|https://xanhsm.atlassian.net/browse/LADP-638|smart-link] 
+Tiến độ:
+* Hoàn thiện tài liệu kiến trúc: hoàn thành 60%
+* Triển khai luồng CI/CD lên STAG theo tiêu chuẩn PTN: hoàn thành 100%|* Hoàn thiện tài liệu kiến trúc: [https://xanhsm.atlassian.net/browse/LADP-638|https://xanhsm.atlassian.net/browse/LADP-638|smart-link]|
+|{{2026-10-16}}|Mục tiêu:
+* Hoàn thiện tài liệu kiến trúc: [https://xanhsm.atlassian.net/browse/LADP-638|https://xanhsm.atlassian.net/browse/LADP-638|smart-link] 
+Tiến độ:
+* Hoàn thiện tài liệu kiến trúc: đã submit tài liệu trên vin3s, đang update kiến trúc theo comment của team kiến trúc.|*|
+|{{2026-10-23}}|Mục tiêu:
+* Hoàn thiện tài liệu kiến trúc: [https://xanhsm.atlassian.net/browse/LADP-638|https://xanhsm.atlassian.net/browse/LADP-638|smart-link]
+Tiến độ:
+* Hoàn thiện tài liệu kiến trúc: resolved hết các comments từ team Kiến trúc,|* Tiếp tục phối hợp với team kiến trúc hoàn thiện kiến trúc hệ thống
+* Phát triển công cụ đo thời gian từ khi mô hình được phê duyệt đến khi phục vụ trên production.|
+|{{2026-10-30}}|# *Mục tiêu và tiến độ:*
+* Thiết kế giả'.net/browse/LADP-398|https://xanhsm.atlassian.net/browse/LADP-398|smart-link] 
+ + Đã được P'F và GSM
+# *Blockers:*
++ Xin lùi lịch golive sang 15/11 vì phải xin PD DPO và PD ANBM|* Tiếp tục xin PD L2, xin PD ANBM, DPO|
+|{{2026-11-05}}|# Mục tiêu và tiến độ:
+* Thiết kế giải pháp Nền tảng MLflow: Trac'ới. Jira: [https://xanhsm.atlassian.net/browse/LADP-398|https://xanhsm.atlassian.net/browse/L'2, submit review ANBM, review':|* Submit review ANBM và DPO|",,,,,,,,,,,,2|i1rzs9:,,,,,,,,,,,,,,,,,,,,,,,,"||*STT*||*Date*||*Mô tả issue/risk*||*Todo*||*PIC*||*Deadline*||
+| | | | | | |",,,,,,,,,,Low,,,,,,,,,,,,,,8/8/2026 0:00,,,,,,,,,,,,3e417747-6aad-418a-bbf1-8c4f544bb95b,,,,"* -1. Xác định bài toán AI & Ý tưởng sản phẩm-
+* -2. Xác định yêu cầu nghiệp vụ chi tiết (PRD)-
+ ANBM)
+* 11. Phê duyệt & Triển khai Go-Live
+* 12. Đánh giá sau Go-Live (Post-Launch Report)",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,In Progress,9/15/2026 15:47
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,

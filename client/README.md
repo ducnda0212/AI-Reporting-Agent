@@ -96,10 +96,10 @@ Prototype được cập nhật; client chuyển các thay đổi sang React (d�
 
 ## Màn hình
 
-Ảnh chụp ở 1440×900, giao diện sáng, dữ liệu mock sau khi bấm "Dùng dữ liệu mẫu".
+Ảnh chụp ở 1440×900, giao diện sáng. Nút "Dùng dữ liệu mẫu" đã bỏ: bước 1 nhập file CSV Jira thật qua backend (`python -m uvicorn server.main:app --port 8000`). Các màn sau bước 1 vẫn dùng dữ liệu mock. Lưu ý: ảnh `01-import-empty.png` và `03-import-loaded.png` chụp trước khi bỏ nút mẫu, cần chụp lại.
 
 ### Bước 1 · Nhập file
-Kéo thả hoặc chọn CSV Jira. Hiện tại chỉ giả lập đọc file (chưa gửi backend).
+Kéo thả hoặc chọn CSV Jira; file được gửi lên backend, lưu lại, kiểm tra trùng (SHA-256) và đọc số cột/issue/nhóm cột trùng thật. Cột "Lần nhập gần nhất" lấy từ lịch sử backend.
 
 ![Nhập file — trống](docs/screenshots/01-import-empty.png)
 
@@ -107,7 +107,7 @@ Kéo thả hoặc chọn CSV Jira. Hiện tại chỉ giả lập đọc file (c
 
 ![Nhập file — đang đọc](docs/screenshots/02-import-reading.png)
 
-Sau khi nạp: tóm tắt thay đổi so với tuần trước và việc còn lại ở bước Kiểm tra.
+Sau khi nạp file thật: chỉ hiện số liệu thật (số issue, số cột, nhóm cột trùng, cảnh báo file trùng, so với lần nhập trước). Ghép vào mẫu 49 cột, mã mới/biến mất và đổi tên cột chưa có (Đợt 2), nên các dòng đó ẩn; chúng chỉ hiện ở luồng hướng dẫn/mẫu.
 
 ![Nhập file — đã nạp](docs/screenshots/03-import-loaded.png)
 
@@ -166,6 +166,11 @@ Kiểm tra trước khi chốt, chốt thành phiên bản, rồi xuất file.
 - Còn nhiều biến một chữ cái và viết tắt (`r`, `cr`, `flt`, `iss`...) chưa được đổi tên.
 - Hoạt ảnh phụ của bản gốc chưa port (chuyển view, đếm số, nảy badge). "Excel theo mẫu" (.xlsx) mới ghi nhật ký, chưa tạo file.
 - Console có 1 lỗi 404 tài nguyên (chưa xác định nguồn; có thể là favicon).
+
+## Nhập file Jira thật (backend)
+Màn Nhập file gửi file CSV thật tới FastAPI (`POST /api/import/upload`), hiện số cột/issue/nhóm cột trùng thật, cảnh báo khi file trùng, và "Lần nhập gần nhất" lấy từ `GET /api/import/history` (nhập lại: `GET /api/import/history/{id}`). Chỉ nhận `.csv`; lỗi backend/400 hiện bằng toast.
+Chạy backend từ thư mục gốc repo: `server/.venv/Scripts/uvicorn server.main:app --port 8000` (Vite proxy `/api` -> `localhost:8000`), rồi `npm run dev` trong `client/`.
+Lưu ý: các bước sau (Kiểm tra, lưới 49 cột) vẫn dùng dữ liệu seed/demo; ánh xạ cột thật là Đợt 2.
 
 ## Quy ước làm việc (cho PR)
 - Mỗi thay đổi kèm cập nhật tài liệu: mục "Những việc đã làm" trong README này (hoặc file trong `docs/`), và chụp lại ảnh màn hình nếu giao diện đổi.

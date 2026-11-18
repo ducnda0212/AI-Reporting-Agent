@@ -1,2 +1,8 @@
 node_modules
 dist
+
+server/.venv
+server/storage/
+__pycache__
+.pytest_cache
+.superpowers/

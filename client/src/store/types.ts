@@ -1,4 +1,4 @@
-import type { Catalog, Field, LogEntry, RiskDecision, RiskFilter, Row, Version } from '@/types';
+import type { Catalog, Field, ImportHistoryItem, JiraColumnInfo, LogEntry, RiskDecision, RiskFilter, Row, Version } from '@/types';
 import type { AskResult } from '@/lib/exec';
 
 export type ViewId = 'import' | 'check' | 'grid' | 'exec' | 'cat' | 'log' | 'tpl' | 'ver' | 'rid' | 'tlib';
@@ -75,6 +75,13 @@ export interface AppState {
   loaded: boolean;
   fileName?: string;
   loadedAt?: string;
+  /** số liệu thật từ backend sau khi nạp file CSV */
+  rawCols: JiraColumnInfo[];
+  fileStats: { cols: number; totalIssues: number; dupGroups: number };
+  isDuplicateAlert: boolean;
+  /** có khi file đến từ upload thật (id file backend + tuần); null: nạp mẫu/tour */
+  realFile: { id: string; week: string } | null;
+  importHistory: ImportHistoryItem[];
   importing: { name: string; step: number } | null;
   replaceFile: boolean;
   histOpen: boolean;

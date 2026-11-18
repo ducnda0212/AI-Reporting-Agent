@@ -1,4 +1,5 @@
-import type { Row } from '@/types';
+import type { ImportUploadResponse, Row } from '@/types';
+import { getImportHistory, reapplyHistoryFile, uploadJiraCsv } from '@/api/importApi';
 import type { AppState, PanelId, ViewId } from '../types';
 import { AI_IDS, DEMO, FIELDS, STORAGE, UNASSIGNED } from '@/data/constants';
 import { seedCatalog } from '@/data/seed';
@@ -102,6 +103,7 @@ function loadFileNow(name: string) {
     demoFill(d);
     try { localStorage.setItem(GUIDE_KEY, '1'); } catch { /* bỏ qua */ }
     d.guideOpen = undefined;
+    d.importing = null;
     d.fileName = name; d.loaded = true; d.view = 'import'; d.modal = null; d.replaceFile = false; d.loadedAt = nowStr();
     const cfg = loadSavedCfg();
     d.cfgUsed = cfg;
@@ -114,7 +116,8 @@ function loadFileNow(name: string) {
       if (cfg.ignore) d.phaseIgnore = cfg.ignore;
       if (cfg.by) d.lockBy = cfg.by;
     }
-    pushLog(d, 'Nhập file Jira', name, `${DEMO.fileStats.cols} cột · gộp ${DEMO.fileStats.dupGroups} nhóm cột trùng tên · 2 issue thật + dữ liệu giả lập`, 'Cảnh báo');
+    const fs = d.realFile ? d.fileStats : null; // null: nạp mẫu/tour, chưa có số liệu backend
+    pushLog(d, 'Nhập file Jira', name, fs ? `${fs.cols} cột · ${fs.totalIssues} issue · gộp ${fs.dupGroups} nhóm cột trùng tên` : `${DEMO.fileStats.cols} cột · gộp ${DEMO.fileStats.dupGroups} nhóm cột trùng tên · 2 issue thật + dữ liệu giả lập`, 'Cảnh báo');
   });
 }
 
@@ -129,6 +132,51 @@ export function loadFile(name: string, silent = false) {
     setTimeout(tick, 420);
   };
   setTimeout(tick, 520);
+}
+
+/** Ghi kết quả backend vào store (số cột/issue thật, cột Jira thật, cờ file trùng). */
+export function handleUploadSuccess(r: ImportUploadResponse) {
+  mutate((d) => {
+    d.fileName = r.file_info.filename;
+    d.rawCols = r.columns;
+    d.fileStats = { cols: r.file_stats.total_cols, totalIssues: r.file_stats.total_issues, dupGroups: r.file_stats.duplicate_groups };
+    d.isDuplicateAlert = r.file_info.is_duplicate;
+    d.realFile = { id: r.file_info.id, week: r.file_info.target_week };
+  });
+}
+
+const OFFLINE = 'Không kết nối được backend (python -m uvicorn server.main:app --port 8000)';
+// Vite dev proxy trả 500/502/503/504 body rỗng/không phải JSON khi backend tắt (fetch không ném lỗi)
+const isOffline = (e: unknown) => e instanceof TypeError || (e as { offline?: boolean }).offline === true;
+const errMsg = (e: unknown) => (isOffline(e) ? OFFLINE : `Không nhập được file: ${(e as Error).message}`);
+
+/** Gửi file thật lên backend; thành công thì chạy tiếp animation + luồng cũ (loadFile). */
+let importToken = 0; // tăng mỗi lần upload và khi huỷ; phản hồi có token cũ bị bỏ
+async function runImport(name: string, call: () => Promise<ImportUploadResponse>) {
+  const my = ++importToken;
+  mutate((d) => { d.importing = { name, step: 0 }; d.view = 'import'; d.modal = null; });
+  try {
+    const r = await call();
+    if (my !== importToken) return;
+    handleUploadSuccess(r);
+    loadFile(r.file_info.filename);
+    loadHistoryList();
+  } catch (e) {
+    if (my !== importToken) return;
+    mutate((d) => { d.importing = null; setToast(d, errMsg(e)); });
+  }
+}
+
+export async function uploadFileReal(file: File) {
+  if (!/\.csv$/i.test(file.name)) { toast('Chỉ nhận file .csv export từ Jira'); return; }
+  await runImport(file.name, () => uploadJiraCsv(file));
+}
+
+export const reapplyHistory = (id: string, name: string) => runImport(name, () => reapplyHistoryFile(id));
+
+export async function loadHistoryList() {
+  try { const h = await getImportHistory(); mutate((d) => { d.importHistory = h; }); }
+  catch (e) { if (isOffline(e)) toast(OFFLINE); } // lỗi khác: im lặng, danh sách lịch sử chỉ trống
 }
 
 export const replaceFile = (on: boolean) => mutate((d) => { d.replaceFile = on; });
@@ -534,5 +582,5 @@ export const setCleanIdx = (delta: number) => mutate((d) => { d.cleanIdx = Math.
 /* ---------- hệ thống (catalog) ---------- */
 export { seedCatalog, clone, writeJson };
 
-export const cancelImport = () => mutate((d) => { d.importing = null; setToast(d, 'Đã huỷ đọc file'); });
+export const cancelImport = () => { importToken++; mutate((d) => { d.importing = null; setToast(d, 'Đã huỷ đọc file'); }); };
 export const openVersions = () => mutate((d) => { d.menu = null; d.view = 'ver'; });
