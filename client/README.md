@@ -40,7 +40,7 @@ client/
 ### 1. Tổ chức lại repo
 - Chuyển toàn bộ code giao diện vào `client/` (trước nằm ở `src/`). Alias `@` trỏ `client/src`.
 - Tách `client/` và `server/` độc lập, mỗi bên có `package.json`/`node_modules` riêng (server dự kiến Python). Không dùng npm workspaces.
-- Thêm proxy `/api` -> `localhost:8000` trong `vite.config.ts` để gọi backend lúc dev mà không dính CORS.
+- Thêm proxy `/api` -> `127.0.0.1:8000` trong `vite.config.ts` để gọi backend lúc dev mà không dính CORS.
 
 ### 2. Chuẩn convention: đổi tên field sang tiếng Anh
 Toàn bộ field id / biến tiếng Việt không dấu được đổi sang tiếng Anh (cột Excel `col` giữ nguyên). Kiểm chứng bằng cách so snapshot dữ liệu seed trước/sau khi đổi: giống hệt (sau khi map khoá).
@@ -169,7 +169,7 @@ Kiểm tra trước khi chốt, chốt thành phiên bản, rồi xuất file.
 
 ## Nhập file Jira thật (backend)
 Màn Nhập file gửi file CSV thật tới FastAPI (`POST /api/import/upload`), hiện số cột/issue/nhóm cột trùng thật, cảnh báo khi file trùng, và "Lần nhập gần nhất" lấy từ `GET /api/import/history` (nhập lại: `GET /api/import/history/{id}`). Chỉ nhận `.csv`; lỗi backend/400 hiện bằng toast.
-Chạy backend từ thư mục gốc repo: `server/.venv/Scripts/uvicorn server.main:app --port 8000` (Vite proxy `/api` -> `localhost:8000`), rồi `npm run dev` trong `client/`.
+Chạy backend từ thư mục gốc repo: `server/.venv/Scripts/uvicorn server.main:app --port 8000` (Vite proxy `/api` -> `127.0.0.1:8000`), rồi `npm run dev` trong `client/`.
 Lưu ý: các bước sau (Kiểm tra, lưới 49 cột) vẫn dùng dữ liệu seed/demo; ánh xạ cột thật là Đợt 2.
 
 ## Quy ước làm việc (cho PR)
