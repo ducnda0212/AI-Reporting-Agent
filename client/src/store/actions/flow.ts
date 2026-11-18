@@ -40,7 +40,12 @@ export function goStep(n: number) {
   });
 }
 
-export const setView = (v: ViewId) => mutate((d) => { d.view = v; d.modal = null; if (v === 'tlib') d.tlDraft = null; });
+export const setView = (v: ViewId) => mutate((d) => {
+  const was = d.view;
+  d.view = v; d.modal = null; if (v === 'tlib') d.tlDraft = null;
+  if (v === 'tpl' && was !== 'tpl' && !d.panel) d.panel = 'tvcfg';
+  if (was === 'tpl' && v !== 'tpl' && v !== 'grid' && d.panel === 'tvcfg') d.panel = null;
+});
 export const setPanel = (p: PanelId) => mutate((d) => { d.panel = p || null; });
 export const setModal = (m: string | null) => mutate((d) => { d.modal = m; d.pop = null; if (!m) { d.exported = null; d.lockMsg = null; } });
 export const setMenu = (m: string | null) => mutate((d) => { d.menu = d.menu === m ? null : m; });

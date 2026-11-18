@@ -6,7 +6,9 @@ import { cellValue, colNum } from '@/lib/cell';
 import { blockers } from '@/lib/selectors';
 import { useAppState, useRows } from '@/hooks/useDerived';
 import { FileTypeIcon } from '@/components/common/Icons';
-import { gotoCol, resetDemo, setView, toast } from '@/store/actions/flow';
+import { gotoCol, resetDemo, setPanel, setView, toast } from '@/store/actions/flow';
+import { tvHiddenNow, tvMatch, tvWeeksOf, useTv } from '@/store/tplVersions';
+
 import { tpKind, tpSearch, tpToggleMiss } from '@/store/actions/templates';
 
 const WHEN: Record<string, [string, string]> = {
@@ -85,6 +87,7 @@ export function TemplateView() {
     if (q && !`${f.col} ${f.name} ${f.src}`.toLowerCase().includes(q)) return false;
     return true;
   });
+  useTv((t) => t.list); const hidNow = tvHiddenNow(s.hidden);
   const pct = Math.round((reqOk / req.length) * 100);
   const kinds = KIND_ORDER.filter((k) => counts[k]);
   return (
@@ -108,9 +111,10 @@ export function TemplateView() {
           <p>{done ? 'Đủ để xuất. Cột không bắt buộc còn trống sẽ để trống trong file.' : `Còn ${req.length - reqOk} cột bắt buộc chưa đủ${bl ? ` và ${bl} lỗi chặn` : ''}. Xử lý xong thì mới xuất được.`}</p></div>
         {!done && <button className="btn abtn" onClick={tpToggleMiss}>{miss ? 'Hiện tất cả cột' : 'Xem cột còn thiếu'}</button>}
       </section>
+      {s.panel !== 'tvcfg' && <div className="tvreopen"><span>Cấu hình mẫu đang đóng{!tvMatch(s.hidden) && <> · <b>có thay đổi chưa lưu</b></>}</span><button className="btn sm" onClick={() => setPanel('tvcfg')}>Mở cấu hình</button></div>}
       <div className="tpfacts">
-        <Fact ic={<><rect x="3.5" y="4.5" width="17" height="15" rx="2" /><path d="M9.5 4.5v15M15 4.5v15" /></>} l="Số cột" v="49 · A → AW" />
-        <Fact ic={<><rect x="3.5" y="5" width="17" height="15" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4" /></>} l="Khối tuần" v="4 khối · AL → AW" />
+        <Fact ic={<><rect x="3.5" y="4.5" width="17" height="15" rx="2" /><path d="M9.5 4.5v15M15 4.5v15" /></>} l="Số cột đang hiện" v={`${s.fields.length - hidNow.length}/49 · A → AW`} />
+        <Fact ic={<><rect x="3.5" y="5" width="17" height="15" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4" /></>} l="Khối tuần" v={`${tvWeeksOf(hidNow)} tuần${s.fields.some((f) => f.grp === 'w4' && !hidNow.includes(f.id)) ? ' + tuần sau' : ''}`} />
         <Fact ic={<path d="M4 7h16M4 12h16M4 17h10" />} l="Dữ liệu bắt đầu" v="dòng 3" />
         <Fact ic={<><path d="M8 6h12M8 12h12M8 18h12" /><path d="M4 6h.01M4 12h.01M4 18h.01" /></>} l="Danh sách chọn" v="cột I, cột J" />
       </div>

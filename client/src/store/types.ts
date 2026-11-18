@@ -2,7 +2,7 @@ import type { Catalog, Field, LogEntry, RiskDecision, RiskFilter, Row, Version }
 import type { AskResult } from '@/lib/exec';
 
 export type ViewId = 'import' | 'check' | 'grid' | 'exec' | 'cat' | 'log' | 'tpl' | 'ver' | 'rid' | 'tlib';
-export type PanelId = 'issues' | 'rev' | 'ask' | 'note' | 'ai' | 'project' | null;
+export type PanelId = 'issues' | 'rev' | 'ask' | 'note' | 'ai' | 'project' | 'tvcfg' | null;
 
 export interface Sel { i: number; f: string }
 export interface Range { a: Sel; b: Sel }

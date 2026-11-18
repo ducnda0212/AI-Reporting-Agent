@@ -6,6 +6,7 @@ import { useAppState, useRows } from '@/hooks/useDerived';
 import { doLock, goStep, setExFmt, setExOut, setModal, setPanel, setView, startReview } from '@/store/actions/flow';
 import { doExport } from '@/store/actions/exportReport';
 import { FileTag } from '@/components/common/Icons';
+import { tvExportNote } from '@/store/tplVersions';
 import { Modal } from './Modal';
 
 const IC = { err: '✕', wrn: '!', ai: 'AI', ok: '✓' } as const;
@@ -73,7 +74,7 @@ export function ExportModal() {
             <div className="xs2"><div className="xt">Xuất những file nào</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <label className={'xopt' + (on.f49 ? ' on' : '')}><input type="checkbox" checked={on.f49} onChange={(e) => setExOut('f49', e.target.checked)} />
-                  <span style={{ flex: '1 1 auto' }}><b style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><FileTag kind="xlsx" />Mẫu 49 cột</b> <span className="mono" style={{ fontSize: 10.5, color: 'var(--mut2)' }}>.xlsx</span><span className="d">Đầy đủ cho PMO · ghi vào 20261111_DAN_Mau-bao-cao-PMO.xlsx</span></span></label>
+                  <span style={{ flex: '1 1 auto' }}><b style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><FileTag kind="xlsx" />Mẫu 49 cột</b> <span className="mono" style={{ fontSize: 10.5, color: 'var(--mut2)' }}>.xlsx</span><span className="d">{tvExportNote(s.hidden)} · ghi vào 20261111_DAN_Mau-bao-cao-PMO.xlsx</span></span></label>
                 <label className={'xopt' + (on.exec ? ' on' : '')} style={{ flexWrap: 'wrap' }}><input type="checkbox" checked={on.exec} onChange={(e) => setExOut('exec', e.target.checked)} />
                   <span style={{ flex: '1 1 200px' }}><b>Báo cáo điều hành</b>
                     <span className="d">Bản cô đọng cho BGĐ{exPending(s) > 0 && <> · <span style={{ color: 'var(--ai)' }}>còn {exPending(s)} ô nháp AI chưa duyệt, sẽ để trống</span></>}</span>

@@ -3,7 +3,7 @@ import { FIELDS, FILL_COLORS, OVR_RAW, TEXT_COLORS } from '@/data/constants';
 import { KIND_NAME, ck, cellValue, fieldOf, isSrc, locked, optsFor, visibleFields } from '@/lib/cell';
 import { nFilters, refOf, rowOrder, selKeys } from '@/lib/grid';
 import { useAppState, useRows } from '@/hooks/useDerived';
-import { aiStart, approveSelectedRows, openBuckets, reviewSelectedRows, setMenu, startReview, toggle } from '@/store/actions/flow';
+import { setPanel, aiStart, approveSelectedRows, openBuckets, reviewSelectedRows, setMenu, startReview, toggle } from '@/store/actions/flow';
 import * as G from '@/store/actions/grid';
 import { mutate } from '@/store';
 import { SearchIcon } from '../common/Icons';
@@ -133,6 +133,7 @@ function ColsMenu() {
   const chip = (p: 'all' | 'week' | 'review' | 'info' | 'jira', t: string) => <button className="chip" onClick={() => G.colPreset(p)} style={{ cursor: 'pointer' }}>{t}</button>;
   return (
     <div className="menu r" data-stop="1" style={{ width: 280 }}>
+      <button className="btn sm" onClick={() => setPanel('tvcfg')} style={{ width: '100%', marginBottom: 10 }}>Cấu hình mẫu: số tuần, cột, phiên bản…</button>
       <div className="lbl">Xem nhanh</div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, margin: '7px 0 10px' }}>
         {chip('all', 'Đủ 49 cột')}{chip('week', 'Tuần này')}{chip('review', 'Cột cần rà')}{chip('info', 'Thông tin dự án')}{chip('jira', 'Chỉ cột từ Jira')}

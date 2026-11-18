@@ -7,7 +7,9 @@ import { fieldOf } from '@/lib/cell';
 import { loadSavedCfg } from '@/store';
 import { useAppState, useRows } from '@/hooks/useDerived';
 import { FileTypeIcon, Ico } from '@/components/common/Icons';
-import { IMPORT_STEPS, GUIDE_KEY, cancelImport, goStep, loadFile, replaceFile, setChk, setView, toggle, toggleGuide } from '@/store/actions/flow';
+import { PreviewCard, PreviewFullscreen, StagedDrop } from './FilePreview';
+import { clearFile, markDone, stageFile, usePv } from '@/store/preview';
+import { IMPORT_STEPS, GUIDE_KEY, cancelImport, goStep, toast, loadFile, replaceFile, setChk, setView, toggle, toggleGuide } from '@/store/actions/flow';
 
 /** Các lần nhập file trước đây (mock). */
 export const IMPORTS = [
@@ -35,17 +37,19 @@ const FileIcon = () => <span className="aico" aria-hidden="true">CSV</span>;
 
 function DropZone({ loaded }: { loaded: boolean }) {
   const [over, setOver] = useState(false);
-  const onDrop = (e: DragEvent) => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files[0]; loadFile(f ? f.name : 'file.csv'); };
+  const staged = usePv((s) => !!s.file && !s.file.done);
+  const onDrop = (e: DragEvent) => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files[0]; if (f) stageFile(f); else toast('Không thấy file nào được thả vào'); };
+  if (staged) return <div onDragOver={(e) => e.preventDefault()} onDrop={onDrop}><StagedDrop onPick={stageFile} /></div>;
   return (
     <div className={'drop imdrop' + (over ? ' over' : '')} id="dropzone"
       onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={onDrop}>
       <div className="imup2">
         <svg width="54" height="54" viewBox="0 0 54 54" fill="none" aria-hidden="true"><rect x="10" y="5" width="30" height="40" rx="5" fill="var(--bg)" stroke="var(--accentLine)" strokeWidth="2" /><path d="M17 16h16M17 23h16M17 30h9" stroke="var(--accentLine)" strokeWidth="2" strokeLinecap="round" /><circle cx="38" cy="38" r="11" fill="var(--accent)" /><path d="M38 43v-9m0 0l-4 4m4-4l4 4" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
       </div>
-      <div className="imdt">Kéo file CSV export từ Jira vào đây</div>
+      <div className="imdt">Kéo file CSV hoặc Excel export từ Jira vào đây</div>
       <div className="imbtns">
-        <label className="btn pri imbig" htmlFor="csv">Chọn file CSV</label>
-        <input id="csv" type="file" accept=".csv" style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }} onChange={(e) => loadFile(e.target.files?.[0]?.name || 'file.csv')} />
+        <label className="btn pri imbig" htmlFor="csv">Chọn file CSV / Excel</label>
+        <input id="csv" type="file" accept=".csv,.tsv,.txt,.xlsx,.xlsm,.xls" style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }} onChange={(e) => e.target.files?.[0] && stageFile(e.target.files[0])} />
         <button className="btn imbig2" onClick={() => loadFile('Jira sample.xlsx')}>{loaded ? 'Nạp lại dữ liệu mẫu' : 'Dùng dữ liệu mẫu'}</button>
       </div>
     </div>
@@ -104,7 +108,7 @@ function Importing() {
             </li>
           ))}
         </ol>
-        <button className="btn" onClick={cancelImport}>Huỷ, chọn file khác</button>
+        <button className="btn" onClick={() => { markDone(false); cancelImport(); }}>Huỷ, chọn file khác</button>
       </div>
       <aside className="aright">
         <h2 className="ah2">Đã tìm thấy</h2>
@@ -135,6 +139,7 @@ function PreLoad() {
         <Guide />
       </div>
       <aside className="aright">
+        <PreviewCard mode="pre" />
         <h2 className="ah2">Lần nhập gần nhất</h2>
         <div className="alast"><FileTypeIcon kind="csv" /><div><b title={L.name}>{L.name}</b><small>{L.wk.split(' · ')[0]}, {L.by} nhập lúc {L.at}</small><small>{L.issues} issue, {L.prj} dự án, {L.ver}</small></div></div>
         <button className="alink" onClick={() => loadFile(L.name)}>Nhập lại file này</button>
@@ -174,7 +179,7 @@ function PostLoad() {
     <div className="gridwrap gut aimp"><div className="awrap">
       <div className="ahead"><FileIcon />
         <div className="ahm"><h1 className="ah1">{s.fileName || 'Jira sample.xlsx'}</h1><p className="asub">{nIss} issue, {DEMO.fileStats.cols} cột, nhập lúc {s.loadedAt}</p></div>
-        <button className="btn" onClick={() => replaceFile(true)}>Thay file khác</button></div>
+        <button className="btn" onClick={() => { clearFile(); replaceFile(true); }}>Thay file khác</button></div>
       <p className="asum">Ghép được <b className="hl ok">{rows.length} dự án</b> vào mẫu 49 cột. So với {wk} có{' '}
         {parts.map((p, k) => <span key={k}>{k > 0 && (k === parts.length - 1 ? ' và ' : ', ')}{p}</span>)}.
         {orph > 0 && <> <b className="hl e">{orph} issue</b> chưa có Mã DA cần ghép trước khi xuất.</>}</p>
@@ -191,6 +196,7 @@ function PostLoad() {
           </div>
         </div>
         <aside className="aright">
+          <PreviewCard mode="post" />
           <h2 className="ah2">Còn lại ở bước Kiểm tra</h2>
           <div className="arows">
             <ANext t="Khớp cột" n={CC.col ? CC.col + ' chặn xuất' : 'xong'} cls={CC.col ? 'e' : ''} sub={CC.col ? 'Cột chưa có nguồn sẽ để trống khi xuất' : ''} tab="col" />
@@ -211,8 +217,8 @@ function PostLoad() {
 
 export function ImportView() {
   const s = useAppState();
-  if (s.importing) return <Importing />;
-  if (!s.loaded || s.replaceFile) return <PreLoad />;
-  return <PostLoad />;
+  const fs = usePv((p) => p.fullscreen && !!p.file?.sheets);
+  const body = s.importing ? <Importing /> : !s.loaded || s.replaceFile ? <PreLoad /> : <PostLoad />;
+  return <>{body}{fs && <PreviewFullscreen />}</>;
 }
 
