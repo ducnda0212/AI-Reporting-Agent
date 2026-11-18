@@ -104,6 +104,12 @@ Kéo thả hoặc chọn file CSV / Excel (`.csv .tsv .txt .xlsx .xlsm .xls`). C
 - `.xls` cũ và `.xlsx` lỗi đọc trực tiếp sẽ tải SheetJS từ CDN làm dự phòng.
 - File chọn lưu ở `store/preview.ts` (tách khỏi store chính, không ghi localStorage).
 
+![Nhập file — xem trước](docs/screenshots/20-import-preview.png)
+
+Xem toàn màn hình, đang tìm "Phan":
+
+![Nhập file — xem trước toàn màn hình](docs/screenshots/21-import-preview-fullscreen.png)
+
 ![Nhập file — trống](docs/screenshots/01-import-empty.png)
 
 Đang đọc file: các bước có kết quả, bên phải hiện dần những gì đã tìm thấy.
@@ -116,7 +122,8 @@ Sau khi nạp: tóm tắt thay đổi so với tuần trước và việc còn l
 
 ### Cấu hình mẫu (panel bên phải)
 Mở từ màn Mẫu 49 cột hoặc menu "Cột" ở bảng: chọn 1 / 2 / 3 tuần, thêm khối tuần sau, ẩn/hiện cột theo nhóm, lưu thành phiên bản (`store/tplVersions.ts`, localStorage). Bảng và ghi chú ở modal Xuất đổi theo cấu hình.
-> Chưa có ảnh chụp cho phần Xem trước file và Cấu hình mẫu: cần chạy `npm run dev` và chụp thêm vào `docs/screenshots/`.
+
+![Cấu hình mẫu](docs/screenshots/22-template-config.png)
 
 ### Bước 2 · Kiểm tra dữ liệu
 Gồm 4 tab con: khớp cột Jira với mẫu, quy đổi giá trị, làm sạch nội dung, ghép dự án.

@@ -9,7 +9,7 @@ export const tlSearch = (q: string) => mutate((d) => { d.tlQ = q; });
 
 export const tlOpen = (id: string) => mutate((d) => {
   d.menu = null;
-  if (id === 't49') d.view = 'tpl';
+  if (id === 't49') { if (d.view !== 'tpl' && !d.panel) d.panel = 'tvcfg'; d.view = 'tpl'; }
   else if (id === 'texec') d.view = 'exec';
   else { d.view = 'tlib'; d.tlDraft = id; }
 });
