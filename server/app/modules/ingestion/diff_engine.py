@@ -2,7 +2,7 @@ from server.app.schemas.ingest import DiffSummary
 from server.app.schemas.row import ReportRow
 
 _NOT_SOURCE = {"stt", "subtasks", "overrides", "needs_review"}
-_FIELDS = set(ReportRow.model_fields) - _NOT_SOURCE
+SOURCE_FIELDS = set(ReportRow.model_fields) - _NOT_SOURCE
 
 
 def compute_diff(
@@ -18,10 +18,10 @@ def compute_diff(
     merged: list[ReportRow] = []
     for row in new_rows:
         old = prev.get(row.ma_da)
-        diff_fields = {f for f in _FIELDS if old is not None and getattr(old, f) != getattr(row, f)}
+        diff_fields = {f for f in SOURCE_FIELDS if old is not None and getattr(old, f) != getattr(row, f)}
         if diff_fields:
             changed.add(row.ma_da)
-        ovr = {f: v for f, v in overrides.get(row.ma_da, {}).items() if f in _FIELDS}
+        ovr = {f: v for f, v in overrides.get(row.ma_da, {}).items() if f in SOURCE_FIELDS}
         merged.append(row.model_copy(update={
             **ovr, "overrides": ovr, "needs_review": bool(diff_fields & ovr.keys()),
         }))

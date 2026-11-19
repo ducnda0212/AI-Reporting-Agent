@@ -17,3 +17,16 @@ class IngestSession(Base):
     source_rows_json: Mapped[str] = mapped_column(Text)
     response_json: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+
+
+class SessionDraft(Base):
+    """Working copy of a session: current rows, manual overrides and the change log (one per session)."""
+    __tablename__ = "session_drafts"
+
+    session_id: Mapped[str] = mapped_column(String, primary_key=True)
+    cycle_id: Mapped[str] = mapped_column(String, index=True)
+    mapping_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    rows_json: Mapped[str] = mapped_column(Text)
+    overrides_json: Mapped[str] = mapped_column(Text)  # {ma_da: {field: value}}
+    audit_logs_json: Mapped[str] = mapped_column(Text)  # [{at, ma_da, field, old_val, new_val, by}]
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)

@@ -14,23 +14,32 @@ PHASE_NAMES = (
 )
 
 # Jira values not listed here (Monitoring, Blocked, typos...) are kept raw and warned about.
-_STATUS_MAP = {
-    "to do": "Chưa thực hiện", "open": "Chưa thực hiện", "backlog": "Chưa thực hiện",
-    "in progress": "Đang thực hiện", "reopened": "Đang thực hiện",
-    "done": "Đã hoàn thành", "closed": "Đã hoàn thành", "resolved": "Đã hoàn thành",
-    "hold": "Tạm dừng", "on hold": "Tạm dừng", "paused": "Tạm dừng", "waiting": "Tạm dừng", "pending": "Tạm dừng",
-    "cancelled": "Hủy", "canceled": "Hủy", "won't do": "Hủy",
+# Display-case keys: these are the defaults seeded into MappingConfig; lookup goes through _key().
+DEFAULT_STATUS_MAP = {
+    "To Do": "Chưa thực hiện", "Open": "Chưa thực hiện", "Backlog": "Chưa thực hiện",
+    "In Progress": "Đang thực hiện", "Reopened": "Đang thực hiện",
+    "Done": "Đã hoàn thành", "Closed": "Đã hoàn thành", "Resolved": "Đã hoàn thành",
+    "Hold": "Tạm dừng", "On Hold": "Tạm dừng", "Paused": "Tạm dừng", "Waiting": "Tạm dừng", "Pending": "Tạm dừng",
+    "Cancelled": "Hủy", "Canceled": "Hủy", "Won't Do": "Hủy",
 }
-_PROGRESS_MAP = {
-    "on track": "Đúng tiến độ", "đúng tiến độ": "Đúng tiến độ",
-    "off track": "Chậm tiến độ", "delayed": "Chậm tiến độ", "trễ hạn": "Chậm tiến độ", "chậm tiến độ": "Chậm tiến độ",
-    "at risk": "Có rủi ro", "rủi ro": "Có rủi ro", "có rủi ro": "Có rủi ro",
-    "on hold": "Tạm dừng", "tạm dừng": "Tạm dừng",
+DEFAULT_PROGRESS_MAP = {
+    "On Track": "Đúng tiến độ", "Đúng tiến độ": "Đúng tiến độ",
+    "Off Track": "Chậm tiến độ", "Delayed": "Chậm tiến độ", "Trễ hạn": "Chậm tiến độ", "Chậm tiến độ": "Chậm tiến độ",
+    "At Risk": "Có rủi ro", "Rủi ro": "Có rủi ro", "Có rủi ro": "Có rủi ro",
+    "On Hold": "Tạm dừng", "Tạm dừng": "Tạm dừng",
 }
+DEFAULT_PHASE_MAP = {str(n): f"{n}.{name}" for n, name in enumerate(PHASE_NAMES, 1)}
 
 
 def _key(val: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[-_]", " ", val)).strip().casefold()
+
+
+def keyed(table: dict[str, str]) -> dict[str, str]:
+    return {_key(k): v for k, v in table.items()}
+
+
+_STATUS_MAP, _PROGRESS_MAP, _PHASE_MAP = keyed(DEFAULT_STATUS_MAP), keyed(DEFAULT_PROGRESS_MAP), DEFAULT_PHASE_MAP
 
 
 def _lookup(table: dict[str, str], val: str | None) -> str:
@@ -39,21 +48,21 @@ def _lookup(table: dict[str, str], val: str | None) -> str:
     return table.get(_key(val), val.strip())
 
 
-def normalize_status(val: str | None) -> str:
-    return _lookup(_STATUS_MAP, val)
+# `table` (optional) is an already-`keyed()` custom map from a MappingConfig; None = Phase-1 defaults.
+def normalize_status(val: str | None, table: dict[str, str] | None = None) -> str:
+    return _lookup(table or _STATUS_MAP, val)
 
 
-def normalize_progress(val: str | None) -> str:
-    return _lookup(_PROGRESS_MAP, val)
+def normalize_progress(val: str | None, table: dict[str, str] | None = None) -> str:
+    return _lookup(table or _PROGRESS_MAP, val)
 
 
-def normalize_phase(val: str | None) -> str:
+def normalize_phase(val: str | None, table: dict[str, str] | None = None) -> str:
     if not val or not val.strip() or val.strip().upper() == "TBD":
         return ""
     m = re.match(r"\s*(?:phase|bước|buoc|step)?\s*(\d{1,2})\b", val, re.I)
     if m and 1 <= int(m.group(1)) <= len(PHASE_NAMES):
-        n = int(m.group(1))
-        return f"{n}.{PHASE_NAMES[n - 1]}"
+        return (table or _PHASE_MAP).get(str(int(m.group(1))), val.strip())
     return val.strip()
 
 

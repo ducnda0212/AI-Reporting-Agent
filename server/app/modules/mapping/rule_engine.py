@@ -10,6 +10,7 @@ from server.app.modules.mapping.normalizer import (
 from server.app.modules.mapping.wiki_parser import (
     parse_milestones, parse_progress_report, parse_risk_notes, sanitize_jira_markup,
 )
+from server.app.modules.mapping.resolved import resolve_mapping
 from server.app.schemas.row import ReportRow
 
 CODE_RE = re.compile(r"^\s*([IVX]+\.[A-Z0-9]+(?:\.[0-9]+)+)\s+(.*)$", re.S)
@@ -67,15 +68,18 @@ def _prd_link(issue: dict) -> str:
     return ""
 
 
-def map_jira_issue_to_row(issue: dict, catalog_entry: dict | None, week_boundaries: list[dict], stt: int) -> ReportRow:
+def map_jira_issue_to_row(issue: dict, catalog_entry: dict | None, week_boundaries: list[dict], stt: int, mapping_config=None) -> ReportRow:
+    """`mapping_config`: MappingConfig / ResolvedMapping / None (= the Phase-1 PMO defaults)."""
+    mp = resolve_mapping(mapping_config)
+    src = mp.cols
     ma_da, cong_viec = extract_project_code_and_name(issue.get("Summary", ""))
     _, milestone = parse_milestones(issue.get("Description"))
     if not re.search(r"MILESTONES?", issue.get("Description") or "", re.I):
         milestone = ""
 
-    status = normalize_status(issue.get("Status")) or normalize_status(issue.get("Status category"))
-    progress = normalize_progress(issue.get("Custom field (Progress)"))
-    phase = normalize_phase(_get(issue, *PHASE_COLUMNS))
+    status = normalize_status(_get(issue, *src("trang_thai", ("Status", "Status category"))), mp.status)
+    progress = normalize_progress(_get(issue, *src("tien_do", ("Custom field (Progress)",))), mp.progress)
+    phase = normalize_phase(_get(issue, *src("ai_lifecycle_phase", PHASE_COLUMNS)), mp.phase)
 
     weekly = parse_progress_report(issue.get("Custom field (Progress Report)"), week_boundaries)
     risks = parse_risk_notes(issue.get("Custom field (Risk Notes)"), week_boundaries)
@@ -93,21 +97,21 @@ def map_jira_issue_to_row(issue: dict, catalog_entry: dict | None, week_boundari
         ma_da=ma_da or "",
         cong_viec=cong_viec,
         muc_tieu=_goal(issue),
-        kpi=_kpi(issue.get("Custom field (KPI/Outcome)") or ""),
-        pic=_get(issue, "Assignee", "Custom field (PO)", "Custom field (Tech lead)"),
-        bat_dau=parse_jira_date(issue.get("Custom field (Start date)")),
-        ket_thuc=parse_jira_date(issue.get("Due date")),
+        kpi=_kpi(_get(issue, *src("kpi", ("Custom field (KPI/Outcome)",)))),
+        pic=_get(issue, *src("pic", ("Assignee", "Custom field (PO)", "Custom field (Tech lead)"))),
+        bat_dau=parse_jira_date(_get(issue, *src("bat_dau", ("Custom field (Start date)",)))),
+        ket_thuc=parse_jira_date(_get(issue, *src("ket_thuc", ("Due date",)))),
         trang_thai=status,
         tien_do=progress,
         milestone=milestone,
         ai_lifecycle_phase=phase,
         ai_lifecycle=phase,
-        gdk_qltt=_get(issue, "Custom field (Board of Management)"),
-        phong=_get(issue, "Custom field (Department)"),
-        business_owner=_get(issue, "Custom field (Business Owner)"),
-        product_owner=_get(issue, "Custom field (PO)", "Custom field (Product manager)"),
+        gdk_qltt=_get(issue, *src("gdk_qltt", ("Custom field (Board of Management)",))),
+        phong=_get(issue, *src("phong", ("Custom field (Department)",))),
+        business_owner=_get(issue, *src("business_owner", ("Custom field (Business Owner)",))),
+        product_owner=_get(issue, *src("product_owner", ("Custom field (PO)", "Custom field (Product manager)"))),
         software_engineer=_developers(issue),
-        priority=_get(issue, "Priority", "Custom field (Priority)"),
+        priority=_get(issue, *src("priority", ("Priority", "Custom field (Priority)"))),
         trang_thai_1=f"{status} {progress}".strip(),
         loai_du_an="KHHĐ 2026",
         link_confluence=_prd_link(issue),

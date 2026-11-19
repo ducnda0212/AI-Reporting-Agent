@@ -1,4 +1,5 @@
 """Choice A: one row per main ticket (DA code in Summary); other issues are audit subtasks or orphans."""
+from server.app.modules.mapping.resolved import resolve_mapping
 from server.app.modules.mapping.rule_engine import extract_project_code_and_name, map_jira_issue_to_row
 from server.app.schemas.ingest import OrphanIssue
 from server.app.schemas.row import ReportRow, SubtaskAudit
@@ -14,8 +15,11 @@ def _catalog_ancestor(code: str, catalog: dict) -> str | None:
 
 
 def reconcile_issues(
-    records: list[dict], catalog: dict, week_boundaries: list[dict]
+    records: list[dict], catalog: dict, week_boundaries: list[dict],
+    mapping=None, assignments: dict[str, str] | None = None,
 ) -> tuple[list[ReportRow], list[OrphanIssue]]:
+    """`mapping`: MappingConfig/None for the rule engine. `assignments`: {orphan issue key: ma_da} manual re-link."""
+    mapping = resolve_mapping(mapping)  # parse the config once, not per row
     by_key = {r.get("Issue key", ""): r for r in records}
     orphans: dict[str, OrphanIssue] = {}
     main_by_code: dict[str, dict] = {}  # ma_da -> main record
@@ -74,7 +78,7 @@ def reconcile_issues(
     for rec in records:
         code = main_codes_by_key.get(rec.get("Issue key", ""))
         if code is not None:
-            row = map_jira_issue_to_row(rec, catalog.get(code), week_boundaries, stt=len(rows) + 1)
+            row = map_jira_issue_to_row(rec, catalog.get(code), week_boundaries, stt=len(rows) + 1, mapping_config=mapping)
             rows.append(row)
             row_by_code[code] = row
     for rec in records:  # file order keeps subtask order stable
@@ -84,4 +88,11 @@ def reconcile_issues(
                 key=key, summary=rec.get("Summary", ""), status=rec.get("Status", ""),
                 assignee=rec.get("Assignee", ""),
             ))
+    for rec in records:  # manual orphan -> project link (Recalculate); an unknown target leaves it an orphan
+        key = rec.get("Issue key", "")
+        if key in orphans and (target := row_by_code.get((assignments or {}).get(key, ""))) is not None:
+            target.subtasks.append(SubtaskAudit(
+                key=key, summary=rec.get("Summary", ""), status=rec.get("Status", ""), assignee=rec.get("Assignee", ""),
+            ))
+            del orphans[key]
     return rows, [orphans[r.get("Issue key", "")] for r in records if r.get("Issue key", "") in orphans]
