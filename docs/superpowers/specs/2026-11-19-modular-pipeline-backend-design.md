@@ -251,7 +251,7 @@ server/
 ### 6.2. Thư mục AI Độc lập (`ai/`)
 - Nằm ngang hàng với `server/`.
 - Chứa toàn bộ service V-LLM, prompt templates, few-shot examples và risk scoring engine do team AI phát triển.
-- `server/` chỉ lưu cấu hình `AI_SERVICE_URL=http://localhost:8001/api/v1` trong file `.env` và cung cấp proxy endpoint nếu frontend cần gọi xuyên qua server.
+- `server/` chỉ lưu cấu hình `AI_SERVICE_URL=http://127.0.0.1:8001/api/v1` trong file `.env` và cung cấp proxy endpoint nếu frontend cần gọi xuyên qua server.
 
 ---
 
