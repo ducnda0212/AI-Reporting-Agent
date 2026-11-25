@@ -42,7 +42,7 @@ def test_full_phase2_postman_flow():
     assert ic12["tt"] == "Đang làm gấp"  # new mapping applied
 
     # 6-7. save + read draft
-    log = {"at": "2026-11-19T22:30:00", "ma_da": "I.C.1.2", "field": "pic", "old_val": ic12["pic"], "new_val": "Chuyên Viên PMO Postman", "by": "Tester"}
+    log = {"t": "22:30", "day": "19/11/2026", "seq": 1, "a": "Sửa ô", "o": "I.C.1.2 · F PIC", "d": "A → B", "r": "Thành công"}
     saved = client.put(f"/api/v1/sessions/{session_id}/draft", json={
         "session_id": session_id, "cycle_id": "2026_11_w3", "mapping_id": clone_id, "rows": recalc["rows"],
         "overrides": {"I.C.1.2": {"pic": "Chuyên Viên PMO Postman"}}, "audit_logs": [log],

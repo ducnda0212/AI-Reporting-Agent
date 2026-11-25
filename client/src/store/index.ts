@@ -3,7 +3,8 @@
 import { create } from 'zustand';
 import { castDraft, produce, type Draft } from 'immer';
 import { FIELDS } from '@/data/constants';
-import type { AppState, FieldId, LogResult, NavSnap, Row, UndoSnap, VersionItem } from '@/types';
+import { api } from '@/services/api';
+import type { AppState, FieldId, LogResult, NavSnap, Row, SessionDraftIn, SessionDraftOut, UndoSnap, VersionItem, ViewType } from '@/types';
 
 /* ---------- trình duyệt & localStorage ---------- */
 export const inBrowser = (): boolean => typeof window !== 'undefined' && typeof document !== 'undefined';
@@ -21,7 +22,8 @@ export function lsJson<T>(key: string): Partial<T> {
 
 export const LS = {
   store: 'pmo-proto-store-v1', grid: 'pmo-proto-grid-v1', poSideW: 'pmo-po-sidew', poFz: 'pmo-po-fz',
-  panel: 'pmo-proto-panel-v1', tourVer: 'pmo-tour-ver', tourMain: 'pmo-tour-v1', cols: 'pmo-proto-cols-v4'
+  panel: 'pmo-proto-panel-v1', tourVer: 'pmo-tour-ver', tourMain: 'pmo-tour-v1', cols: 'pmo-proto-cols-v4',
+  activeSession: 'pmo-active-session-v1'
 } as const;
 
 /* ---------- đồng hồ (thay được trong test) ---------- */
@@ -177,3 +179,71 @@ export function toast(d: Draft<AppState>, m: string, ms = 2200): void {
 /** Các dòng đưa vào báo cáo (prototype `rows`): bỏ mã mới chưa thêm, dòng trùng đã gộp, dòng giả khi chỉ dùng dữ liệu thật. */
 export const rowsOf = (s: Pick<AppState, 'allRows' | 'newCodes' | 'dupMerged' | 'realOnly'>): Row[] =>
   s.allRows.filter((r) => (!r.isNew || s.newCodes === 'added') && (!r.dup || !s.dupMerged) && (!s.realOnly || r.real));
+
+/* ---------- phiên đang mở (khôi phục sau F5) ---------- */
+export function setActiveSessionStorage(sessionId: string | null, view: ViewType = 'import'): void {
+  try { if (typeof localStorage === 'undefined') return; if (sessionId) localStorage.setItem(LS.activeSession, JSON.stringify({ sessionId, view })); else localStorage.removeItem(LS.activeSession); } catch { /* bị chặn/đầy */ }
+}
+export function getActiveSessionStorage(): { sessionId: string; view: ViewType } | null {
+  const v = lsJson<{ sessionId: string; view: ViewType }>(LS.activeSession);
+  return typeof v.sessionId === 'string' && v.sessionId && v.view ? { sessionId: v.sessionId, view: v.view } : null;
+}
+
+/* ---------- tự lưu nháp lưới (debounce 800ms) ---------- */
+export const DRAFT_DEBOUNCE_MS = 800;
+const DRAFT_KEYS = ['allRows', 'fmt', 'wrap', 'log', 'hidden', 'pinViec', 'exCols', 'lockBy', 'touched', 'logSeq', 'lockSeq'] as const;
+let suppressDraftSync = 0;
+let draftTimer: ReturnType<typeof setTimeout> | null = null;
+let draftWarned = false;
+
+export function cancelPendingDraftSave(): void { if (draftTimer) { clearTimeout(draftTimer); draftTimer = null; } }
+/** Bọc các cập nhật nạp/khôi phục để bộ đếm 800ms không kích hoạt; huỷ luôn lần lưu đang chờ. */
+export function withSuppressedDraftSync(fn: () => void): void {
+  suppressDraftSync++;
+  try { fn(); } finally { suppressDraftSync--; cancelPendingDraftSave(); }
+}
+
+export function buildDraftPayload(s: AppState): SessionDraftIn {
+  return {
+    session_id: s.sessionId as string, cycle_id: s.cycleId, mapping_id: s.mpUsed ?? s.applied?.id ?? null,
+    rows: s.allRows, overrides: Object.fromEntries(s.allRows.map((r) => [r.ma, r.ovr])),
+    fmt: s.fmt, wrap: s.wrap, touched: s.touched, hidden: s.hidden as Record<string, boolean>,
+    pin_viec: s.pinViec, ex_cols: s.exCols, lock_by: s.lockBy, log_seq: s.logSeq, lock_seq: s.lockSeq, audit_logs: s.log
+  };
+}
+
+export function hydrateDraft(d: Draft<AppState>, draft: SessionDraftOut): void {
+  if (Array.isArray(draft.rows)) d.allRows = castDraft(draft.rows.map((r) => ({ ...r, ovr: draft.overrides?.[r.ma] ?? r.ovr ?? {} })));
+  if (draft.fmt) d.fmt = castDraft(draft.fmt);
+  if (draft.wrap) d.wrap = draft.wrap;
+  if (Array.isArray(draft.audit_logs)) d.log = castDraft(draft.audit_logs);
+  if (draft.hidden) d.hidden = draft.hidden as AppState['hidden'];
+  if (typeof draft.pin_viec === 'boolean') d.pinViec = draft.pin_viec;
+  if (draft.ex_cols === 'vis' || draft.ex_cols === 'all') d.exCols = draft.ex_cols;
+  if (typeof draft.lock_by === 'string') d.lockBy = draft.lock_by;
+  if (draft.touched) d.touched = Object.fromEntries(Object.keys(draft.touched).map((k) => [k, 1 as const]));
+  if (typeof draft.log_seq === 'number') d.logSeq = draft.log_seq;
+  if (typeof draft.lock_seq === 'number') d.lockSeq = draft.lock_seq;
+}
+
+export function scheduleDraftSync(s: AppState): void {
+  if (!s.loaded || !s.sessionId || suppressDraftSync) return;
+  cancelPendingDraftSave();
+  draftTimer = setTimeout(() => {
+    draftTimer = null;
+    const cur = getState();
+    if (!cur.loaded || !cur.sessionId) return;
+    api.saveDraft(cur.sessionId, buildDraftPayload(cur)).then(() => { draftWarned = false; }, () => {
+      if (draftWarned) return;
+      draftWarned = true;
+      mutate((d) => { toast(d, 'Không lưu được bản nháp lên máy chủ, sẽ thử lại ở lần sửa sau'); }, { track: false });
+    });
+  }, DRAFT_DEBOUNCE_MS);
+}
+
+if (inBrowser()) {
+  useAppState.subscribe((next, prev) => {
+    if (next.loaded && next.sessionId && (next.sessionId !== prev.sessionId || next.view !== prev.view || !prev.loaded)) setActiveSessionStorage(next.sessionId, next.view);
+    if (DRAFT_KEYS.some((k) => next[k] !== prev[k])) scheduleDraftSync(next);
+  });
+}

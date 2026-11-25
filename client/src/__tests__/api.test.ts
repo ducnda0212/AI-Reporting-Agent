@@ -73,4 +73,18 @@ describe('api client (Giai đoạn 1)', () => {
     ]);
     expect(JSON.parse(f.mock.calls[0][1]?.body as string)).toEqual({ session_id: 's1', src_overrides: { phong: 'Dept' } });
   });
+
+  it('saveDraft sends PUT and getDraft returns null on 404 E_DRAFT_NOT_FOUND', async () => {
+    const f = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(ok({ success: true, session_id: 's1', updated_at: '2026-11-26T02:00:00' }));
+    const saved = await api.saveDraft('s1', {
+      session_id: 's1', cycle_id: '2026_11_w3', rows: [], overrides: {}, fmt: {}, wrap: {},
+      touched: {}, hidden: {}, pin_viec: true, ex_cols: 'vis', lock_by: 'Khuê', log_seq: 0, lock_seq: 0, audit_logs: []
+    });
+    expect(saved.success).toBe(true);
+    expect([f.mock.calls[0][0], f.mock.calls[0][1]?.method]).toEqual(['/api/v1/sessions/s1/draft', 'PUT']);
+    f.mockResolvedValueOnce(fail(404, { detail: { code: 'E_DRAFT_NOT_FOUND', message: 'Not found' } }));
+    expect(await api.getDraft('s1')).toBeNull();
+    f.mockResolvedValueOnce(fail(500, { detail: 'boom' }));
+    await expect(api.getDraft('s1')).rejects.toMatchObject({ status: 500 });
+  });
 });

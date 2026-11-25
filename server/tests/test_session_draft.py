@@ -1,11 +1,14 @@
 import json
 
+import sqlalchemy as sa
+
 from server.app.core.database import Base, SessionLocal, engine
+from server.app.modules.mapping.seed import migrate_schema
 from server.app.modules.session.service import get_session_draft, save_session_draft
-from server.app.schemas.mapping import SessionDraftSaveRequest
+from server.app.schemas.mapping import AuditLogEntry, SessionDraftSaveRequest
 
 ROWS = [{"i": 0, "ma": "I.C.1.2", "viec": "Task 1"}]
-LOG = {"at": "2026-11-19T22:00:00", "ma_da": "I.C.1.2", "field": "pic", "old_val": "Cũ", "new_val": "Mới", "by": "PMO"}
+LOG = {"t": "22:00", "day": "19/11/2026", "seq": 1, "a": "Sửa ô", "o": "I.C.1.2 · F PIC", "d": "Cũ → Mới", "r": "Thành công"}
 
 
 def _req(**kw):
@@ -33,4 +36,28 @@ def test_session_draft_save_and_retrieve():
     save_session_draft(db, _req(overrides={"I.C.1.2": {"pic": "Chuyên Viên B"}}))
     assert "Chuyên Viên B" in get_session_draft(db, "sess_draft_001").overrides_json
     assert db.query(type(retrieved)).filter_by(session_id="sess_draft_001").count() == 1
+    db.close()
+
+
+def test_extended_draft_schema_and_migration():
+    Base.metadata.create_all(bind=engine)
+    migrate_schema(engine)
+    migrate_schema(engine)  # idempotent
+    cols = {c["name"] for c in sa.inspect(engine).get_columns("session_drafts")}
+    for needed in ("fmt_json", "wrap_json", "touched_json", "hidden_json", "pin_viec", "ex_cols", "lock_by", "log_seq", "lock_seq"):
+        assert needed in cols
+
+    req = _req(
+        session_id="sess_s2_01", fmt={"0|ht": {"b": True, "color": "#B91C1C"}}, wrap={"0|ht": True},
+        touched={"0|pic": 1}, hidden={"x": True}, pin_viec=False, ex_cols="all", lock_by="An", log_seq=2, lock_seq=1,
+        audit_logs=[AuditLogEntry(t="02:10", day="26/11/2026", seq=1, a="Sửa ô", o="I.C.1.2 · F", d="A → B", r="Thành công")],
+    )
+    assert req.fmt["0|ht"]["b"] is True and req.audit_logs[0].r == "Thành công"
+
+    from server.app.modules.session.service import draft_out
+    db = SessionLocal()
+    out = draft_out(save_session_draft(db, req))
+    assert (out.fmt, out.wrap, out.touched, out.hidden) == (req.fmt, req.wrap, req.touched, req.hidden)
+    assert (out.pin_viec, out.ex_cols, out.lock_by, out.log_seq, out.lock_seq) == (False, "all", "An", 2, 1)
+    assert out.audit_logs == req.audit_logs
     db.close()

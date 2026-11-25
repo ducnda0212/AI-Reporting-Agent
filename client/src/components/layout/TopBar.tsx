@@ -37,7 +37,7 @@ function WeekPicker({ s }: { s: AppState }): JSX.Element | null {
   const L = wkList(s), cur = L.find((w) => w.cur);
   if (!cur) return null;
   const open = s.menu === 'week', st = wkSt(s, cur), prev = L[L.indexOf(cur) - 1], next = L[L.indexOf(cur) + 1];
-  const [yy, mm] = s.activeToday.split('-');
+  const [yy, mm] = s.cycleId.split('_'); // theo kỳ: ngày 31 có thể thuộc Tuần 1 tháng sau
   return (
     <div className="wkp">
       <button className="wkn" onClick={() => prev && wkOpen(prev.k)} disabled={!prev} title={prev ? 'Tuần trước (' + prev.t + ', đã chốt)' : 'Chưa có tuần trước'} aria-label="Tuần trước"><IcWkChev d={-1} /></button>

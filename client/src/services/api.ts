@@ -1,6 +1,7 @@
 /* Máy khách API (server/app): gọi `/api/v1/*` qua proxy của Vite tới 127.0.0.1:8000. Lỗi FastAPI `detail: { code, message }` thành ApiError. */
 import type {
-  ActiveCycle, ImportFileMeta, IngestResponse, MappingConfigIn, MappingConfigOut, RecalculateIn
+  ActiveCycle, ImportFileMeta, IngestResponse, MappingConfigIn, MappingConfigOut, RecalculateIn,
+  SessionDraftIn, SessionDraftOut, SessionDraftSaveRes
 } from '@/types';
 
 const BASE = '/api/v1';
@@ -18,6 +19,7 @@ const FRIENDLY: Record<string, string> = {
   E_CANNOT_DELETE_DEFAULT_MAPPING: 'Không xoá được cấu hình mặc định. Hãy đặt cấu hình khác làm mặc định trước.',
   E_SRC_OVERRIDE_INVALID_FIELD: 'Cột này không đổi được nguồn Jira.',
   E_OVERRIDE_INVALID_FIELD: 'Cột này không đổi được nguồn Jira.',
+  E_DRAFT_NOT_FOUND: 'Chưa có bản nháp cho lần nhập này.',
   E_ORPHAN_ASSIGNMENT_INVALID: 'Không gắn được issue vào dự án đã chọn.'
 };
 const SERVER_ERROR = 'Máy chủ gặp lỗi khi xử lý. Thử lại sau, nếu vẫn lỗi hãy báo người phụ trách.';
@@ -72,5 +74,11 @@ export const api = {
   updateMapping: (id: string, req: Partial<MappingConfigIn>): Promise<MappingConfigOut> => request('/mappings/' + id, json('PUT', req)),
   setDefaultMapping: (id: string): Promise<MappingConfigOut> => request('/mappings/' + id + '/set-default', json('POST')),
   async deleteMapping(id: string): Promise<void> { await request('/mappings/' + id, json('DELETE')); },
+  saveDraft: (sessionId: string, req: SessionDraftIn): Promise<SessionDraftSaveRes> =>
+    request('/sessions/' + encodeURIComponent(sessionId) + '/draft', json('PUT', req)),
+  async getDraft(sessionId: string): Promise<SessionDraftOut | null> {
+    try { return await request('/sessions/' + encodeURIComponent(sessionId) + '/draft'); }
+    catch (e) { if (e instanceof ApiError && e.code === 'E_DRAFT_NOT_FOUND') return null; throw e; }
+  },
   recalculate: (req: RecalculateIn): Promise<IngestResponse> => request('/mapping/recalculate', json('POST', req))
 };

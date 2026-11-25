@@ -51,6 +51,17 @@ describe('bootstrap, upload, mở lại phiên', () => {
     expect(TODAY.getDate()).toBe(22);
   });
 
+  it('initStage1Bootstrap theo ngày thật của máy chủ: 26/11 là tuần 4 hiện tại', async () => {
+    const weeks = FIXTURE_WEEKS.map((w) => ({ ...w, cur: w.k === 'w4', future: false }));
+    vi.spyOn(api, 'getActiveCycle').mockResolvedValue({ cycle_id: '2026_11_w4', current_wk: 'w4', today: '2026-11-26', weeks });
+    vi.spyOn(api, 'getIngestHistory').mockResolvedValue([]);
+    vi.spyOn(api, 'listMappings').mockResolvedValue([MAPPING]);
+    await initStage1Bootstrap();
+    expect([getState().cycleId, getState().activeToday]).toEqual(['2026_11_w4', '2026-11-26']);
+    expect(WEEKS[0].k).toBe('w4');
+    expect(TODAY.getDate()).toBe(26);
+  });
+
   it('uploadFile gửi file thật, commit bảng + thống kê + nhóm; lỗi máy chủ báo toast và mở lại ô chọn file', async () => {
     mutate((d) => { d.mappings = [MAPPING] as never; });
     const up = vi.spyOn(api, 'ingestUpload').mockResolvedValue(fixtureResponse('a.csv'));
@@ -183,6 +194,7 @@ describe('bootstrap, upload, mở lại phiên', () => {
 
   it('reopenSession nạp lại đúng phiên đã lưu', async () => {
     const get = vi.spyOn(api, 'getSession').mockResolvedValue(fixtureResponse('old.csv'));
+    vi.spyOn(api, 'getDraft').mockResolvedValue(null);
     await reopenSession('sess_old');
     expect(get).toHaveBeenCalledWith('sess_old');
     expect([getState().loaded, getState().fileName]).toEqual([true, 'old.csv']);

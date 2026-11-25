@@ -22,6 +22,16 @@ import { fixtureResponse, loadFixture, seedVersions } from './fixtures';
 const csvFile = (name: string, text: string) => ({ name, size: text.length, arrayBuffer: async () => new TextEncoder().encode(text).buffer as ArrayBuffer });
 
 describe('Layout Shell & Views SSR', () => {
+  it('WeekPicker lấy tháng theo kỳ (cycleId), không theo ngày thật: 31/12 thuộc Tuần 1 tháng 1', () => {
+    resetStore();
+    mutate((d) => {
+      d.loaded = true; d.view = 'grid'; d.cycleId = '2027_01_w1'; d.activeToday = '2026-12-31';
+      d.weeks = [{ k: 'w1', name: 'Tuần 01/01', range: '31/12–06/01', cur: true, future: false, start: '2026-12-31', end: '2027-01-06' }] as never;
+    });
+    const top = renderToString(<TopBar />);
+    expect(top).toContain('Th1<');
+    expect(top).not.toContain('Th12');
+  });
   it('TopBar hiển thị đúng 3 bước và Rail chỉ có 3 mục Bảng, Phiên bản, Nhật ký', () => {
     resetStore();
     loadFixture();

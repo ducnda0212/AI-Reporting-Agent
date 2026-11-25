@@ -74,3 +74,33 @@ def test_recalculate_rejects_bad_input(db):
         recalculate_session(resp.session_id, None, [OrphanAssignment(key="PMOGOLD-18", target_ma_da="Z.Z.9")], {}, db)
     with pytest.raises(ValueError, match="E_OVERRIDE_INVALID_FIELD"):
         recalculate_session(resp.session_id, None, [], {"I.C.1.2": {"nope": "x"}}, db)
+
+
+def test_recalculate_preserves_existing_session_draft_manual_edits_and_fmt(db):
+    import json
+
+    from server.app.modules.session.service import get_session_draft, save_session_draft
+    from server.app.schemas.mapping import AuditLogEntry, SessionDraftSaveRequest
+
+    resp = _session(db, cycle="2026_10_w1")
+    rows = [r.model_dump(mode="json") for r in resp.rows]
+    ic12 = next(r for r in rows if r["ma"] == "I.C.1.2")
+    ic12.update(caitien="Cải tiến tay", rui="Rủi ro tay", note="Ghi chú tay", ai={"x": {"v": 1}})
+    save_session_draft(db, SessionDraftSaveRequest(
+        session_id=resp.session_id, cycle_id="2026_10_w1", rows=rows, overrides={"I.C.1.2": {"pic": "PIC Tay"}},
+        fmt={"0|ht": {"b": True}}, wrap={"0|ht": True}, touched={"0|pic": 1}, hidden={"x": True}, log_seq=1,
+        audit_logs=[AuditLogEntry(t="02:00", day="26/11/2026", seq=1, a="Sửa ô", o="I.C.1.2", d="x", r="Thành công")],
+    ))
+
+    new = recalculate_session(resp.session_id, None, [], {}, db, src_overrides={"phong": "Components"})
+    row = next(r for r in new.rows if r.ma == "I.C.1.2")
+    assert row.pic == "PIC Tay" and row.ovr == {"pic": "PIC Tay"}
+    assert (row.caitien, row.rui, row.note, row.ai) == ("Cải tiến tay", "Rủi ro tay", "Ghi chú tay", {"x": {"v": 1}})
+
+    db.expire_all()
+    d = get_session_draft(db, resp.session_id)
+    saved = next(r for r in json.loads(d.rows_json) if r["ma"] == "I.C.1.2")
+    assert saved["caitien"] == "Cải tiến tay" and saved["pic"] == "PIC Tay"
+    assert json.loads(d.fmt_json) == {"0|ht": {"b": True}} and json.loads(d.wrap_json) == {"0|ht": True}
+    assert json.loads(d.touched_json) == {"0|pic": 1} and d.log_seq == 1
+    assert len(json.loads(d.audit_logs_json)) == 1

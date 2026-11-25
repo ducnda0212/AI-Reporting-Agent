@@ -249,6 +249,16 @@ export interface RecalculateIn {
   session_id: string; mapping_id?: string | null; src_overrides?: Record<string, string>; value_mappings?: ValueMappings | null;
 }
 
+/** Bản nháp lưới của một phiên nhập (PUT/GET /sessions/{id}/draft). */
+export interface SessionDraftIn {
+  session_id: string; cycle_id: string; mapping_id?: string | null;
+  rows: Row[]; overrides: Record<string, Record<string, string>>;
+  fmt: Record<string, CellFormat>; wrap: Record<string, boolean>; touched: Record<string, number>; hidden: Record<string, boolean>;
+  pin_viec: boolean; ex_cols: 'vis' | 'all'; lock_by: string; log_seq: number; lock_seq: number; audit_logs: LogEntry[];
+}
+export interface SessionDraftOut extends SessionDraftIn { updated_at: string }
+export interface SessionDraftSaveRes { success: boolean; session_id: string; updated_at: string }
+
 /* ---------- lịch sử điều hướng / hoàn tác ---------- */
 export interface NavSnap {
   view: ViewType;

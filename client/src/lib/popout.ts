@@ -1,6 +1,6 @@
 /* Cửa sổ nổi chi tiết dự án: tìm trong thẻ, thứ tự tuần, timeline Milestone. Port từ prototype v4. */
 import { FIELDS } from '@/data/constants';
-import type { FieldId, PopoutHit, Row } from '@/types';
+import type { FieldId, PopoutHit, Row, ActiveWeek } from '@/types';
 import { displayText, type CellCtx } from './cell';
 
 export const PO_SECS: readonly (readonly [id: string, label: string])[] = [
@@ -23,7 +23,16 @@ export function poNm(s: unknown): string {
   return o;
 }
 
-export const poWeeks = (wkDesc: boolean): readonly PoWeek[] => (wkDesc ? PO_WKS.slice().reverse() : PO_WKS);
+/** 4 tuần của kỳ đang mở (cột giữ theo PO_WKS); `weeks` rỗng thì dùng PO_WKS mặc định. */
+export function poWeeks(wkDesc: boolean, weeks?: readonly (Pick<ActiveWeek, 'k' | 'name' | 'range'> & Partial<ActiveWeek>)[]): readonly PoWeek[] {
+  const base: readonly PoWeek[] = weeks && weeks.length
+    ? PO_WKS.map((p): PoWeek => {
+        const w = weeks.find((x) => x.k === p[0]);
+        return w ? [p[0], w.name.split(' · ')[0], w.range + (w.cur ? ' · tuần này' : w.future ? ' · chưa tới' : ''), p[3]] : p;
+      })
+    : PO_WKS;
+  return wkDesc ? base.slice().reverse() : base;
+}
 
 /** Các ô của một dự án khớp từ khoá, theo thứ tự mục trái → báo cáo tuần. */
 export function poHitsCompute(row: Row, q: string, wkDesc: boolean, ctx: CellCtx): PopoutHit[] {
@@ -45,13 +54,13 @@ export function poHitsCompute(row: Row, q: string, wkDesc: boolean, ctx: CellCtx
 
 export interface Milestone { date: string | null; text: string; status: 'done' | 'next' | '' }
 
-/** Mỗi dòng "dd/mm: nội dung"; mốc đến hết 22/11/2026 là done, sau đó là next; dòng không có ngày để status rỗng. */
-export function parseMilestones(text: string): Milestone[] {
-  const today = new Date(2026, 10, 22);
+/** Mỗi dòng "dd/mm: nội dung"; mốc đến hết ngày tham chiếu (activeToday, mặc định 2026-11-22) là done, sau đó là next; dòng không có ngày để status rỗng. */
+export function parseMilestones(text: string, refTodayIso = '2026-11-22'): Milestone[] {
+  const [ry, rm, rd] = refTodayIso.split('-').map(Number), today = new Date(ry, rm - 1, rd);
   return text.split('\n').map((s) => s.trim()).filter(Boolean).map((s): Milestone => {
     const m = /^(\d{1,2})\/(\d{1,2})\s*:\s*(.*)$/.exec(s);
     if (!m) return { date: null, text: s, status: '' };
-    const d = new Date(2026, +m[2] - 1, +m[1]);
+    const d = new Date(ry, +m[2] - 1, +m[1]);
     return { date: m[1] + '/' + m[2], text: m[3], status: d <= today ? 'done' : 'next' };
   });
 }

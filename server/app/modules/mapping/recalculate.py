@@ -12,12 +12,33 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from server.app.models.file import UploadedFile
-from server.app.models.session import IngestSession
+from server.app.models.session import IngestSession, SessionDraft
 from server.app.modules.ingestion.service import run_pipeline
 from server.app.modules.mapping.service import mapping_or_default
 from server.app.schemas.ingest import IngestResponse
 from server.app.schemas.mapping import OrphanAssignment, ValueMappings
 from server.app.schemas.row import SOURCE_FIELDS
+
+
+# Hand-entered columns (and AI output) a Jira re-map must never wipe; loai/market/link only fill a blank.
+MANUAL_PRESERVED_FIELDS = ("output", "note", "caitien", "prio", "giatri", "rui", "action", "nextstep", "domain", "uoctinh")
+MANUAL_FILL_BLANK_FIELDS = ("loai", "market", "link")
+
+
+def _merge_draft(response: IngestResponse, draft: SessionDraft) -> list[dict]:
+    """Phương án A: lay the draft's hand-entered values (by `ma`) over the freshly mapped rows."""
+    old = {r["ma"]: r for r in json.loads(draft.rows_json) if r.get("ma")}
+    for row in response.rows:
+        prev = old.get(row.ma)
+        if prev is None:
+            continue
+        for f in MANUAL_PRESERVED_FIELDS:
+            setattr(row, f, prev.get(f, ""))
+        for f in MANUAL_FILL_BLANK_FIELDS:
+            if not getattr(row, f):
+                setattr(row, f, prev.get(f, ""))
+        row.ai, row.reasons = prev.get("ai") or {}, prev.get("reasons") or {}
+    return [r.model_dump(mode="json") for r in response.rows]
 
 
 def recalculate_session(
@@ -35,6 +56,11 @@ def recalculate_session(
     if stored is None or not Path(stored.stored_path).is_file():
         raise LookupError("E_FILE_NOT_FOUND")
 
+    draft = db.get(SessionDraft, session_id)
+    if draft is not None:  # saved edits take part, the request's overrides win
+        saved = {ma: {f: v for f, v in fields.items() if f in SOURCE_FIELDS} for ma, fields in json.loads(draft.overrides_json).items()}
+        overrides = {ma: {**saved.get(ma, {}), **overrides.get(ma, {})} for ma in saved.keys() | overrides.keys()}
+
     baseline = db.get(IngestSession, session.baseline_session_id) if session.baseline_session_id else None
     assignments = {a.key: a.target_ma_da for a in orphan_assignments}
     response, source_rows, _ = run_pipeline(
@@ -47,6 +73,10 @@ def recalculate_session(
 
     response = response.model_copy(update={"session_id": session.id})  # same session, updated in place
     session.source_rows_json = json.dumps([r.model_dump(mode="json") for r in source_rows], ensure_ascii=False)
+    if draft is not None:
+        draft.rows_json = json.dumps(_merge_draft(response, draft), ensure_ascii=False)
+        draft.overrides_json = json.dumps({r.ma: r.ovr for r in response.rows if r.ovr}, ensure_ascii=False)
+        draft.mapping_id = mapping.id
     session.response_json = response.model_dump_json()
     db.commit()
     return response

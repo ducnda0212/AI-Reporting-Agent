@@ -72,28 +72,38 @@ class RecalculateRequest(ApiModel):
 
 
 class AuditLogEntry(ApiModel):
-    at: str
-    ma_da: str
-    field: str
-    old_val: str = ""
-    new_val: str = ""
-    by: str = ""
+    """Client `LogEntry`: t = HH:MM, day = dd/mm/yyyy, a = action, o = object, d = detail, r = result."""
+    t: str = ""
+    day: str = ""
+    seq: int = 0
+    a: str = ""
+    o: str = ""
+    d: str = ""
+    r: str = ""
 
 
-class SessionDraftSaveRequest(ApiModel):
+class SessionDraftState(ApiModel):
+    """Working state shared by the save request and the stored draft."""
     session_id: str
     cycle_id: str
     mapping_id: str | None = None
     rows: list[ReportRow]
     overrides: dict[str, dict[str, str]] = Field(default_factory=dict)
+    fmt: dict[str, dict] = Field(default_factory=dict)
+    wrap: dict[str, bool] = Field(default_factory=dict)
+    touched: dict[str, int] = Field(default_factory=dict)
+    hidden: dict[str, bool] = Field(default_factory=dict)
+    pin_viec: bool = True
+    ex_cols: Literal["vis", "all"] = "vis"
+    lock_by: str = "Khuê"
+    log_seq: int = 0
+    lock_seq: int = 0
     audit_logs: list[AuditLogEntry] = Field(default_factory=list)
 
 
-class SessionDraftOut(ApiModel):
-    session_id: str
-    cycle_id: str
-    mapping_id: str | None = None
-    rows: list[ReportRow]
-    overrides: dict[str, dict[str, str]]
-    audit_logs: list[AuditLogEntry]
+class SessionDraftSaveRequest(SessionDraftState):
+    pass
+
+
+class SessionDraftOut(SessionDraftState):
     updated_at: datetime

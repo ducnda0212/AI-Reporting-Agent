@@ -3134,9 +3134,9 @@ select.cellsel{cursor:pointer}
 
 /* ---------- Sửa giao diện Giai đoạn 1 (nhập file & mapping) ---------- */
 /* Cuộn: React gắn vào #root nhưng CSS prototype chỉ xếp cột (flex) cho #app, nên ở màn nhập file `main` không bị giới hạn chiều cao
-   và body{overflow:hidden} cắt mất phần dưới. Chỉ áp cho màn nhập file (body.onimp) để các màn khác giữ nguyên. */
-body.onimp #root{display:flex;flex-direction:column;min-height:0}
-body.onimp #root>main{flex:1 1 auto;min-height:0}
+   và body{overflow:hidden} cắt mất phần dưới. Áp cho mọi màn: .shell/.scol (flex:1, min-height:0) cũng cần #root là cột flex thì .gridwrap/.hbd mới cuộn được. */
+#root{display:flex;flex-direction:column;min-height:0}
+#root>main{flex:1 1 auto;min-height:0}
 /* Ô chọn cột Jira: nằm gọn trong cột "Nguồn", không đẩy sang cột "Cột trong báo cáo" */
 .isfrom{min-width:0}
 .isfrom select.issel{flex:1 1 0;min-width:0;width:100%;text-overflow:ellipsis}

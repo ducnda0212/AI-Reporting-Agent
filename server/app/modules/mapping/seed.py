@@ -89,12 +89,27 @@ _LEGACY = {
 }
 
 
+_DRAFT_COLUMNS = {  # session_drafts columns added in Stage 2: name -> DDL
+    "fmt_json": "TEXT NOT NULL DEFAULT '{}'", "wrap_json": "TEXT NOT NULL DEFAULT '{}'",
+    "touched_json": "TEXT NOT NULL DEFAULT '{}'", "hidden_json": "TEXT NOT NULL DEFAULT '{}'",
+    "pin_viec": "BOOLEAN NOT NULL DEFAULT 1", "ex_cols": "VARCHAR NOT NULL DEFAULT 'vis'",
+    "lock_by": "VARCHAR NOT NULL DEFAULT 'Khuê'", "log_seq": "INTEGER NOT NULL DEFAULT 0",
+    "lock_seq": "INTEGER NOT NULL DEFAULT 0",
+}
+
+
 def migrate_schema(engine: Engine) -> None:
     """create_all never alters an existing table: add the columns introduced after a dev DB was created."""
-    cols = {c["name"] for c in inspect(engine).get_columns("ingest_sessions")}
-    if "baseline_session_id" not in cols:
-        with engine.begin() as conn:
-            conn.execute(text("ALTER TABLE ingest_sessions ADD COLUMN baseline_session_id VARCHAR"))
+    insp = inspect(engine)
+    wanted = {"ingest_sessions": {"baseline_session_id": "VARCHAR"}, "session_drafts": _DRAFT_COLUMNS}
+    with engine.begin() as conn:
+        for table, columns in wanted.items():
+            if not insp.has_table(table):
+                continue
+            have = {c["name"] for c in insp.get_columns(table)}
+            for name, ddl in columns.items():
+                if name not in have:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))
 
 
 def _upgrade_stored(db: Session) -> None:

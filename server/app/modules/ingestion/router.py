@@ -1,3 +1,4 @@
+from datetime import date
 import json
 import os
 
@@ -10,7 +11,7 @@ from server.app.core.database import get_db
 from server.app.core.errors import api_error, from_service_error
 from server.app.models.file import UploadedFile
 from server.app.models.session import IngestSession
-from server.app.modules.ingestion.cycles import active_cycle, current_week, weeks_for_cycle, week_name
+from server.app.modules.ingestion.cycles import active_cycle, current_week, cycle_for_date, weeks_for_cycle, week_name
 from server.app.modules.ingestion.file_handler import save_and_fingerprint
 from server.app.modules.ingestion.service import latest_session, run_pipeline, save_session
 from server.app.modules.mapping.csv_cleaner import InvalidSchemaError
@@ -20,6 +21,12 @@ from server.app.schemas.cycle import ActiveCycle
 from server.app.schemas.ingest import ImportFileMeta, IngestResponse, WarningIssue
 
 router = APIRouter(prefix="/api/v1/ingest", tags=["ingest"])
+
+
+def _today() -> date:
+    return date.today()
+
+
 cycles_router = APIRouter(prefix="/api/v1/cycles", tags=["cycles"])
 ALLOWED_EXT = CSV_EXT | XLSX_EXT
 HISTORY_LIMIT = 10
@@ -112,4 +119,7 @@ def history(db: Session = Depends(get_db)):
 
 @cycles_router.get("/active", response_model=ActiveCycle)
 def active():
-    return active_cycle(settings.DEFAULT_CYCLE_ID)
+    if settings.DEFAULT_CYCLE_ID:
+        return active_cycle(settings.DEFAULT_CYCLE_ID)
+    today = _today()
+    return active_cycle(cycle_for_date(today), today)

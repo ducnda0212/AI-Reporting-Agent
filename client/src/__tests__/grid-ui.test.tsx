@@ -66,6 +66,18 @@ describe('Spreadsheet Grid UI SSR', () => {
     expect(count(renderToString(<Grid />), 'data-act="fltOpen"')).toBe(49);
   });
 
+  it('Viền hồng đầu bảng nằm ở tuần hiện tại (tuần 4), nhãn các tuần cùng một dạng', () => {
+    resetStore();
+    loadFixture('x.csv');
+    mutate((d) => { d.hidden = {}; d.weeks = d.weeks.map((w) => ({ ...w, cur: w.k === 'w4', future: false })); });
+    const g = renderToString(<Grid />);
+    const th = (name: string) => (g.match(new RegExp('<th[^>]*>(?:(?!</th>).)*' + name + '(?:(?!</th>).)*</th>')) ?? [''])[0];
+    expect(th('Tuần 04/11')).toContain('inset 0 3px 0');
+    expect(th('Tuần 03/11')).not.toContain('inset 0 3px 0');
+    expect(th('Tuần 03/11')).not.toMatch(/tuần này|chưa tới|đã chốt/);
+    expect(th('Tuần 04/11')).not.toMatch(/tuần này|chưa tới|đã chốt/);
+  });
+
   it('Ô bảng: nhãn trạng thái, mũi tên ▾, chữ gợi ý ô bắt buộc, không có <select> trong ô', () => {
     load();
     const r = rowOf('I.A.3.1');

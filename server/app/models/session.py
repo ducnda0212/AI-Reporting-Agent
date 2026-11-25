@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from server.app.models.base import Base
@@ -29,5 +29,14 @@ class SessionDraft(Base):
     mapping_id: Mapped[str | None] = mapped_column(String, nullable=True)
     rows_json: Mapped[str] = mapped_column(Text)
     overrides_json: Mapped[str] = mapped_column(Text)  # {ma: {field: value}}
-    audit_logs_json: Mapped[str] = mapped_column(Text)  # [{at, ma, field, old_val, new_val, by}]
+    audit_logs_json: Mapped[str] = mapped_column(Text)  # [{t, day, seq, a, o, d, r}] = client LogEntry
+    fmt_json: Mapped[str] = mapped_column(Text, default="{}", server_default="{}")  # {"i|field": CellFormat}
+    wrap_json: Mapped[str] = mapped_column(Text, default="{}", server_default="{}")
+    touched_json: Mapped[str] = mapped_column(Text, default="{}", server_default="{}")
+    hidden_json: Mapped[str] = mapped_column(Text, default="{}", server_default="{}")
+    pin_viec: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
+    ex_cols: Mapped[str] = mapped_column(String, default="vis", server_default="vis")
+    lock_by: Mapped[str] = mapped_column(String, default="Khuê", server_default="Khuê")
+    log_seq: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    lock_seq: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)

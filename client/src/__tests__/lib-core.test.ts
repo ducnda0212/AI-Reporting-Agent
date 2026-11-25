@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { colNum, colLetter, ck, spillCls, mapNorm, cellValue, refOf, fieldById } from '@/lib/cell';
 import { cleanText, cleanKpi, cleanComment, ruleCounts } from '@/lib/clean';
 import { selKeys, visibleFields } from '@/lib/grid';
-import { parseMilestones, poNm } from '@/lib/popout';
+import { parseMilestones, poNm, poWeeks } from '@/lib/popout';
 import { vCompare2, cxNote, diffSnap, vhList, type CmpSide } from '@/lib/versions';
 import { getStoredTheme, toggleTheme } from '@/lib/theme';
 import { STATUS_MAP } from '@/data/constants';
@@ -55,6 +55,22 @@ describe('Core Pure Helpers', () => {
     expect(ms[1].status).toBe('next');
     expect(ms[2]).toEqual({ date: null, text: 'Ghi chú tự do', status: '' });
     expect(poNm('Đã Hoàn Thành')).toBe('da hoan thanh');
+  });
+
+  it('poWeeks and parseMilestones adapt to December cycle weeks and activeToday', () => {
+    const decWeeks = [
+      { k: 'w1' as const, name: 'Tuần 01/12 · 01–07/12', range: '01–07/12', start: '2026-12-01', end: '2026-12-07' },
+      { k: 'w2' as const, name: 'Tuần 02/12 · 08–14/12', range: '08–14/12', start: '2026-12-08', end: '2026-12-14' },
+      { k: 'w3' as const, name: 'Tuần 3/12 · 15–21/12', range: '15–21/12', cur: true, start: '2026-12-15', end: '2026-12-21' },
+      { k: 'w4' as const, name: 'Tuần 4/12 · 22–31/12', range: '22–31/12', future: true, start: '2026-12-22', end: '2026-12-31' },
+    ];
+    const wks = poWeeks(false, decWeeks);
+    expect(wks[2][1]).toContain('Tuần 3/12');
+    expect(wks[2][3]).toEqual(['ht', 'kh', 'vd']);
+    expect(poWeeks(false, [])[2][1]).toBe('Tuần 3/11');
+    const ms = parseMilestones('10/12: SIT\n25/12: Go-live', '2026-12-18');
+    expect(ms[0].status).toBe('done');
+    expect(ms[1].status).toBe('next');
   });
 
   it('vCompare2 bỏ qua placeholder CX_PH và cxNote nêu dự án xấu đi', () => {

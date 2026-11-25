@@ -7,8 +7,8 @@ export const STAGES: readonly string[] = ['Xác định bài toán AI & Ý tư�
 
 export const GRP: Record<FieldGroup, string> = {
   pin: 'Dự án', info: 'Thông tin dự án', prog: 'Tiến độ & trạng thái', org: 'Đơn vị & nhân sự', eval: 'Phân loại & đánh giá',
-  w1: 'Tuần 01/11 · 31/10–06/11 · đã chốt', w2: 'Tuần 02/11 · 07–14/11 · đã chốt',
-  w3: 'Tuần 3/11 · 15–22/11 · tuần này', w4: 'Tuần 4/11 · 23–30/11 · chưa tới'
+  w1: 'Tuần 01/11 · 31/10–06/11', w2: 'Tuần 02/11 · 07–14/11',
+  w3: 'Tuần 3/11 · 15–22/11', w4: 'Tuần 4/11 · 23–30/11'
 };
 
 export const MAN3: readonly string[] = ['Thấp','Trung bình','Cao'];

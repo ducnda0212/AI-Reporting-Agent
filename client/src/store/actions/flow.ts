@@ -10,7 +10,10 @@ import { api, ApiError } from '@/services/api';
 import type {
   AiFieldId, AppState, IngestResponse, MappingColumnDef, MappingConfigOut, ModalType, PanelType, PreviewFile, ValueMappings, ViewType
 } from '@/types';
-import { dropRowSession, getState, inBrowser, log, lsGet, lsSet, LS, mutate, rowsOf, toast } from '@/store';
+import {
+  cancelPendingDraftSave, dropRowSession, getActiveSessionStorage, getState, hydrateDraft, inBrowser, log, lsGet, lsSet, LS, mutate, rowsOf,
+  setActiveSessionStorage, toast, withSuppressedDraftSync
+} from '@/store';
 import { startTour } from './help';
 
 export const IMPORT_STEPS: readonly string[] = ['Đọc file và nhận diện cột', 'Gộp các cột trùng tên', 'Tách mã dự án, ghép vào 49 cột mẫu', 'So với tuần trước và cấu hình đã lưu'];
@@ -40,14 +43,39 @@ const failToast = (e: unknown): void => mutate((d) => { toast(d, errMsg(e), ERRO
 export async function initStage1Bootstrap(): Promise<void> {
   const [cyc, hist, maps] = await Promise.allSettled([api.getActiveCycle(), api.getIngestHistory(), api.listMappings()]);
   if (cyc.status === 'fulfilled') setCycle(cyc.value.today, cyc.value.weeks);
-  mutate((d) => {
+  withSuppressedDraftSync(() => mutate((d) => {
     if (cyc.status === 'fulfilled') { d.cycleId = cyc.value.cycle_id; d.weeks = cyc.value.weeks; d.activeToday = cyc.value.today; }
     if (hist.status === 'fulfilled') d.impHist = hist.value;
     if (maps.status === 'fulfilled') d.mappings = castDraft(maps.value);
     const bad = [cyc, hist, maps].find((r) => r.status === 'rejected');
     if (bad && bad.status === 'rejected') toast(d, errMsg(bad.reason));
-  }, { track: false });
+  }, { track: false }));
+  const active = getActiveSessionStorage();
+  if (!active) return;
+  try {
+    const [res, draft] = await Promise.all([api.getSession(active.sessionId), api.getDraft(active.sessionId)]);
+    withSuppressedDraftSync(() => mutate((d) => {
+      commit(d, res, getState().mappings);
+      d.mpSrc = {}; d.mpDirty = false; d.mpSave = false;
+      if (draft) hydrateDraft(d, draft); else { resetDraftFields(d); importLog(d, res); }
+      d.view = active.view;
+    }, { resetUndo: true }));
+  } catch (e) {
+    // 4xx: phiên không còn hợp lệ; lỗi mạng/5xx: giữ lại để thử lại ở lần mở sau
+    if (e instanceof ApiError && e.status >= 400 && e.status < 500) setActiveSessionStorage(null);
+  }
 }
+
+/** Phiên chưa có bản nháp: đưa phần định dạng/nhật ký về mặc định để không rò từ phiên trước sang. */
+const resetDraftFields = (d: Draft<AppState>): void => {
+  d.fmt = {}; d.wrap = {}; d.touched = {}; d.hidden = { x: true, mang: true }; d.pinViec = true; d.exCols = 'vis'; d.lockBy = 'Khuê';
+  d.log = []; d.logSeq = 0; d.lockSeq = 0;
+};
+
+const importLog = (d: Draft<AppState>, res: IngestResponse): void => {
+  const st = res.file_stats;
+  log(d, 'Nhập file Jira', res.file_name, st.total_cols + ' cột · gộp ' + st.dup_groups + ' nhóm cột trùng tên · ' + st.matched_projects + ' dự án ghép được · ' + res.orphans.length + ' issue chưa ghép', res.orphans.length ? 'Cảnh báo' : 'Thành công');
+};
 
 const refreshHistory = (): Promise<void> => api.getIngestHistory().then((h) => mutate((d) => { d.impHist = h; }, { track: false }), () => undefined);
 const refreshMappings = async (): Promise<MappingConfigOut[]> => {
@@ -70,11 +98,13 @@ function commit(d: Draft<AppState>, res: IngestResponse, mappings: MappingConfig
 }
 
 /** Tải lại bảng từ một phản hồi của máy chủ (mở lại phiên cũ, chọn cấu hình khác, đổi nguồn cột). */
-export function applyIngest(res: IngestResponse, opts: { dirty?: boolean; src?: Record<string, string> } = {}): void {
-  mutate((d) => {
+export function applyIngest(res: IngestResponse, opts: { dirty?: boolean; src?: Record<string, string>; keepTouched?: boolean } = {}): void {
+  const touched = opts.keepTouched ? getState().touched : {}; // commit() xoá dấu ô đã sửa; tính lại (cùng phiên) giữ lại vì máy chủ đã gộp sẵn phần nháp
+  withSuppressedDraftSync(() => mutate((d) => {
     commit(d, res, getState().mappings);
+    d.touched = touched;
     d.mpSrc = opts.src || {}; d.mpDirty = !!opts.dirty; d.mpSave = false;
-  }, { resetUndo: true });
+  }, { resetUndo: true }));
 }
 
 /** "Đọc file này": gửi file thật lên máy chủ. Màn "Đang đọc" chạy từng bước trong lúc chờ, bước cuối giữ tới khi có kết quả. */
@@ -82,8 +112,10 @@ export async function uploadFile(file: File, mappingId?: string | null, forceRel
   if (getState().busy) return;
   mutate((d) => { d.busy = true; d.importErr = null; d.importing = { name: file.name, step: 0 }; d.view = 'import'; d.modal = null; });
   skipRequested = false;
+  cancelPendingDraftSave();
   try {
     const res = await api.ingestUpload(file, getState().cycleId, mappingId ?? getState().mpUsed, forceReload);
+    const draft = res.is_duplicate_file ? await api.getDraft(res.session_id).catch(() => null) : null;
     const cancelled = (): boolean => { if (getState().importing) return false; mutate((d) => { d.busy = false; }, { track: false }); return true; };
     if (cancelled()) return;
     mutate((d) => { if (d.importing) d.importing.found = foundFromResponse(res); }, { track: false });
@@ -96,13 +128,13 @@ export async function uploadFile(file: File, mappingId?: string | null, forceRel
       if (!skipRequested) await holdFor(IMPORT_END_MS);
     }
     if (cancelled()) return;
-    mutate((d) => {
+    withSuppressedDraftSync(() => mutate((d) => {
       commit(d, res, getState().mappings); d.mpSrc = {}; d.mpDirty = false; d.mpSave = false;
       if (d.pv) d.pv.done = true;
-      const st = res.file_stats;
+      if (draft) hydrateDraft(d, draft);
       if (res.is_duplicate_file) toast(d, 'File này đã nhập trước đó, đang mở lại kết quả cũ');
-      log(d, 'Nhập file Jira', res.file_name, st.total_cols + ' cột · gộp ' + st.dup_groups + ' nhóm cột trùng tên · ' + st.matched_projects + ' dự án ghép được · ' + res.orphans.length + ' issue chưa ghép', res.orphans.length ? 'Cảnh báo' : 'Thành công');
-    }, { resetUndo: true });
+      if (!draft) importLog(d, res);
+    }, { resetUndo: true }));
     void refreshHistory();
   } catch (e) { failUpload(e); }
 }
@@ -112,9 +144,15 @@ export async function reopenSession(sessionId: string): Promise<void> {
   if (getState().busy) return;
   mutate((d) => { d.busy = true; });
   try {
-    const res = await api.getSession(sessionId);
-    applyIngest(res);
-    mutate((d) => { log(d, 'Mở lại lần nhập', res.file_name, res.file_stats.matched_projects + ' dự án'); });
+    cancelPendingDraftSave();
+    const [res, draft] = await Promise.all([api.getSession(sessionId), api.getDraft(sessionId)]);
+    withSuppressedDraftSync(() => {
+      applyIngest(res);
+      mutate((d) => {
+        if (draft) { hydrateDraft(d, draft); log(d, 'Mở lại lần nhập', res.file_name, res.file_stats.matched_projects + ' dự án'); }
+        else { resetDraftFields(d); importLog(d, res); }
+      });
+    });
   } catch (e) { failToast(e); }
 }
 
@@ -125,7 +163,7 @@ async function recalc(mappingId: string | null, src: Record<string, string>, dir
   mutate((d) => { d.busy = true; });
   try {
     const res = await api.recalculate({ session_id: sid, mapping_id: mappingId, src_overrides: src });
-    applyIngest(res, { dirty, src });
+    applyIngest(res, { dirty, src, keepTouched: true });
     return true;
   } catch (e) { failToast(e); return false; }
 }

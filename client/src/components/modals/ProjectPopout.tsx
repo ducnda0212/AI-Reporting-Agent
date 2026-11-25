@@ -68,12 +68,12 @@ function Popout({ s }: { s: AppState }): JSX.Element | null {
   const milestone = (): JSX.Element => {
     const t = txt('milestone'); if (!t) return <span className="nil">—</span>;
     if (q) return <Val fid="milestone" />;
-    return <ol className="pa-ms" data-pf="milestone">{parseMilestones(t).map((m, k) => <li key={k} className={m.status}><i /><b>{m.date || ''}</b><span>{m.text}</span></li>)}</ol>;
+    return <ol className="pa-ms" data-pf="milestone">{parseMilestones(t, s.activeToday || undefined).map((m, k) => <li key={k} className={m.status}><i /><b>{m.date || ''}</b><span>{m.text}</span></li>)}</ol>;
   };
 
   const pic = txt('pic'), ini = pic ? pic.split(/\s+/).slice(-1)[0].charAt(0) : '?', endD = txt('end');
   let left: JSX.Element | null = null;
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(endD)) { const pe = endD.split('/'), dd = Math.round((+new Date(+pe[2], +pe[1] - 1, +pe[0]) - +new Date(2026, 10, 22)) / 864e5); left = dd < 0 ? <em className="po-late">{'quá hạn ' + -dd + ' ngày'}</em> : <em>{'còn ' + dd + ' ngày'}</em>; }
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(endD)) { const pe = endD.split('/'), rt = (s.activeToday || '2026-11-22').split('-').map(Number), dd = Math.round((+new Date(+pe[2], +pe[1] - 1, +pe[0]) - +new Date(rt[0], rt[1] - 1, rt[2])) / 864e5); left = dd < 0 ? <em className="po-late">{'quá hạn ' + -dd + ' ngày'}</em> : <em>{'còn ' + dd + ' ngày'}</em>; }
   const nHit = P.hits.length, cnt = !q ? '' : nHit ? (P.cur >= 0 ? P.cur + 1 : 0) + '/' + nHit : 'Không có';
 
   const split = (e: React.MouseEvent): void => {
@@ -124,7 +124,7 @@ function Popout({ s }: { s: AppState }): JSX.Element | null {
               <div className="pa-ovc wide"><div className="pa-wl">Milestone</div>{milestone()}</div>
             </section>
             <div className="pa-mh"><h3>Báo cáo tuần</h3><button className="po-chip" data-po="wksort" onClick={poToggleWkSort}>{(P.wkDesc ? 'Mới nhất trước' : 'Cũ nhất trước') + ' ⇅'}</button></div>
-            {poWeeks(P.wkDesc).filter((w) => w[0] !== 'w4').map((w) => {
+            {poWeeks(P.wkDesc, s.weeks).filter((w) => w[0] !== 'w4').map((w) => {
               const now = w[0] === 'w3', hit = !!q && w[3].some((fid) => poNm(txt(fid)).includes(poNm(q))), open = !!P.wkOpen[w[0]] || hit, range = w[2].replace(' · tuần này', '');
               if (!open) {
                 const sum = (txt(w[3][0]) || txt(w[3][2]) || 'Chưa có báo cáo').replace(/\s+/g, ' ');

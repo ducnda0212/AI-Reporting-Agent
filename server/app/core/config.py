@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     TEMPLATES_DIR: str = ""
     UPLOADS_DIR: str = ""
     DATABASE_URL: str = ""
-    DEFAULT_CYCLE_ID: str = "2026_11_w3"
+    DEFAULT_CYCLE_ID: str = ""  # empty = follow today; set to pin a cycle
     AI_SERVICE_URL: str = "http://localhost:8001/api/v1"
     MAX_UPLOAD_MB: int = 50
 

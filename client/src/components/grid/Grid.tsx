@@ -105,7 +105,7 @@ export function Grid(): JSX.Element {
   if (!s.loaded) {
     return (
       <div className="gridwrap gut" style={{ paddingBlock: 60, textAlign: 'center' }}>
-        <div style={{ fontSize: 15, fontWeight: 600 }}>Chưa có dữ liệu cho Tuần 3/11</div>
+        <div style={{ fontSize: 15, fontWeight: 600 }}>Chưa có dữ liệu cho {(s.weeks.find((w) => w.cur)?.name.split(' · ')[0]) || 'Tuần 3/11'}</div>
         <div style={{ fontSize: 12.5, color: 'var(--mut)', margin: '6px 0 14px' }}>Nhập file CSV export từ Jira để dựng bảng 49 cột theo mẫu.</div>
         <button className="btn pri" data-act="view" data-v="import" onClick={() => setView('import')}>Tới bước Nhập file</button>
       </div>
@@ -117,6 +117,7 @@ export function Grid(): JSX.Element {
   const findQ = F.open && F.q.trim() ? F.q : null;
 
   /* hàng nhóm cột, giống dòng 1 của file mẫu (khối tuần gộp ô) */
+  const curGrp = s.weeks.find((w) => w.cur)?.k;
   const bands: { g: Field['grp']; n: number; w: number }[] = [];
   vf.forEach((f) => { const last = bands[bands.length - 1]; if (last && last.g === f.grp) { last.n++; last.w += colWidth(s, f); } else bands.push({ g: f.grp, n: 1, w: colWidth(s, f) }); });
   const bandLeft = 40 + 92 + (s.pinViec ? 215 : 0) + 10;
@@ -143,8 +144,8 @@ export function Grid(): JSX.Element {
               const wk = /^w\d$/.test(b.g);
               return (
                 <th key={k} colSpan={b.n} className={'gh' + (b.g === 'pin' ? ' key' : '')}
-                  style={{ ...(b.g === 'pin' ? { width: b.w, minWidth: b.w, maxWidth: 'none' } : {}), ...(wk ? { background: 'var(--tW)', color: 'var(--ink)' } : {}), ...(b.g === 'w3' ? { boxShadow: 'inset 0 3px 0 var(--accent)' } : {}) }}>
-                  {b.g === 'pin' ? GRP[b.g] : <span style={{ position: 'sticky', left: bandLeft }}>{GRP[b.g]}</span>}
+                  style={{ ...(b.g === 'pin' ? { width: b.w, minWidth: b.w, maxWidth: 'none' } : {}), ...(wk ? { background: 'var(--tW)', color: 'var(--ink)' } : {}), ...(b.g === curGrp ? { boxShadow: 'inset 0 3px 0 var(--accent)' } : {}) }}>
+                  {b.g === 'pin' ? GRP[b.g] : <span style={{ position: 'sticky', left: bandLeft }}>{s.weeks.find((w) => w.k === b.g)?.name ?? GRP[b.g]}</span>}
                 </th>
               );
             })}
