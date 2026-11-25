@@ -1,186 +1,116 @@
 # Client — PMO Reporting (React + Vite + TypeScript)
 
-Giao diện báo cáo PMO: nhập file Jira, kiểm tra dữ liệu, điền & duyệt (có AI soạn nháp), chốt phiên bản và xuất báo cáo PDF/Word.
-Đây là bản port từ prototype HTML một file sang React. Hiện chạy hoàn toàn bằng **dữ liệu mock** ở phía client; backend chưa nối.
+Giao diện báo cáo PMO tuần: nhập file Jira export, điền & duyệt bảng 49 cột (có Trợ lý AI), chốt phiên bản và xuất Excel 49 cột.
+Client được **dựng lại từ đầu** để bám sát "Bản gọn" (`html.lite`) của `docs/superpowers/prototype/PMO Reporting Prototype v4 (Copy).html`.
+Chạy hoàn toàn bằng **dữ liệu mock** ở phía client; backend chưa nối.
 
-## Chạy
+## Chạy và kiểm thử
 
 ```bash
 cd client
 npm install
-npm run dev        # http://localhost:5173
+npm run dev          # http://localhost:5173
+npm test             # vitest, 10 file / 94 test (lần chạy gần nhất theo báo cáo Task 9)
+npm run typecheck    # tsc --noEmit
 ```
 
 ## Công nghệ
 
-React 18, TypeScript (strict), Vite 5, zustand + immer (state), vitest. Không dùng thư viện UI; CSS thuần, class dùng chung.
+React 18, TypeScript (strict), Vite 5, zustand + immer (state), vitest (môi trường `node`, không jsdom). Không dùng thư viện UI; một file CSS lấy từ prototype (`src/styles/pmo-prototype.css`). Alias `@` -> `src`. `vite.config.ts` có proxy `/api` -> `localhost:8000` (chưa dùng).
+
+## Luồng sử dụng (3 bước)
+
+1. **Nhập file** — kéo thả / chọn file CSV, Excel, hoặc "Dùng dữ liệu mẫu"; xem trước file (`FilePreviewModal`); màn tóm tắt sau khi nạp (issue, dự án, trạng thái, tiến độ, các cột lấy từ Jira).
+2. **Bảng · điền & duyệt** — lưới 49 cột, sửa tại ô, bấm 1 lần ở cột có danh sách thì hiện bảng chọn (1-touch picker), lọc/sắp xếp theo cột, tìm, chọn vùng, kéo điền, menu chuột phải, định dạng (đậm/nghiêng/màu/căn lề/wrap), ẩn/hiện/ghim cột, "Duyệt từng ô" cho nháp AI.
+3. **Chốt & xuất** — hộp 3 bước (Kiểm tra → Chốt bản vN → Xuất file); chỉ xuất từ bản đã chốt; xuất **Excel 49 cột** (không còn PDF/Word).
+
+Thanh trái (Rail) chỉ có 3 mục: **Bảng**, **Phiên bản**, **Nhật ký**.
+
+Các phần chính khác:
+- **Trợ lý AI** (nút ✦ AI): hỏi đáp về số liệu tuần; **Agent** nhận lệnh (vd "Đổi Tiến độ của I.A.3.1 thành Chậm tiến độ"), trả bảng **xem trước**, người dùng tick chọn rồi **Áp dụng** hoặc **Bỏ**; có hoàn tác. Panel "AI soạn ra sao" (`AiTracePanel`) giải thích ô nháp.
+- **Project popout** — bấm mã dự án ở cột Mã DA: xem thông tin, milestone, báo cáo từng tuần, tìm trong dự án, đổi cỡ chữ, chuyển dự án.
+- **Phiên bản** — danh sách bản đã chốt, so sánh 2 bản, mở lại bản cũ trên bảng.
+- **Nhật ký** — ai làm gì trên báo cáo, có lọc theo hoạt động / người / từ khoá.
+- **Hướng dẫn** (nút ?) và tour; **Dữ liệu thử** (kịch bản test, thoát thì khôi phục nguyên trạng); giao diện sáng/tối; chọn kỳ báo cáo; cấu hình mẫu (số tuần, cột) ở panel bên phải.
+
+## Dữ liệu và localStorage
+
+Mock ở `src/data/demo.json` + `src/data/constants.ts` (49 field, hướng dẫn, tour, FAQ...). Dữ liệu mẫu "GOLD" có **56 dòng dự án** (`stats.epics` = 64 là số epic trong file Jira gốc). Mã field giữ nguyên theo prototype (`ma`, `rui`, `kh`, `vd`, `tt`...), không đổi sang tiếng Anh.
+
+Khoá localStorage: `pmo-theme`, `pmo-tour-v1`, `pmo-tour-ver`, `pmo-proto-store-v1`, `pmo-proto-grid-v1` (rộng cột), `pmo-proto-cols-v4` (ẩn cột + ghim), `pmo-proto-panel-v1`, `pmo-proto-imphist-v1` (lịch sử nhập), `pmo-po-fz`, `pmo-po-sidew` (popout).
 
 ## Cấu trúc thư mục
 
 ```
 client/
-├─ index.html, vite.config.ts, tsconfig.json   # alias "@" -> src
-├─ public/logo.png                             # logo + favicon
-├─ docs/screenshots/                           # ảnh dùng trong README này
+├─ index.html, vite.config.ts, tsconfig.json
+├─ public/logo.png
+├─ docs/screenshots/              # ảnh dùng trong README (30–38 là UI hiện tại)
 └─ src/
-   ├─ main.tsx, App.tsx
-   ├─ types/        kiểu dùng chung (Row, Field, Catalog, ...)
-   ├─ data/         mock: demo.json, constants.ts, seed.ts, tour.ts, risk.ts (bộ tiêu chí + 8 ca rủi ro), templates.ts (thư viện mẫu báo cáo)
-   ├─ lib/          hàm thuần (cell, check, selectors, exec, grid, risk, theme, export/docx|pdf|docHtml)
-   ├─ store/        zustand: types.ts (AppState), index.ts, actions/ (flow, grid, catalog, exportReport, risk, templates)
-   ├─ hooks/        useDerived, useGridKeyboard, useColResize
-   ├─ components/   layout/ grid/ panels/ modals/ layers/ common/
-   ├─ views/        Import, Check, Template, TemplateLib, Exec, Risk, Catalog, Versions, Log
-   ├─ styles/       *.css (global, giữ class gốc của prototype)
-   └─ __tests__/    smoke + flows
+   ├─ main.tsx, App.tsx           # App: ghép Rail/TopBar/panel/lớp nổi, đóng menu khi bấm ra ngoài
+   ├─ types/index.ts
+   ├─ data/         demo.json, constants.ts
+   ├─ lib/          hàm thuần: cell, grid, clean, ai, versions, popout, xlsx (ghi .xlsx), theme
+   ├─ store/        index.ts (zustand+immer) và actions/ (ai, flow, grid, help, popout, versions)
+   ├─ hooks/        useKeyboard, useGridResize
+   ├─ components/   layout/ (TopBar, Rail, StatusBar, EditBanner, TestBanner, Toast)
+   │                grid/ (Grid, Cell, CellEditor, PickerPop, FillHandle, FormatBar, SelBar, AgentCursor)
+   │                layers/ (ContextMenu, FilterPopup, FindCard, PECard, Spotlight)
+   │                modals/ (ExportModal, AiDoneModal, HelpDrawer, ProjectPopout)
+   │                panels/ (PanelShell, AiAssistantPanel, AiTracePanel, TplConfigPanel), common/
+   ├─ views/        Import (+FilePreviewModal), Versions, Log
+   ├─ styles/       pmo-prototype.css
+   └─ __tests__/    10 file: data, lib-core, store, grid-versions, ai-xlsx, grid-ui, views-shell, panels-modals, app-integration, reset
 ```
-
-## Những việc đã làm
-
-### 1. Tổ chức lại repo
-- Chuyển toàn bộ code giao diện vào `client/` (trước nằm ở `src/`). Alias `@` trỏ `client/src`.
-- Tách `client/` và `server/` độc lập, mỗi bên có `package.json`/`node_modules` riêng (server dự kiến Python). Không dùng npm workspaces.
-- Thêm proxy `/api` -> `localhost:8000` trong `vite.config.ts` để gọi backend lúc dev mà không dính CORS.
-
-### 2. Chuẩn convention: đổi tên field sang tiếng Anh
-Toàn bộ field id / biến tiếng Việt không dấu được đổi sang tiếng Anh (cột Excel `col` giữ nguyên). Kiểm chứng bằng cách so snapshot dữ liệu seed trước/sau khi đổi: giống hệt (sau khi map khoá).
-
-| Cũ | Mới | Cũ | Mới |
-|---|---|---|---|
-| `ma` | `code` | `giatri` | `businessValue` |
-| `viec` | `task` | `rui` | `riskLevel` |
-| `mang` | `workstream` | `loai` | `projectType` |
-| `muctieu` | `objective` | `buoc` | `lifecycleStep` |
-| `tt` | `status` | `buocso` | `lifecycleStepNo` |
-| `td` | `progress` | `uoctinh` | `valueEstimate` |
-| `gdk` | `divisionHead` (GĐK QLTT) | `nextstep` | `nextStep` |
-| `phong` | `department` | `aieng` / `airs` | `aiEngineer` / `aiResearcher` |
-| `tp` | `deptHead` (Trưởng phòng) | `mlops` / `swe` | `mlopsEngineer` / `softwareEngineer` |
-| `bo` | `businessOwner` | `tt1` | `statusAlt` (cột AA, "TRẠNG THÁI 1") |
-| `caitien` | `initiativeType` | `w{1,2,4}{ht,kh,vd}` | `w{n}{Done,Plan,Issues}` |
-| `ht` / `kh` / `vd` (tuần 3) | `w3Done` / `w3Plan` / `w3Issues` | `kq` / `cd` | `kpiResult` / `directive` |
-
-Đổi tên khác: `pinViec`→`pinTask`, `exTT`→`exStatus`, `vdReal`→`hasIssues`, `MAN3`→`LEVELS`, `PHONG_OF`→`DEPARTMENT_OF`.
-Tên `divisionHead`, `deptHead`, `statusAlt` là suy đoán từ nhãn cột — cần team xác nhận.
-Class CSS (`.ma`, `.cd`, `.tt`...) giữ nguyên, chưa đổi.
-
-**Lưu ý tương thích:** khoá localStorage đã tăng phiên bản (`pmo-sys-v3`, `pmo-proto-cfg-v2`, `pmo-proto-cols-v5`) vì dữ liệu lưu cũ dùng id cũ; cấu hình đã lưu trước đó sẽ bị bỏ.
-
-### 3. Sửa lỗi cấu hình
-- Thêm `src/vite-env.d.ts` (`/// <reference types="vite/client" />`) để import `.css` không báo lỗi "Cannot find module".
-- Bỏ `baseUrl` và `ignoreDeprecations` khỏi `tsconfig.json` (giá trị `"6.0"` không hợp lệ với TS 5.9). `paths` dùng `./src/*`.
-
-### 4. Đồng bộ với prototype mới (v44–v52)
-Prototype được cập nhật; client chuyển các thay đổi sang React (dữ liệu mock giữ nguyên, đã đối chiếu với `DEMO` của prototype).
-
-**Từ v44–v47**
-- **Màn "Rủi ro" (v46)** — `views/Risk/RiskView.tsx`, mục "Rủi ro" trên thanh trái (huy hiệu = số ca chưa duyệt).
-  AI chấm 8 vấn đề/rủi ro theo Bộ tiêu chí v1; người duyệt Đồng ý / Bỏ / Sửa (bắt buộc ghi lý do) / Hoàn tác, mọi thao tác ghi vào Nhật ký.
-  Điểm do hệ thống tính ở `lib/risk.ts` (hàm thuần, có test): Impact = mức cao nhất của 5 khía cạnh, Urgency theo số ngày đến hạn ± điều chỉnh, Điểm = Impact × Urgency → P1–P4 và màu Đỏ/Vàng/Xanh/Lưu ý dữ liệu.
-- **Đổi giao diện sáng/tối (v47)** — nút ở thanh trên, lưu `pmo-theme`, gắn `data-theme` lên `<html>` (`lib/theme.ts`).
-- **Màn Nhập file (v44–v45)** — tóm tắt chữ lớn, "Đã sẵn sàng" là danh sách có biểu tượng loại file và mũi tên `›`.
-
-**Mới ở v48–v52**
-- **Logo ảnh + favicon (v48)** — `public/logo.png` thay logo SVG cũ; biểu tượng nét mảnh `Ico` cho 4 mục Kiểm tra (khớp cột / quy đổi / làm sạch / ghép dự án) và 10 nhóm rủi ro C1–C10; nhãn file `FileTag` (PDF/Word/Excel) dùng trong hộp Xuất và thư viện mẫu (`components/common/Icons.tsx`).
-  Menu bên trái của bước Kiểm tra và dòng "Còn lại ở bước Kiểm tra" ở màn Nhập file dùng biểu tượng thay cho số tròn.
-- **Chọn kỳ báo cáo (v49)** — thay ô `<select>` bằng nút lùi/tới + bảng chọn tuần có trạng thái (Đang làm / Đã chốt vN / Chưa mở); tuần đã chốt chỉ để xem (mở màn Phiên bản), có link "Lịch sử phiên bản". `TopBar.tsx` → `WeekPicker`, dữ liệu tuần ở `WEEKS` (`data/constants.ts`).
-- **Màn "Đang đọc file" (v50)** — các bước dọc có kết quả từng bước, cột phải hiện dần số đã tìm thấy (skeleton rồi số), nút "Huỷ, chọn file khác". `views/Import/ImportView.tsx` → `Importing`.
-- **Thư viện mẫu báo cáo (v51)** — mục "Mẫu BC" (thay mục "Cấu hình" cuối thanh trái): mẫu đang dùng cho tuần, bảng tất cả mẫu có lọc Tất cả/Đang dùng/Nháp/Lưu trữ + tìm kiếm, menu thao tác (Mở / Nhân bản / Dùng cho tuần này / Lưu trữ / Khôi phục) và "+ Tạo mẫu mới".
-  Mở mẫu chi tiết → màn cấu hình cột, mẫu điều hành → màn Điều hành, mẫu nháp/lưu trữ → màn xem cấu trúc. `views/TemplateLib/`, state `tpls/tlFlt/tlQ/tlDraft`, action `store/actions/templates.ts`, dữ liệu `data/templates.ts`.
-- **Cấu hình mẫu 49 cột (v52)** — viết lại gọn: breadcrumb, vòng tiến độ "x/13 cột bắt buộc đã đủ", 4 thẻ thông tin, chip lọc theo cách điền (có biểu tượng + màu), ô tìm, nút "Xem cột còn thiếu", bảng 5 cột, khối "Chờ xác nhận với PMO". `views/Template/TemplateView.tsx`, state `tpK/tpMiss/tpQ`.
-- **Bỏ những phần prototype mới không còn** — các dòng phụ đề mô tả ở màn Nhật ký, Phiên bản, Hệ thống, Điều hành (cả ghi chú cuối trang), các ghi chú dưới tab Kiểm tra, ghi chú trong hộp Rổ gom / Yêu cầu sửa / ánh xạ cột, dòng phím tắt ở chế độ duyệt từng ô, ghi chú ở hướng dẫn xuất Jira, ghi chú cuối bản PDF điều hành, mục "Cấu hình" trên thanh trái và biểu tượng của nó.
-- **Sửa lỗi bố cục** — thêm `#root{height:100%}` (client bọc app trong `#root`, prototype thì không) nên trước đây trang dài đẩy mục cuối thanh trái ra khỏi màn hình.
-- 226 rule CSS mới nằm ở `styles/refine-v2.css` (import cuối cùng, chỉ thêm). Các rule bản cũ giữ nguyên, rule mới ghi đè theo thứ tự nạp.
-- Đối chiếu bằng cách so toàn bộ class CSS và chuỗi giao diện của prototype với `client/src`: không còn class CSS nào chỉ có ở một bên; chuỗi giao diện còn lệch chỉ là code chết của prototype (màn nhập/kiểm tra cũ) hoặc nhiễu do cách tách chuỗi.
-- Bước hướng dẫn "Phiên bản" vẫn dùng `.rail .ri:nth-child(4)`; bước "Cấu hình cột" dùng `.cfgchip` (nay là mục "Mẫu BC").
 
 ## Màn hình
 
-Ảnh chụp ở 1440×900, giao diện sáng, dữ liệu mock sau khi bấm "Dùng dữ liệu mẫu".
+Ảnh chụp tự động bằng Chrome headless, 1440×900, giao diện tối (theo cài đặt hệ thống lúc chụp), dữ liệu mock.
 
-### Bước 1 · Nhập file
-Kéo thả hoặc chọn file CSV / Excel (`.csv .tsv .txt .xlsx .xlsm .xls`). Chọn xong thì **xem trước ngay** ở cột phải (16 dòng × 9 cột đầu, chọn sheet nếu có nhiều sheet), bấm **Đọc file này** mới nạp. Việc nạp vẫn là giả lập (chưa gửi backend); xem trước đọc file thật tại trình duyệt (`src/lib/filePreview.ts`).
-- Nút phóng to: lưới toàn màn hình cuộn ảo, ô địa chỉ + nội dung đầy đủ, tìm trong sheet (Enter / Shift+Enter), phím mũi tên, Esc để đóng.
-- `.xls` cũ và `.xlsx` lỗi đọc trực tiếp sẽ tải SheetJS từ CDN làm dự phòng.
-- File chọn lưu ở `store/preview.ts` (tách khỏi store chính, không ghi localStorage).
+![Nhập file — trống](docs/screenshots/30-v2-import-empty.png)
+![Nhập file — đã nạp](docs/screenshots/31-v2-import-loaded.png)
+![Bảng 49 cột](docs/screenshots/32-v2-grid.png)
+![Project popout](docs/screenshots/33-v2-project-popout.png)
+![Trợ lý AI](docs/screenshots/34-v2-ai-panel.png)
+![Agent — xem trước thay đổi](docs/screenshots/35-v2-ai-agent-preview.png)
+![Phiên bản](docs/screenshots/36-v2-versions.png)
+![Nhật ký](docs/screenshots/37-v2-log.png)
+![Chốt & xuất](docs/screenshots/38-v2-export-modal.png)
 
-![Nhập file — xem trước](docs/screenshots/20-import-preview.png)
+Các ảnh cũ `01`–`22` trong `docs/screenshots/` là UI trước khi dựng lại (kiểm tra dữ liệu, Điều hành, Rủi ro, Hệ thống, Mẫu BC...), đã lỗi thời và không còn được tham chiếu; chưa xoá để PR chỉ thêm ảnh.
 
-Xem toàn màn hình, đang tìm "Phan":
+## Những việc đã làm
 
-![Nhập file — xem trước toàn màn hình](docs/screenshots/21-import-preview-fullscreen.png)
+### Dựng lại client theo prototype v4 "Bản gọn" (nhánh `feat/convert-prototype`)
+Kế hoạch: `docs/superpowers/plans/2026-11-25-fe-rebuild-prototype-v4-lite.md`; đặc tả: `docs/superpowers/specs/2026-11-25-fe-rebuild-prototype-v4-lite-design.md`.
 
-![Nhập file — trống](docs/screenshots/01-import-empty.png)
+**Đã bỏ** (xoá toàn bộ `client/src` cũ, khôi phục được qua git): bước Kiểm tra dữ liệu (check, cleanStats, catalog), màn Điều hành + xuất PDF/Word, màn Rủi ro (bộ tiêu chí), thư viện mẫu báo cáo, màn Hệ thống (danh mục), rổ gom/yêu cầu sửa/ánh xạ cột, đổi tên field sang tiếng Anh, `refine-v2.css`.
 
-Đang đọc file: các bước có kết quả, bên phải hiện dần những gì đã tìm thấy.
+**Đã thêm**: luồng 3 bước, Rail 3 mục, lưới 49 cột + picker 1 lần chạm, Trợ lý AI + Agent (xem trước/áp dụng/hoàn tác), project popout, so sánh phiên bản, nhật ký có lọc, hướng dẫn + tour, kịch bản dữ liệu thử, ghi Excel 49 cột (`lib/xlsx.ts`), lưu độ rộng/ẩn cột/ghim vào localStorage. Logic nghiệp vụ nằm ở `lib/*` (hàm thuần, có test) và `store/actions/*`; component chỉ gọi.
 
-![Nhập file — đang đọc](docs/screenshots/02-import-reading.png)
-
-Sau khi nạp: tóm tắt thay đổi so với tuần trước và việc còn lại ở bước Kiểm tra.
-
-![Nhập file — đã nạp](docs/screenshots/03-import-loaded.png)
-
-### Cấu hình mẫu (panel bên phải)
-Mở từ màn Mẫu 49 cột hoặc menu "Cột" ở bảng: chọn 1 / 2 / 3 tuần, thêm khối tuần sau, ẩn/hiện cột theo nhóm, lưu thành phiên bản (`store/tplVersions.ts`, localStorage). Bảng và ghi chú ở modal Xuất đổi theo cấu hình.
-
-![Cấu hình mẫu](docs/screenshots/22-template-config.png)
-
-### Bước 2 · Kiểm tra dữ liệu
-Gồm 4 tab con: khớp cột Jira với mẫu, quy đổi giá trị, làm sạch nội dung, ghép dự án.
-
-![Khớp cột](docs/screenshots/04-check-columns.png)
-![Quy đổi giá trị](docs/screenshots/05-check-values.png)
-![Làm sạch nội dung](docs/screenshots/06-check-clean.png)
-![Ghép dự án](docs/screenshots/07-check-projects.png)
-
-### Bước 3 · Điền & duyệt
-Bảng 49 cột (sửa trực tiếp, tìm, lọc, kéo cột, menu chuột phải, duyệt nháp AI từng ô).
-
-![Bảng 49 cột](docs/screenshots/08-grid.png)
-
-Báo cáo điều hành: xem trước như file PDF, có thể nhờ AI soạn nội dung.
-
-![Điều hành](docs/screenshots/09-exec.png)
-
-### Rủi ro
-Danh sách vấn đề do AI chấm, lọc theo mức; chi tiết gồm phân loại, điểm, dấu hiệu, action đề xuất, ca mẫu tương tự.
-
-![Rủi ro](docs/screenshots/10-risk.png)
-
-Sửa kết quả của AI (bắt buộc ghi lý do) và giao diện tối (nút mặt trăng/mặt trời ở thanh trên):
-
-![Rủi ro — sửa kết quả AI](docs/screenshots/17-risk-edit.png)
-![Rủi ro — giao diện tối](docs/screenshots/18-risk-dark.png)
-
-### Mẫu báo cáo
-Thư viện mẫu (mục "Mẫu BC" cuối thanh trái) và màn cấu hình mẫu 49 cột của mẫu mặc định.
-
-![Thư viện mẫu báo cáo](docs/screenshots/14-templates.png)
-![Cấu hình mẫu 49 cột](docs/screenshots/15-template-config.png)
-
-### Chọn kỳ báo cáo
-Nút lùi/tới và bảng chọn tuần ở thanh trên; tuần đã chốt chỉ để xem.
-
-![Chọn tuần](docs/screenshots/16-week-picker.png)
-
-### Các màn phụ
-
-![Phiên bản](docs/screenshots/11-versions.png)
-![Nhật ký](docs/screenshots/12-log.png)
-![Hệ thống (danh mục)](docs/screenshots/13-catalog.png)
-
-### Bước 4 · Chốt & xuất
-Kiểm tra trước khi chốt, chốt thành phiên bản, rồi xuất file.
-
-![Chốt & xuất](docs/screenshots/19-export.png)
+**Quyết định cần reviewer biết**
+- Prototype HTML là chuẩn khi lệch với plan/test (parity 1:1); mỗi chỗ sửa literal test được ghi trong báo cáo từng task.
+- Excel: hàng tiêu đề dùng **một màu nền xám** như hàm xuất của prototype, dù plan/spec ghi "màu theo nhóm". Muốn màu theo nhóm thì là việc nhỏ thêm trong `lib/xlsx.ts`.
+- Dữ liệu GOLD có 56 dòng dự án (không phải 64); test dùng số thật của prototype.
+- Thoát chế độ "Dữ liệu thử" khôi phục đúng ảnh chụp trước khi vào (prototype chỉ reset rồi áp lại nên mất sửa tay).
+- Các màn ẩn của prototype (mẫu BC, Điều hành, Rủi ro, Hệ thống...) **cố ý không port**; HELP/TOUR/FAQ đã viết lại theo luồng gọn.
+- Picker, filter, menu, find, popout là lớp nổi gắn ngoài `.gridwrap`; `App` đóng menu khi bấm ra ngoài và bỏ qua Esc khi xem trước file toàn màn hình đang mở.
+- `main.tsx` chỉ áp theme khi đã lưu `pmo-theme` (giống prototype). Store và component an toàn khi chạy trong node (không có DOM) để test bằng vitest không cần jsdom.
+- Không thêm dependency; không đụng `server/`.
 
 ## Trạng thái và hạn chế đã biết
-- Mọi dữ liệu là mock (`src/data/`). Việc nối backend sẽ làm sau, bắt đầu từ màn Nhập file.
-- `useAppState()` đăng ký cả store nên vẽ lại rộng mỗi lần đổi; ổn với ~40 dòng, cần selector hẹp nếu dữ liệu lớn.
-- Còn nhiều biến một chữ cái và viết tắt (`r`, `cr`, `flt`, `iss`...) chưa được đổi tên.
-- Hoạt ảnh phụ của bản gốc chưa port (chuyển view, đếm số, nảy badge). "Excel theo mẫu" (.xlsx) mới ghi nhật ký, chưa tạo file.
-- Console có 1 lỗi 404 tài nguyên (chưa xác định nguồn; có thể là favicon).
+- Mọi dữ liệu là mock. Nạp file là giả lập (chưa gửi backend).
+- **Chưa có kiểm thử tự động trên trình duyệt thật**: test chạy trong node, không phủ click ngoài/hiệu ứng/kéo thả. Lần chụp ảnh ở trên chỉ là chạy thử một lượt, không báo lỗi console. Danh sách người kiểm tay:
+  - kéo-thả/đổi cỡ: panel (`.pnrz`), chia đôi popout (`.pa-split`), độ rộng cột, kéo chọn vùng;
+  - Spotlight của tour: vị trí lỗ sáng và khung hình đầu bị nháy; tour tự mở lần đầu (bản `all` một lần);
+  - đọc file `.xlsx` thật bằng `pvReadXlsx`;
+  - Ctrl + cuộn để phóng to bảng;
+  - bấm ra ngoài thì menu đóng trên trình duyệt thật;
+  - hiệu ứng `body.vchg` so với các lớp `position:fixed`;
+  - tự cuộn của panel AI.
+- Lỗi nhỏ đã biết: Esc khi đang gõ ở ô `.fxval` vẫn đóng find/filter/menu.
+- Quan sát khi chụp ảnh: sau khi Agent soạn thay đổi ở cột Tiến độ, bảng cuộn ngang và phần ghim cột Công việc trông lệch vài chục px so với tiêu đề; ở màn Nhật ký, panel AI và khung nội dung kết thúc trước đáy cửa sổ (dải trống). Chưa điều tra nguyên nhân.
 
 ## Quy ước làm việc (cho PR)
 - Mỗi thay đổi kèm cập nhật tài liệu: mục "Những việc đã làm" trong README này (hoặc file trong `docs/`), và chụp lại ảnh màn hình nếu giao diện đổi.
-- Tên biến/hàm/field bằng tiếng Anh; chuỗi hiển thị cho người dùng giữ tiếng Việt.
+- Tên biến/hàm/field bằng tiếng Anh; chuỗi hiển thị cho người dùng giữ tiếng Việt. (Riêng mã field dữ liệu như `ma`, `rui` được giữ nguyên theo prototype ở bản dựng lại này.)

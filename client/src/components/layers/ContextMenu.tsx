@@ -1,52 +1,44 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
-import { displayText, fieldOf, fkey, noEdit } from '@/lib/cell';
-import { refOf } from '@/lib/grid';
-import { useStore } from '@/store';
-import * as G from '@/store/actions/grid';
-import { toast } from '@/store/actions/flow';
+/* Menu chuột phải #ctxm (prototype ctxHtml L7375 + handleXl ctx* L7421-7427; đóng khi bấm ra ngoài L7437, cuộn L7304).
+   Lớp nổi đặt ngoài .gridwrap. */
+import { useEffect, useRef } from 'react';
+import { ck, displayText, fieldById, locked, refOf } from '@/lib/cell';
+import { filterKey } from '@/lib/grid';
+import { useAppState } from '@/store';
+import { autofitCol, ctxClear, ctxClose, ctxFilterVal, ctxJira, fillDown, sortCol, startEdit, toggleWrap } from '@/store/actions/grid';
+import { measureText } from '@/hooks/useGridResize';
 
-/** Menu chuột phải trên ô bảng. */
-export function ContextMenu() {
-  const s = useStore((x) => x);
-  const C = s.ctx;
-  const ref = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    if (!C || !ref.current) return;
-    ref.current.style.left = Math.min(C.x, window.innerWidth - ref.current.offsetWidth - 8) + 'px';
-    ref.current.style.top = Math.min(C.y, window.innerHeight - ref.current.offsetHeight - 8) + 'px';
-  }, [C?.x, C?.y]);
+export function ContextMenu(): JSX.Element | null {
+  const s = useAppState((x) => x), C = s.ctx, ref = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!C) return;
-    const down = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest('#ctxm')) G.closeContext(); };
-    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') G.closeContext(); };
-    const scroll = () => G.closeContext();
+    const m = ref.current;
+    if (m) { m.style.left = Math.min(C.x, window.innerWidth - m.offsetWidth - 8) + 'px'; m.style.top = Math.min(C.y, window.innerHeight - m.offsetHeight - 8) + 'px'; }
+    const down = (e: MouseEvent): void => { if (!(e.target as Element).closest?.('#ctxm')) ctxClose(); };
+    const scroll = (): void => { if (Date.now() - C.t > 350) ctxClose(); };
     document.addEventListener('mousedown', down, true);
-    document.addEventListener('keydown', key, true);
     document.addEventListener('scroll', scroll, true);
-    return () => { document.removeEventListener('mousedown', down, true); document.removeEventListener('keydown', key, true); document.removeEventListener('scroll', scroll, true); };
-  }, [!!C]);
+    return () => { document.removeEventListener('mousedown', down, true); document.removeEventListener('scroll', scroll, true); };
+  }, [C]);
+
   if (!C || s.view !== 'grid') return null;
-  const f = fieldOf(s, C.f);
-  const r = s.allRows[C.i];
-  const lk = noEdit(f);
-  const v = displayText(s, r, f);
-  const k = fkey(s, r, f);
-  const Item = ({ label, kbd, dis, onClick }: { label: string; kbd?: string; dis?: boolean; onClick: () => void }) => (
-    <button className="ctxi" disabled={dis} onClick={() => { G.closeContext(); onClick(); }}><span>{label}</span>{kbd && <kbd>{kbd}</kbd>}</button>
+  const f = fieldById(C.f)!, r = s.allRows[C.i], lk = locked(f) || ['calc', 'none', 'future', 'past'].includes(f.kind), v = displayText(r, f, s), fk = filterKey(r, f, s);
+  const it = (label: string, kbd: string, dis: boolean, run: () => void): JSX.Element => (
+    <button className="ctxi" disabled={dis} onClick={run}><span>{label}</span>{kbd && <kbd>{kbd}</kbd>}</button>
   );
   return (
-    <div className="ctxm" id="ctxm" ref={ref} role="menu" data-stop="1">
-      <div className="ctxh">{refOf(r, f)} · {f.name}</div>
-      <Item label="Soạn ô" kbd="F2" dis={lk} onClick={() => G.startEdit(C.i, C.f)} />
-      <Item label="Xoá nội dung" kbd="Del" dis={lk || !v} onClick={() => G.clearCell(C.i, C.f)} />
-      <Item label={s.range ? 'Chép dòng đầu xuống cả vùng' : 'Chép từ ô phía trên'} kbd="Ctrl+D" dis={lk} onClick={G.fillDown} />
+    <div className="ctxm" id="ctxm" role="menu" data-stop="1" ref={ref}>
+      <div className="ctxh">{refOf(r, f) + ' · ' + f.name}</div>
+      {it('Soạn ô', 'F2', lk, () => { ctxClose(); startEdit(C.i, C.f); })}
+      {it('Xoá nội dung', 'Del', lk || !v, ctxClear)}
+      {it(s.range ? 'Chép dòng đầu xuống cả vùng' : 'Chép từ ô phía trên', 'Ctrl+D', lk, () => { ctxClose(); fillDown(); })}
       <div className="fltsep" />
-      <Item label={`Lọc theo “${k.slice(0, 26)}${k.length > 26 ? '…' : ''}”`} onClick={() => G.filterByCellValue(C.i, C.f)} />
-      <Item label="Sắp xếp cột này A → Z" onClick={() => G.sortCol(C.f, 1)} />
-      <Item label={s.wrap[C.f] ? 'Bỏ xuống dòng trong cột' : 'Xuống dòng trong cột (xem đủ chữ)'} onClick={() => G.toggleWrap(C.f)} />
-      <Item label="Vừa độ rộng cột theo nội dung" onClick={() => G.autofitCol(C.f)} />
+      {it('Lọc theo “' + fk.slice(0, 26) + (fk.length > 26 ? '…' : '') + '”', '', false, ctxFilterVal)}
+      {it('Sắp xếp cột này A → Z', '', false, () => sortCol(C.f, 'asc'))}
+      {it(s.wrap[ck(C.i, C.f)] ? 'Bỏ xuống dòng trong ô' : 'Xuống dòng trong ô (xem đủ chữ)', '', false, () => toggleWrap([ck(C.i, C.f)]))}
+      {it('Vừa độ rộng cột theo nội dung', '', false, () => autofitCol(C.f, measureText))}
       <div className="fltsep" />
-      <Item label={`Mở issue ${r.key || r.code} trên Jira`} dis={!r.key} onClick={() => toast('Bản thật sẽ mở ' + (r.key || '') + ' trên Jira ở tab mới')} />
+      {it('Mở issue ' + (r.key || r.ma) + ' trên Jira', '', !r.key, ctxJira)}
     </div>
   );
 }

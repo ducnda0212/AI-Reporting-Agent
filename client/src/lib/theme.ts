@@ -1,25 +1,31 @@
-/** Giao diện sáng/tối: lưu lựa chọn trong localStorage, gắn lên thuộc tính data-theme của <html>. */
+/* Giao diện sáng/tối, lưu trong localStorage (`pmo-theme`). Chỉ chạm DOM/localStorage khi có trình duyệt. */
 export type Theme = 'light' | 'dark';
-const KEY = 'pmo-theme';
 
+const KEY = 'pmo-theme';
+const hasDom = (): boolean => typeof document !== 'undefined';
+
+export function getStoredTheme(): Theme | null {
+  try {
+    const t = typeof localStorage !== 'undefined' ? localStorage.getItem(KEY) : null;
+    return t === 'light' || t === 'dark' ? t : null;
+  } catch { return null; }
+}
+
+/** Theme đang áp dụng: thuộc tính `data-theme`, không có thì theo hệ điều hành. */
 export function currentTheme(): Theme {
-  if (typeof document === 'undefined') return 'light';
+  if (!hasDom()) return 'light';
   const t = document.documentElement.getAttribute('data-theme');
-  if (t === 'dark' || t === 'light') return t;
+  if (t === 'light' || t === 'dark') return t;
   return typeof matchMedia === 'function' && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
-/** Áp dụng lựa chọn đã lưu (gọi một lần khi khởi động). */
-export function applyStoredTheme() {
-  try {
-    const t = localStorage.getItem(KEY);
-    if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
-  } catch { /* bỏ qua: trình duyệt chặn lưu */ }
+export function applyTheme(t: Theme): void {
+  if (hasDom()) document.documentElement.setAttribute('data-theme', t);
+  try { if (typeof localStorage !== 'undefined') localStorage.setItem(KEY, t); } catch { /* chế độ riêng tư: bỏ qua */ }
 }
 
 export function toggleTheme(): Theme {
   const next: Theme = currentTheme() === 'dark' ? 'light' : 'dark';
-  document.documentElement.setAttribute('data-theme', next);
-  try { localStorage.setItem(KEY, next); } catch { /* bỏ qua */ }
+  applyTheme(next);
   return next;
 }
