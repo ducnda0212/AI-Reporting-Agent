@@ -1,44 +1,69 @@
-import { blockers, emptyCells, pendingAI } from '@/lib/selectors';
-import { changedSinceLock, lastCur } from '@/lib/versions';
-import { displayText, fieldOf } from '@/lib/cell';
-import { selKeys } from '@/lib/grid';
-import { useAppState, useRows } from '@/hooks/useDerived';
-import { setPanel, setView } from '@/store/actions/flow';
+/* Thanh trạng thái dưới bảng (prototype statusBar L4098 sau các vòng R3/R7: bỏ đếm ô trống, AI chờ duyệt, "Đã chốt", .ftcell),
+   kèm selInfo L7498, zoomCtl L10269 và legendBtn/legendPop L10006. */
+import { AI_IDS, FIELDS } from '@/data/constants';
+import { displayText, fieldById } from '@/lib/cell';
+import { selKeys, visibleFields } from '@/lib/grid';
+import { rowsOf, useAppState } from '@/store';
+import { trOpen } from '@/store/actions/ai';
+import { gridOrder, setMenu, setZoom } from '@/store/actions/grid';
+import type { AppState, Field } from '@/types';
+import { SrcIcon } from '@/components/common/Icons';
 
-const Dot = ({ bg, border }: { bg: string; border: string }) => <span className="sdot" style={{ background: bg, borderColor: border }} />;
+/* Một ô AI đang chọn (không vùng): lối vào khung "AI soạn ra sao" (prototype cellInfo L9978). */
+function AiTraceLink({ s }: { s: AppState }): JSX.Element | null {
+  const sel = s.sel;
+  if (!sel || s.range || s.panel === 'aitrace' || !(AI_IDS as readonly string[]).includes(sel.f)) return null;
+  return <span className="selinfo"><i>·</i><button className="link ai" data-act="aiTrace" onClick={() => trOpen(sel.i, sel.f)}>Xem AI soạn ra sao ›</button></span>;
+}
 
-export function StatusBar() {
-  const s = useAppState();
-  const rows = useRows();
-  if (!s.loaded) return <footer className="status gut"><span style={{ color: 'var(--mut)' }}>Chưa nạp dữ liệu — bắt đầu ở bước 1 Nhập file.</span></footer>;
-  const b = blockers(s, rows);
-  const ai = pendingAI(rows);
-  const lc = lastCur(s);
-  const ch = changedSinceLock(s);
-  let selInfo = null;
-  if (s.sel && s.range) {
-    const ks = selKeys(s);
-    const n = ks.filter((x) => { const p = x.split('|'); return displayText(s, s.allRows[+p[0]], fieldOf(s, p[1])).trim(); }).length;
-    selInfo = <span className="selinfo">Đã chọn <b>{ks.length}</b> ô · {n} có nội dung · {ks.length - n} trống</span>;
-  }
+function SelInfo({ s }: { s: AppState }): JSX.Element | null {
+  if (!s.sel || !s.range) return null;
+  const ks = selKeys(s.sel, s.range, gridOrder(s), visibleFields(s.hidden).map((f) => f.id));
+  const n = ks.filter((x) => { const [i, f] = x.split('|'); return displayText(s.allRows[+i], fieldById(f)!, s).trim(); }).length;
+  return <span className="selinfo">Đã chọn <b>{ks.length}</b>{' ô · ' + n + ' có nội dung · ' + (ks.length - n) + ' trống'}</span>;
+}
+
+const LG_SRC: [f: Pick<Field, 'key' | 'kind' | 'opts'>, t: string][] = [
+  [{ key: true, kind: 'jira' }, 'Khoá ghép dòng (Mã DA)'], [{ kind: 'cfg' }, 'Lấy từ Jira, chỉ xem'], [{ kind: 'jira' }, 'Lấy thẳng từ Jira'],
+  [{ kind: 'bucket' }, 'Từ Jira, quy đổi theo rổ gom'], [{ kind: 'calc' }, 'Code tự tính'], [{ kind: 'report' }, 'Đọc từ Progress Report'],
+  [{ kind: 'ai' }, 'AI soạn nháp'], [{ kind: 'manual', opts: ['a'] }, 'Chọn từ danh sách'], [{ kind: 'manual' }, 'Nhập tay']
+];
+function LegendPop(): JSX.Element {
+  return (
+    <div className="menu lgpop" role="dialog" aria-label="Chú thích" data-stop="1">
+      <div className="lgh">Ô trên bảng</div>
+      <div className="lgr"><span className="lgs err" />Lỗi: thiếu ô bắt buộc hoặc giá trị không hợp lệ</div>
+      <div className="lgr"><span className="lgs man" />Đã sửa tay (khác dữ liệu nguồn)</div>
+      <div className="lgr"><span className="lgs ai">Aa</span>AI nháp, chờ duyệt</div>
+      <div className="lgr"><span className="lgs agt" />Agent đã tự đổi lúc nhập file</div>
+      <div className="lgh">Nhãn trạng thái</div>
+      <div className="lgr lgw"><span className="spill o">Đúng tiến độ</span><span className="spill e">Chậm tiến độ</span><span className="spill b">Đang thực hiện</span><span className="spill w">Tạm dừng</span><span className="spill n">Chưa thực hiện</span></div>
+      <div className="lgh">Icon dưới tên cột: nguồn dữ liệu</div>
+      {LG_SRC.map(([f, t]) => <div key={t} className="lgr"><span className="lgi"><SrcIcon f={f} /></span>{t}</div>)}
+      <div className="lgh">Màu nhóm cột</div>
+      <div className="lgr">{['--tK', '--tO', '--tY', '--tW'].map((c) => <span key={c} className="lgs tp" style={{ background: 'var(' + c + ')' }} />)}Giống màu tiêu đề trong file mẫu báo cáo</div>
+    </div>
+  );
+}
+
+export function StatusBar(): JSX.Element | null {
+  const s = useAppState((x) => x);
+  if (!s.loaded || s.view !== 'grid') return null;
+  const open = s.menu === 'legend';
   return (
     <footer className="status gut">
-      <span>{rows.length} dòng · 49 cột</span>
-      {b.length
-        ? <button className="link" onClick={() => setPanel('issues')} style={{ color: 'var(--err)' }}>{b.length} lỗi chặn</button>
-        : <span style={{ color: 'var(--ok)', fontWeight: 600 }}>không còn lỗi chặn</span>}
-      <span style={{ color: 'var(--wrn)' }}>{emptyCells(s, rows)} ô bắt buộc còn trống</span>
-      {ai ? <span style={{ color: 'var(--ai)', fontWeight: 600 }}>{ai} ô AI chờ duyệt</span> : null}
-      {lc && (ch && ch.length
-        ? <button className="link" onClick={() => setView('ver')} style={{ color: 'var(--wrn)' }}>Đã chốt v{lc.v} · {ch.length} ô đổi sau khi chốt — cần chốt lại</button>
-        : <span style={{ color: 'var(--ok)' }}>Đã chốt v{lc.v}{lc.exported ? ' · đã xuất' : ''}</span>)}
-      {selInfo}
+      <span>{rowsOf(s).length + ' dòng · ' + FIELDS.length + ' cột'}</span>
+      <SelInfo s={s} />
+      <AiTraceLink s={s} />
       <div style={{ flex: '1 1 20px' }} />
-      <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Dot bg="var(--errBg)" border="var(--errLine)" />lỗi</span>
-      <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Dot bg="linear-gradient(225deg,var(--wrn) 0 6px,var(--bg) 6px)" border="var(--line)" />đã sửa tay</span>
-      <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Dot bg="var(--aiBg)" border="var(--aiLine)" />AI nháp</span>
-      <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: 'var(--mut)' }}>
-        <Dot bg="var(--tK)" border="var(--line)" /><Dot bg="var(--tO)" border="var(--line)" /><Dot bg="var(--tY)" border="var(--line)" /><Dot bg="var(--tW)" border="var(--line)" />&nbsp;màu đầu cột theo file mẫu
+      <span className="zctl" title="Phóng to / thu nhỏ bảng (Ctrl + lăn chuột)">
+        <button onClick={() => setZoom(-10)} aria-label="Thu nhỏ">−</button>
+        <button className="zv" onClick={() => setZoom(0)} title="Về 100%">{s.gx.zoom + '%'}</button>
+        <button onClick={() => setZoom(10)} aria-label="Phóng to">+</button>
+      </span>
+      <span className="mwrap lgwrap">
+        <button className="lgbtn" onClick={() => setMenu('legend')} aria-haspopup="true" aria-expanded={open}><span className="lgs err" /><span className="lgs man" /><span className="lgs ai">Aa</span>Chú thích</button>
+        {open && <LegendPop />}
       </span>
     </footer>
   );

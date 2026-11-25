@@ -1,543 +1,464 @@
-import type { Row } from '@/types';
-import type { AppState, PanelId, ViewId } from '../types';
-import { AI_IDS, DEMO, FIELDS, STORAGE, UNASSIGNED } from '@/data/constants';
-import { seedCatalog } from '@/data/seed';
-import { TOUR } from '@/data/tour';
-import { ck, fieldOf, labelBad, selectRows } from '@/lib/cell';
-import { draftAi } from '@/lib/ai';
-import { applyScenario, restoreRows, SCEN, snapshotRows } from '@/lib/testMode';
-import { askAnswer, exAiDraft } from '@/lib/exec';
-import { blockers, pendingAI } from '@/lib/selectors';
-import { lastCur, snapshot } from '@/lib/versions';
-import { SUG_ORPH, chkCols, chkValGroups, sugVal } from '@/lib/check';
-import { clone, nowStr } from '@/lib/text';
-import { pushLog, setToast } from '../helpers';
-import { getState, loadSavedCfg, mutate, writeJson } from '../index';
+/* Luồng 3 bước (Nhập file → Điền & duyệt → Chốt & xuất), nạp dữ liệu GOLD, chế độ dữ liệu thử, chuyển màn.
+   Port từ prototype v4: buildRow, seedCatalog/orgInfo, loadFileNow, enterTest/exitTest, pfApply (lớp cuối), goStep, navGo. */
+import { castDraft, type Draft } from 'immer';
+import demoData from '@/data/demo.json';
+import { AI_IDS, FIELDS, PHASE_BUCKET, PROG_MAP, SCEN, STATUS_MAP } from '@/data/constants';
+import { aiDrafts } from '@/lib/ai';
+import { cellValue, mapNorm, type CellCtx } from '@/lib/cell';
+import { cleanComment, cleanKpi, cleanText } from '@/lib/clean';
+import { toggleTheme, type Theme } from '@/lib/theme';
+import { pvParse } from '@/lib/xlsx';
+import type { AiFieldId, AppState, ModalType, PanelType, PreviewFile, Row, TestScenario, ViewType, WeekReport } from '@/types';
+import { dropRowSession, getState, inBrowser, log, lsGet, lsSet, LS, mutate, rowsOf, toast } from '@/store';
+import { startTour } from './help';
 
-/** Luồng 4 bước, nhập file, kiểm tra, AI, duyệt, hướng dẫn, chốt & xuất, hệ thống. */
+/* ---------- dữ liệu nguồn: DEMO gộp GOLD như prototype L3235-3238 ---------- */
+const GOLD = demoData.gold, DEMO = demoData.demo;
+type Gold = (typeof GOLD.rows)[number];
+export const GOLD_FILE = GOLD.file;
+export const FILE_STATS = { ...DEMO.fileStats, ...GOLD.stats };
+const MANG: Record<string, string> = { ...GOLD.mang, ...DEMO.mang };
+/* phase "chưa xếp bước" có trong file (GOLD không có) */
+export const PHASE_UNSORTED: string[] = ['TBD', '99. Chờ bổ sung'].filter((v) => GOLD.rows.some((r) => r.rawPhase === v));
+export const IMPORT_STEPS: readonly string[] = ['Đọc file và nhận diện 277 cột', 'Gộp 14 nhóm cột trùng tên', 'Tách mã dự án, ghép vào 49 cột mẫu', 'So với tuần trước và cấu hình đã lưu'];
 
-const REDUCED = typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-export const IMPORT_STEPS = ['Đọc file và nhận diện cột', 'Gộp các cột trùng tên', 'Tách mã dự án, ghép vào mẫu 49 cột', 'So với tuần trước và cấu hình đã lưu'];
-export const GUIDE_KEY = 'pmo-guide-seen';
+/* dữ liệu bản chốt tuần trước (giả lập) cho các cột nhập tay */
+const NAMES2 = ['Trần Minh', 'Phan Ngọc', 'Lý Phương', 'Đặng Quân', 'Hồ Ruby', 'Tạ Sơn', 'Lâm Thảo', 'Vũ Hải'];
+const DOM2: Record<string, string> = { 'I.A': 'Food', 'I.C': 'Ride', 'II.A': 'Driver', 'II.B': 'Fleet', 'II.D': 'Platform', 'II.E': 'Platform', 'II.I': 'Platform' };
+const PHONG_OF: Record<string, string> = { 'I.A': 'P. AI Food & Express', 'I.C': 'P. AI Ride', 'II.A': 'P. AI Tài xế', 'II.B': 'P. AI Phương tiện', 'II.D': 'P. Nền tảng & Quản trị', 'II.E': 'P. MLOps', 'II.I': 'P. Công cụ MOC' };
+const CTX0: CellCtx = { phaseBucket: PHASE_BUCKET };
 
-/* ---------- điều hướng ---------- */
-export function curStep(s: AppState): 1 | 2 | 3 | 4 {
+type Text = Record<string, string | undefined>;
+const txt = (r: Row): Text => r as unknown as Text;
+
+function buildRow(d: Gold, i: number): Row {
+  const step = PHASE_BUCKET[d.rawPhase] || parseInt(d.rawPhase, 10) || 2;
+  const x = d as Gold & { isNew?: boolean; assigneeIdOnly?: boolean };
+  const r: Row = {
+    i, ma: d.ma, viec: d.viec, key: d.key, g: d.g, real: d.real, dup: d.dup, isNew: !!x.isNew, tplRow: d.row,
+    rawStatus: d.rawStatus, rawProgress: d.rawProgress, rawPhase: d.rawPhase, labels: d.labels,
+    jira: { pic: d.assignees[0] || '', po: d.assignees[1] || '', gdk: d.real ? d.teamName || '' : d.g.indexOf('II') === 0 ? 'QLTT Khối 2' : 'QLTT Khối 1' },
+    pic: d.assignees[0] || '', po: d.assignees[1] || '', tl: d.assignees[2] || d.tl || '', poField: d.po || '', idOnly: !!x.assigneeIdOnly,
+    kpi: d.kpi, muctieu: d.muctieu, milestone: d.milestone, start: d.start, end: d.end, gdk: d.teamName, phong: '',
+    pr: d.pr as WeekReport[], prw: d.prw as Row['prw'], comment: d.comment, updated: d.updated, tags: [],
+    done: step, total: 12, reasons: {}, ai: {}, ovr: {},
+    stages: Array.from({ length: 12 }, (_x, k) => (k < step - 2 ? 'done' : k < step ? 'doing' : 'todo'))
+  };
+  const w = r.prw, t = (d.tpl || {}) as Text, prev = !r.isNew, j = i, top = r.g.split('.').slice(0, 2).join('.');
+  Object.assign(r, {
+    w1ht: w.w1 ? w.w1.done : '', w1kh: w.w1 ? w.w1.plan : '', w2ht: w.w2 ? w.w2.done : '', w2kh: w.w2 ? w.w2.plan : '',
+    ht: w.w3 ? w.w3.done : w.w2 ? 'Tiếp tục theo kế hoạch tuần trước: ' + (w.w2.plan || w.w2.done || '').split('\n')[0] : 'Chưa có Progress Report trong tuần này',
+    giatri: t.AB || (prev ? ['Trung bình', 'Cao', 'Thấp'][j % 3] : 'Trung bình'),
+    action: t.AD || (prev ? (r.rawStatus === 'DONE' ? 'Đã đóng' : r.rawStatus === 'PENDING' ? 'Tạm dừng' : 'Đi tiếp') : ''),
+    nextstep: t.AE || (prev && j % 3 === 1 ? 'Mở rộng Quy mô (Scale)' : ''),
+    loai: t.AF || (prev ? 'KHHĐ 2026' : ''),
+    market: prev ? ['VN', 'VN', 'Indo', 'VN', 'Malay', 'VN', 'Toàn khu vực'][j % 7] : '',
+    domain: prev ? DOM2[top] || 'Platform' : '',
+    link: prev ? 'confluence/pmo/' + r.ma : '',
+    bo: prev ? NAMES2[(j + 1) % 8] : '', tp: prev ? 'TP ' + NAMES2[j % 8] : '', aieng: prev ? NAMES2[(j + 2) % 8] : '',
+    airs: prev && j % 3 === 1 ? NAMES2[(j + 5) % 8] : '', mlops: prev ? NAMES2[(j + 6) % 8] : '',
+    swe: prev && j % 4 !== 3 ? NAMES2[(j + 1) % 8] + ' (BE)' : '',
+    caitien: prev ? (j % 3 === 0 ? 'Cải tiến' : 'Xây mới') : '', prio: prev ? 'P' + (1 + (j % 3)) : '',
+    uoctinh: prev && j % 6 === 0 ? 'Tiết kiệm ~1,2 tỷ/năm (ước tính)' : '', output: '',
+    w1vd: prev ? (j % 4 === 0 ? 'Thiếu dữ liệu nhãn, đề xuất bổ sung' : 'Không có') : t.AN || '',
+    w2vd: prev ? (r.rawProgress === 'Off-track' ? 'Chậm tiến độ, đề xuất chốt lại mốc' : 'Không có') : ''
+  });
+  if (t.AL) r.w1ht = t.AL;
+  if (t.AM) r.w1kh = t.AM;
+  if (t.AN) r.w1vd = t.AN;
+  if (t.C && !d.real) r.viec = t.C;
+  if (t.D && !d.real) r.muctieu = t.D;
+  if (t.F && !d.real) r.pic = t.F;
+  return r;
+}
+
+/* ---------- cột hệ thống (cfg): danh mục dự án/đơn vị dựng từ dòng (seedCatalog), vá theo file thật (pfApply realOnly),
+   ô còn trống lấy giá trị dòng khác; ghi thẳng lên dòng vì lib/cell đọc `r[f.id]` ---------- */
+const UNIT_IDS: readonly string[] = ['gdk', 'phong', 'tp'];
+const CFG_IDS = FIELDS.filter((f) => f.kind === 'cfg').map((f) => f.id);
+
+function applyCatalogue(rows: Row[]): void {
+  const units: Record<string, Text> = {}, projects: Record<string, Text> = {};
+  let nu = 0;
+  rows.forEach((r, j) => {
+    if (r.isNew) return;
+    const top = r.g.split('.').slice(0, 2).join('.');
+    if (!units[r.g]) units[r.g] = { name: MANG[r.g] || r.g, gdk: r.jira.gdk || (top.indexOf('II') === 0 ? 'QLTT Khối 2' : 'QLTT Khối 1'), phong: PHONG_OF[top] || '', tp: NAMES2[(nu++ * 3) % 8] };
+    if (projects[r.ma]) return;
+    projects[r.ma] = {
+      g: r.g, viec: r.viec, muctieu: r.muctieu || '', kpi: r.kpi || '', pic: r.jira.pic || NAMES2[(j + 3) % 8], start: r.start || '', end: r.end || '',
+      bo: r.bo || NAMES2[(j + 1) % 8], po: r.jira.po || NAMES2[(j + 4) % 8], aieng: r.aieng || '', airs: r.airs || '', mlops: r.mlops || '', swe: (r.swe || '').replace(' (BE)', '')
+    };
+  });
+  Object.keys(units).forEach((g) => {
+    const cnt: Record<string, number> = {};
+    rows.forEach((r) => { if (r.g === g && r.jira.gdk) cnt[r.jira.gdk] = (cnt[r.jira.gdk] || 0) + 1; });
+    const best = Object.keys(cnt).sort((x, y) => cnt[y] - cnt[x])[0];
+    if (best) units[g].gdk = best;
+  });
+  const real = rows.filter((r) => r.real);
+  real.forEach((r) => {
+    const P = (projects[r.ma] ||= { g: r.g });
+    P.viec = r.viec;
+    if (r.muctieu) P.muctieu = r.muctieu;
+    if (r.kpi) P.kpi = r.kpi;
+    if (r.start) P.start = r.start;
+    if (r.end) P.end = r.end;
+    if (r.po) P.po = r.po.replace(/\s*\(.*\)\s*$/, '');
+  });
+  const val = (r: Row, id: string): string | null => {
+    const p = projects[r.ma], u = units[p ? p.g! : r.g];
+    if (!p) {
+      if (id === 'viec') return r.viec || null;
+      if (id === 'mang' && u) return u.name || null;
+      return (UNIT_IDS.includes(id) && u && u[id]) || null;
+    }
+    return (id === 'mang' ? (u ? u.name : p.g) : UNIT_IDS.includes(id) ? u && u[id] : p[id]) || null;
+  };
+  real.forEach((r) => CFG_IDS.forEach((id) => {
+    if (val(r, id) !== null) return;
+    const donor = rows.find((x) => x !== r && val(x, id) !== null);
+    if (!donor) return;
+    const dv = val(donor, id)!;
+    if (UNIT_IDS.includes(id)) { const u = (units[r.g] ||= { name: r.g }); u[id] ||= dv; }
+    else { const p = (projects[r.ma] ||= { g: r.g, viec: r.viec }); p[id] ||= dv; }
+  }));
+  rows.forEach((r) => CFG_IDS.forEach((id) => {
+    const v = val(r, id);
+    if (id === 'viec' || id === 'pic' || id === 'po') txt(r)[id] = v || '';
+    else if (v === null) delete txt(r)[id];
+    else txt(r)[id] = v;
+  }));
+}
+
+/** Dòng như lúc vừa đọc file (chưa có nháp AI) — gốc của mọi kịch bản. */
+export function baseRows(): Row[] {
+  const rows = GOLD.rows.map(buildRow);
+  rows.forEach((r) => { if (r.ma === 'I.A.4.1') { r.stages[7] = 'miss'; r.stages[9] = 'miss'; } });
+  applyCatalogue(rows);
+  return rows;
+}
+
+function addDrafts(all: Row[], vis: Row[], ctx: CellCtx): void {
+  aiDrafts(vis, ctx).forEach((x) => { all[x.i].ai[x.f] = x.d; });
+}
+
+/** Bảng sau khi nhập file thật: mỗi dòng có nháp AI ở AC/AS/AT, tất cả chờ duyệt. */
+function loadedRows(): Row[] {
+  const rows = baseRows();
+  addDrafts(rows, rows.filter((r) => r.real), CTX0);
+  return rows;
+}
+
+/* ---------- Bước 1 · nhập file ---------- */
+export function loadFileNow(name: string): void {
+  mutate((d) => {
+    d.allRows = castDraft(loadedRows());
+    d.realOnly = true; d.test = null; d.testOrig = null;
+    d.newCodes = 'added'; d.dupMerged = true; d.phaseBucket = { ...PHASE_BUCKET }; d.unsorted = [...PHASE_UNSORTED];
+    dropRowSession(d); d.fileName = name; d.loaded = true; d.view = 'import'; d.modal = null; d.importing = null; d.replaceFile = false;
+    const S = FILE_STATS;
+    log(d, 'Nhập file Jira', name, S.cols + ' cột · gộp ' + S.dupGroups + ' nhóm cột trùng tên · ' + S.epics + ' epic dự án · ' + S.tasks + ' task con không đưa vào báo cáo', 'Cảnh báo');
+  }, { resetUndo: true });
+}
+
+/** Bước tour cần bảng mà chưa có file: nạp file mẫu rồi ở lại màn Bảng (prep goGrid của prototype). */
+export function loadSampleForTour(): void { loadFileNow(GOLD_FILE); mutate((d) => { d.view = 'grid'; }); }
+
+const reducedMotion = (): boolean => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+/** Nhập file có màn "Đang đọc" (từng bước 200ms) trên trình duyệt; `silent`/node/giảm chuyển động thì nạp ngay. */
+export function loadFile(name: string, silent = false): void {
+  if (silent || !inBrowser() || reducedMotion()) return loadFileNow(name);
+  mutate((d) => { d.importing = { name, step: 0 }; d.view = 'import'; d.modal = null; });
+  const tick = (): void => {
+    const im = getState().importing;
+    if (!im) return;
+    if (im.step + 1 >= IMPORT_STEPS.length) return loadFileNow(name);
+    mutate((d) => { if (d.importing) d.importing.step++; });
+    setTimeout(tick, 200);
+  };
+  setTimeout(tick, 240);
+}
+
+/* ---------- chế độ dữ liệu thử ---------- */
+function rng(seed: number): () => number {
+  let x = seed % 2147483647;
+  if (x <= 0) x += 2147483646;
+  return () => { x = (x * 16807) % 2147483647; return (x - 1) / 2147483646; };
+}
+function dirtify(text: string, rnd: () => number): string {
+  if (!text) return text;
+  const bul = ['* ', '- ', '•', '*  ', '+ '];
+  let out = String(text).split('\n').map((l) => {
+    let t = l;
+    if (/^•\s/.test(t)) t = bul[Math.floor(rnd() * bul.length)] + t.replace(/^•\s*/, '');
+    else if (/:\s*$/.test(t) && rnd() < 0.7) t = (rnd() < 0.3 ? "'" : '') + '*' + t.trim() + '*';
+    t = t.replace(/ → /g, rnd() < 0.5 ? ' -> ' : '->').replace(/ – /g, ' - ');
+    if (rnd() < 0.35) t = t.replace(/ /, '  ');
+    if (rnd() < 0.3) t += '   ';
+    if (rnd() < 0.22 && /^•\s/.test(l)) t += ' - [LADP-' + (300 + Math.floor(rnd() * 200)) + '|https://xanhsm.atlassian.net/browse/LADP-' + (300 + Math.floor(rnd() * 200)) + ']';
+    if (rnd() < 0.15) t = t.replace(/(\d+)\s?%/, '$1 %');
+    return t;
+  }).join('\r\n');
+  if (rnd() < 0.4) out = out.replace('\r\n', '\r\n\r\n');
+  return out;
+}
+const RISKS = ['Thiếu SA dedicate, chậm review thiết kế 1 tuần', 'Chờ phê duyệt ANBM từ khối Bảo mật, có nguy cơ trễ go-live', 'Dữ liệu nguồn từ 360 bị lỗi schema, chưa có phương án fallback',
+  'Phụ thuộc team Platform release API mới, đang blocked', 'Vendor GPU giao trễ, không kịp huấn luyện lại trước 30/11', 'Thiếu nhãn dữ liệu cho tập test, kết quả đánh giá chưa đạt'];
+const PROPS = ['Đề xuất BGĐ hỗ trợ ưu tiên nguồn lực SA', 'Đề xuất họp 3 bên chốt lại mốc trong tuần', 'Đề xuất dùng dữ liệu tháng 9 tạm thời', 'Đề xuất escalate lên GĐK QLTT'];
+const CLEAN_NAME = 'Dữ liệu chuẩn';
+
+function dirtyRows(rows: Row[], seed: number): void {
+  const rnd = rng(seed * 977);
+  const ST = ['in progress', 'In_Progress', 'IN  PROGRESS ', 'In-Progress'], PG = ['on track', 'ON-TRACK', 'On_track ', 'on-Track'];
+  rows.forEach((r, j) => {
+    const raw: Record<string, string> = (r.raw = {});
+    (['ht', 'w1ht', 'w1kh', 'w2ht', 'w2kh'] as const).forEach((k) => { const v = r[k]; if (v) { const dv = dirtify(v, rnd); raw[k] = dv; r[k] = cleanText(dv); } });
+    if (r.kpi) {
+      const kr = '||*STT*||*KPI*||*Chỉ số chính*||*Kết quả thực tế*||\r\n' + r.kpi.split('\n').map((x, k) => '|' + (k + 1) + '|' + x.replace(/^\d+\.\s*/, '') + ' | | |').join('\r\n') + '\r\n| | | | |';
+      raw.kpi = kr; r.kpi = cleanKpi(kr);
+    }
+    if (r.comment) {
+      const cr = (6 + (j % 20)) + '/Nov/26 ' + (9 + (j % 8)) + ':0' + (j % 6) + ' AM;712020:c8bea68a-' + (1000 + j) + ';{{2026-11-' + String(10 + (j % 9)).padStart(2, '0') + '}} \r\n\r\n' + dirtify(r.comment, rnd);
+      raw.comment = cr; r.comment = cleanComment(cr);
+    }
+    if (r.rawStatus === 'IN PROGRESS' && rnd() < 0.5) raw.rawStatus = r.rawStatus = ST[j % ST.length];
+    if (r.rawProgress === 'On-track' && rnd() < 0.5) raw.rawProgress = r.rawProgress = PG[j % PG.length];
+  });
+}
+
+function riskRows(rows: Row[]): void {
+  rows.forEach((r, j) => {
+    if (r.isNew) return;
+    if (j % 3 === 0) {
+      const rk = RISKS[j % RISKS.length], pp = PROPS[j % PROPS.length];
+      r.comment = 'Risk: ' + rk + '\n→ ' + pp;
+      r.ai.vd = { text: 'Rủi ro: ' + rk + '.\n→ ' + pp + '.', why: 'Comment ' + (10 + (j % 9)) + '/11 có ghi Risk', src: r.comment, ok: j % 2 === 0 };
+      r.ai.rui = { text: j % 2 ? 'Cao' : 'Trung bình', why: 'Comment có ghi risk', src: r.comment, ok: j % 2 === 0 };
+      if (j % 6 === 0) r.rawProgress = 'Off-track';
+    } else if (j % 3 === 1) {
+      r.ai.vd = { text: 'Không có vấn đề phát sinh trong tuần.', why: 'Progress Report', src: '', ok: true };
+      r.ai.rui = { text: 'Thấp', why: 'đúng tiến độ', src: '', ok: true };
+    }
+  });
+}
+
+/* "Nhiều dự án (giả lập)": pfApply đầy đủ — mọi giá trị có luật, đủ ô bắt buộc, nháp AI đã duyệt */
+function fillAll(rows: Row[], vis: Row[], ctx: CellCtx): void {
+  const okPhase = Object.keys(ctx.phaseBucket).filter((k) => ctx.phaseBucket[k]);
+  const okSt = Object.keys(STATUS_MAP).find((k) => STATUS_MAP[k] === 'Đang thực hiện') || 'IN PROGRESS';
+  const okPg = Object.keys(PROG_MAP).find((k) => PROG_MAP[k] === 'Đúng tiến độ') || 'On-track';
+  vis.forEach((r, j) => {
+    if (!ctx.phaseBucket[r.rawPhase]) r.rawPhase = okPhase[j % okPhase.length];
+    if (!mapNorm(STATUS_MAP, r.rawStatus)) r.rawStatus = okSt;
+    if (!mapNorm({ PENDING: '1' }, r.rawStatus) && !mapNorm(PROG_MAP, r.rawProgress)) r.rawProgress = okPg;
+    if (r.labels && r.labels.indexOf(r.g + '.') !== 0) r.labels = r.g + '.1';
+    if (!r.milestone) r.milestone = '30/11: Hoàn tất ' + (j % 2 ? 'UAT' : 'pilot') + '\n31/12: Đánh giá kết quả';
+    if (!r.output) r.output = 'Tài liệu ' + (j % 3 ? 'thiết kế giải pháp' : 'đánh giá mô hình') + ' v' + (1 + (j % 3));
+    if (!r.pic) r.pic = ['Trần Minh', 'Phan Ngọc', 'Mai Linh', 'Đặng Quân'][j % 4];
+  });
+  addDrafts(rows, vis, ctx);
+  vis.forEach((r) => { r.stages = r.stages.map((st) => (st === 'miss' ? 'todo' : st)); });
+  vis.forEach((r) => {
+    AI_IDS.forEach((k) => {
+      const a = r.ai[k];
+      if (!a) r.ai[k] = { text: k === 'rui' ? 'Thấp' : 'Không có vấn đề phát sinh trong tuần.', why: 'Progress Report', src: '', ok: true };
+      else a.ok = true;
+    });
+    FIELDS.forEach((f) => {
+      if (['none', 'ai', 'future'].includes(f.kind) || f.id === 'note' || ['w1', 'w2', 'w4'].includes(f.grp) || cellValue(r, f, ctx) !== null) return;
+      const donor = vis.find((x) => x !== r && cellValue(x, f, ctx) !== null);
+      const dv = donor ? cellValue(donor, f, ctx)! : '—';
+      txt(r)[f.id] = dv;
+      if (cellValue(r, f, ctx) === null) r.ovr[f.id] = dv;
+    });
+  });
+}
+
+/** Dựng dữ liệu của một kịch bản từ dòng gốc (prototype: pfReset + enterTest + pfApply theo từng kịch bản). */
+function applyScenario(d: Draft<AppState>, sc: Exclude<TestScenario, null>): void {
+  const rows = baseRows(), ctx: CellCtx = { phaseBucket: { ...PHASE_BUCKET } };
+  d.realOnly = sc === 'perfect';
+  d.newCodes = 'pending'; d.dupMerged = false; d.unsorted = [...PHASE_UNSORTED]; d.phaseBucket = ctx.phaseBucket;
+  const vis = (): Row[] => rowsOf({ allRows: rows, newCodes: d.newCodes, dupMerged: d.dupMerged, realOnly: d.realOnly });
+  if (sc === 'dirty') dirtyRows(rows, d.testSeed);
+  else if (sc === 'risk') riskRows(rows);
+  else if (sc === 'errors') addDrafts(rows, vis(), ctx);
+  else {
+    d.newCodes = 'added'; d.dupMerged = true;
+    if (sc === 'perfect') addDrafts(rows, vis(), ctx);
+    else { d.unsorted = []; fillAll(rows, vis(), ctx); }
+  }
+  d.allRows = castDraft(rows);
+  dropRowSession(d);
+  d.test = sc; d.menu = null;
+  const nm = sc === 'dirty' || sc === 'risk' ? SCEN[sc].name : CLEAN_NAME;
+  log(d, 'Chế độ test', nm, 'Dữ liệu giả — không ảnh hưởng dữ liệu thật');
+  if (sc === 'dirty' || sc === 'risk') toast(d, 'Chế độ test · ' + nm);
+  else {
+    d.view = 'import'; d.panel = null; d.modal = null;
+    toast(d, sc === 'many' ? 'Dữ liệu thử · ' + SCEN.many.name : 'Chế độ test · ' + SCEN[sc].name);
+  }
+}
+
+/** Vào (hoặc đổi) kịch bản thử; chỉ lần vào đầu tiên mới ghi lại dữ liệu thật để thoát ra khôi phục. */
+export function enterTest(sc: Exclude<TestScenario, null>): void {
+  const s = getState();
+  mutate((d) => {
+    if (s.test === null) d.testOrig = castDraft({ allRows: s.allRows, realOnly: s.realOnly, phaseBucket: s.phaseBucket, unsorted: s.unsorted, newCodes: s.newCodes, dupMerged: s.dupMerged });
+    applyScenario(d, sc);
+  }, { resetUndo: true });
+}
+
+/** "↻ Sinh lại": đổi hạt ngẫu nhiên rồi dựng lại kịch bản đang chạy. */
+export function testReseed(): void {
+  mutate((d) => { if (!d.test) return; d.testSeed = (d.testSeed || 7) + 1; applyScenario(d, d.test); }, { resetUndo: true });
+}
+
+export function exitTest(): void {
+  mutate((d) => {
+    if (!d.test) return;
+    const o = d.testOrig;
+    if (o) { d.allRows = o.allRows; d.realOnly = o.realOnly; d.phaseBucket = o.phaseBucket; d.unsorted = o.unsorted; d.newCodes = o.newCodes; d.dupMerged = o.dupMerged; }
+    dropRowSession(d);
+    d.test = null; d.testOrig = null; d.menu = null;
+    log(d, 'Thoát chế độ test', '', 'Khôi phục dữ liệu demo');
+    toast(d, 'Đã thoát chế độ test');
+  }, { resetUndo: true });
+}
+
+/* ---------- 3 bước & chuyển màn ---------- */
+export type Step = 1 | 3 | 4;
+
+/** Bước đang đứng: 1 Nhập file, 3 Điền & duyệt (bảng), 4 Chốt & xuất (modal). */
+export function curStep(s: Pick<AppState, 'modal' | 'view' | 'loaded'>): Step {
   if (s.modal === 'export') return 4;
   if (s.view === 'import' || !s.loaded) return 1;
-  if (s.view === 'check') return 2;
   return 3;
 }
 
-export function goStep(n: number) {
+export function goStep(n: Step): void {
+  if (n !== 1 && n !== 3 && n !== 4) return;
   mutate((d) => {
-    const k = Math.max(1, Math.min(4, n));
-    d.edit = null; d.pop = null; d.menu = null; d.panel = null;
-    if (k > 1 && !d.loaded) { setToast(d, 'Chưa có dữ liệu — nhập file ở bước 1 trước'); return; }
-    if (k === 1) { d.modal = null; d.view = 'import'; }
-    else if (k === 2) { d.modal = null; d.view = 'check'; }
-    else if (k === 3) { d.modal = null; d.exported = null; d.view = 'grid'; }
+    d.pop = null; d.menu = null; d.panel = null;
+    if (n > 1 && !d.loaded) return toast(d, 'Chưa có dữ liệu — nhập file ở bước 1 trước');
+    if (n === 1) { d.modal = null; d.view = 'import'; }
+    else if (n === 3) { d.modal = null; d.exported = null; d.view = 'grid'; }
     else { d.view = 'grid'; d.modal = 'export'; }
   });
 }
 
-export const setView = (v: ViewId) => mutate((d) => {
-  const was = d.view;
-  d.view = v; d.modal = null; if (v === 'tlib') d.tlDraft = null;
-  if (v === 'tpl' && was !== 'tpl' && !d.panel) d.panel = 'tvcfg';
-  if (was === 'tpl' && v !== 'tpl' && v !== 'grid' && d.panel === 'tvcfg') d.panel = null;
-});
-export const setPanel = (p: PanelId) => mutate((d) => { d.panel = p || null; });
-export const setModal = (m: string | null) => mutate((d) => { d.modal = m; d.pop = null; if (!m) { d.exported = null; d.lockMsg = null; } });
-export const setMenu = (m: string | null) => mutate((d) => { d.menu = d.menu === m ? null : m; });
-export const closeMenu = () => mutate((d) => { d.menu = null; });
-export const toast = (m: string) => mutate((d) => setToast(d, m));
-export const clearToast = () => mutate((d) => { d.toast = null; });
-export type ToggleKey = 'onlyFix' | 'issSkipOpen' | 'aiList' | 'histOpen' | 'replaceFile' | 'infoOpen';
-export const toggle = (k: ToggleKey) => mutate((d) => { d[k] = !d[k]; });
-export const setSearch = (q: string) => mutate((d) => { d.search = q; });
-export const setPop = (id: string | null) => mutate((d) => { d.pop = id; if (id && d.panel === 'issues') d.panel = null; });
-
-export function goFix() {
-  mutate((d) => { d.view = 'grid'; d.onlyFix = true; d.modal = null; });
-}
-
-export function goGrid(d: AppState) {
-  d.view = 'grid'; d.onlyFix = false; d.search = ''; d.collapsed = {}; d.panel = null; delete d.hidden.status;
-}
-
-export function gotoCol(fid: string) {
+/** Rail / tab: Bảng, Phiên bản, Nhật ký (và Nhập file). Lần đầu mở Phiên bản tự chạy tour của màn đó. */
+export function setView(v: ViewType): void {
   mutate((d) => {
-    delete d.hidden[fid];
-    d.view = 'grid'; d.onlyFix = false; d.search = ''; d.collapsed = {};
-    d.sel = { i: selectRows(d)[0].i, f: fid }; d.range = null;
-    d.scrollReq = { i: selectRows(d)[0].i, f: fid, flash: false };
+    d.view = v; d.modal = null;
+    if (v === 'ver' && d.loaded && d.tour === null) {
+      const seen = lsGet(LS.tourVer) !== null;
+      if (lsSet(LS.tourVer, '1') && !seen) startTour(d, 'ver');
+    }
   });
 }
 
-export function exGo(i: number) {
-  mutate((d) => { d.view = 'grid'; d.sel = { i, f: 'code' }; d.range = null; d.scrollReq = { i, f: 'code', flash: false }; });
-}
+export function setPanel(p: PanelType): void { mutate((d) => { d.panel = p; }); }
 
-export function resetDemo() {
-  try { localStorage.removeItem(STORAGE.cfg); localStorage.removeItem(STORAGE.cols); } catch { /* bỏ qua */ }
-  location.reload();
-}
-
-/* ---------- nhập file ---------- */
-function demoFill(d: AppState) {
-  if (d.demoFilled) return;
-  d.demoFilled = true;
-  const logN = d.log.length;
-  draftAi(d, d.allRows);
-  d.modal = null;
-  d.log.splice(0, d.log.length - logN);
-  const rows = selectRows(d);
-  const pend: Record<number, number> = {};
-  const empty: Record<number, number> = {};
-  [3, 9, 20].forEach((k) => { if (rows[k]) pend[rows[k].i] = 1; });
-  if (rows[5]) empty[rows[5].i] = 1;
-  rows.forEach((r) => {
-    AI_IDS.forEach((k) => { if (r.ai[k] && !pend[r.i]) r.ai[k]!.ok = true; });
-    if (empty[r.i]) { delete r.ai.w3Issues; delete r.ai.w3Plan; }
-  });
-}
-
-function loadFileNow(name: string) {
+export function setModal(m: ModalType): void {
   mutate((d) => {
-    demoFill(d);
-    try { localStorage.setItem(GUIDE_KEY, '1'); } catch { /* bỏ qua */ }
-    d.guideOpen = undefined;
-    d.fileName = name; d.loaded = true; d.view = 'import'; d.modal = null; d.replaceFile = false; d.loadedAt = nowStr();
-    const cfg = loadSavedCfg();
-    d.cfgUsed = cfg;
-    if (cfg) {
-      d.fields.forEach((f) => { if (cfg.src && cfg.src[f.id]) f.src = cfg.src[f.id]; });
-      Object.assign(d.statusMap, cfg.status || {});
-      Object.assign(d.progMap, cfg.prog || {});
-      if (cfg.phase) d.phaseBucket = cfg.phase;
-      if (cfg.unsorted) d.unsorted = cfg.unsorted;
-      if (cfg.ignore) d.phaseIgnore = cfg.ignore;
-      if (cfg.by) d.lockBy = cfg.by;
-    }
-    pushLog(d, 'Nhập file Jira', name, `${DEMO.fileStats.cols} cột · gộp ${DEMO.fileStats.dupGroups} nhóm cột trùng tên · 2 issue thật + dữ liệu giả lập`, 'Cảnh báo');
+    if (m === 'export' && !d.loaded) return toast(d, 'Chưa có dữ liệu — nhập file CSV ở bước 1 trước');
+    d.modal = m; d.pop = null;
+    if (!m) { d.exported = null; d.lockMsg = null; }
   });
 }
 
-export function loadFile(name: string, silent = false) {
-  if (silent || REDUCED) { loadFileNow(name); return; }
-  mutate((d) => { d.importing = { name, step: 0 }; d.view = 'import'; d.modal = null; });
-  const tick = () => {
-    const imp = getState().importing;
-    if (!imp) return;
-    if (imp.step + 1 >= IMPORT_STEPS.length) { mutate((d) => { d.importing = null; }); loadFileNow(name); return; }
-    mutate((d) => { d.importing!.step++; });
-    setTimeout(tick, 420);
-  };
-  setTimeout(tick, 520);
+/** Nút ‹ › (Alt+← / →): về màn trước / tới màn kế trong 50 màn gần nhất. */
+export function navGo(dir: -1 | 1): void {
+  mutate((d) => {
+    const t = d.nav.st[d.nav.ix + dir];
+    if (!t) return;
+    d.nav.ix += dir;
+    d.view = t.view; d.vlView = t.vlView; d.verSel = t.verSel; d.vlA = t.vlA; d.vlB = t.vlB; d.panel = t.panel;
+    d.modal = null; d.menu = null; d.pop = null;
+  }, { track: false });
 }
 
-export const replaceFile = (on: boolean) => mutate((d) => { d.replaceFile = on; });
-export const toggleGuide = (seen: boolean) => mutate((d) => { d.guideOpen = !(d.guideOpen === undefined ? !seen : d.guideOpen); });
+/* ---------- khung bên phải: kéo rộng, phóng to, gập mục (lưu pmo-proto-panel-v1) ---------- */
+const pnSave = (pn: AppState['pn']): void => { lsSet(LS.panel, JSON.stringify(pn)); };
 
-/* ---------- AI soạn nháp ---------- */
-function runDrafts(d: AppState) {
-  const n = draftAi(d, selectRows(d));
-  pushLog(d, 'Gọi AI đọc Progress Report', `${selectRows(d).length} dòng`, `VLLM · ${n} ô nháp (AC, AS, AT), chờ duyệt từng ô`);
-  d.modal = n ? 'aiDone' : null;
-  if (!n) setToast(d, 'Mọi ô đã có nội dung — không có gì để soạn thêm');
+export function pnSetWidth(k: string, w: number): void {
+  mutate((d) => { d.pn.w[k] = Math.round(w); if (d.pn.big === k) d.pn.big = null; });
+  pnSave(getState().pn);
+}
+export function pnToggleBig(k: string): void {
+  mutate((d) => { d.pn.big = d.pn.big === k ? null : k; });
+  pnSave(getState().pn);
+}
+export function pnToggleSec(id: string): void {
+  mutate((d) => { if (d.pn.col[id]) delete d.pn.col[id]; else d.pn.col[id] = true; });
+  pnSave(getState().pn);
 }
 
-export function aiStart() {
-  const s = getState();
-  if (!s.loaded) { toast('Chưa có dữ liệu — nhập file CSV ở bước 1 trước'); return; }
-  if (REDUCED) { mutate(runDrafts); return; }
-  const total = selectRows(s).length;
-  mutate((d) => { d.aiRun = { n: 0, total }; d.modal = null; });
-  const tick = () => {
-    const run = getState().aiRun;
-    if (!run) return;
-    const n = Math.min(run.total, run.n + Math.ceil(run.total / 7));
-    mutate((d) => { if (d.aiRun) d.aiRun.n = n; });
-    if (n >= run.total) {
-      setTimeout(() => {
-        mutate((d) => { d.aiRun = null; runDrafts(d); });
-        document.body.classList.add('aiflash');
-        setTimeout(() => document.body.classList.remove('aiflash'), 1300);
-      }, 260);
-      return;
-    }
-    setTimeout(tick, 230);
-  };
-  setTimeout(tick, 200);
-}
-
-/* ---------- duyệt từng ô (spotlight) ---------- */
-export function pendingList(d: AppState, onlyKeys?: string[]): string[] {
-  const out: string[] = [];
-  const rows = selectRows(d);
-  [...new Set(rows.map((r) => r.g))].forEach((g) => rows.forEach((r) => {
-    if (r.g !== g) return;
-    AI_IDS.forEach((fid) => {
-      const dr = r.ai[fid];
-      const k = ck(r.i, fid);
-      if (dr && !dr.ok && (!onlyKeys || onlyKeys.includes(k))) out.push(k);
-    });
+/* ---------- thanh trên: số ô còn phải điền/duyệt (badge bước 2), giao diện sáng/tối ---------- */
+/** Ô bắt buộc còn trống + nháp AI chưa duyệt (prototype fillCount). */
+export function fillCount(s: AppState): number {
+  if (!s.loaded) return 0;
+  let n = 0;
+  rowsOf(s).forEach((r) => FIELDS.forEach((f) => {
+    if (f.kind === 'ai') { const a = r.ai[f.id as AiFieldId]; if ((f.required && !a) || (a && !a.ok)) n++; }
+    else if (f.required && cellValue(r, f, s) === null) n++;
   }));
-  return out;
+  return n;
 }
 
-export function startReview(onlyKeys?: string[]) {
-  mutate((d) => {
-    const list = pendingList(d, onlyKeys);
-    if (!list.length) { setToast(d, pendingAI(selectRows(d)) ? 'Không có nháp nào trong vùng chọn' : 'Chưa có nháp chờ duyệt — bấm “Nhờ AI soạn” trước'); return; }
-    d.view = 'grid'; d.panel = null; d.modal = null; d.menu = null; d.edit = null;
-    d.onlyFix = false; d.search = ''; d.collapsed = {};
-    AI_IDS.forEach((fid) => { delete d.hidden[fid]; });
-    d.review = { list, pos: 0, done: 0 };
-  });
+export function themeToggle(): Theme {
+  const t = toggleTheme();
+  mutate((d) => toast(d, t === 'dark' ? 'Đã chuyển sang giao diện tối' : 'Đã chuyển sang giao diện sáng'));
+  return t;
 }
 
-function reviewMoveIn(d: AppState, step: number) {
-  const rv = d.review;
-  if (!rv) return;
-  const np = rv.pos + step;
-  if (np < 0) return;
-  if (np >= rv.list.length) {
-    const left = pendingAI(selectRows(d));
-    d.review = null;
-    pushLog(d, 'Duyệt nội dung AI', rv.done + ' ô', 'Duyệt từng ô trong chế độ tập trung');
-    setToast(d, left ? `Đã đi hết danh sách · còn ${left} ô chưa duyệt` : 'Đã duyệt hết nháp AI');
-    return;
-  }
-  rv.pos = np; d.sel = null;
-}
-export const reviewMove = (step: number) => mutate((d) => reviewMoveIn(d, step));
-export const exitReview = () => mutate((d) => { d.review = null; });
+/* ---------- Bước 1 · chọn file, xem trước, thay file ---------- */
+const PV_EXT: readonly string[] = ['csv', 'tsv', 'txt', 'xlsx', 'xlsm', 'xls'];
+/* lần chọn file mới nhất; kết quả đọc của lần chọn cũ hơn bị bỏ */
+let pvToken = 0;
 
-export function reviewApprove(text?: string) {
+/** Chọn / thả file: kiểm đuôi và dung lượng, rồi đọc nội dung để xem trước (chỉ gọi từ sự kiện trình duyệt). */
+export function pvStage(file: { name: string; size: number; arrayBuffer(): Promise<ArrayBuffer> } | undefined): Promise<void> {
+  if (!file) { mutate((d) => toast(d, 'Không thấy file nào được thả vào')); return Promise.resolve(); }
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  if (!PV_EXT.includes(ext)) { mutate((d) => toast(d, 'Chỉ nhận file CSV hoặc Excel (.csv, .xlsx, .xls)')); return Promise.resolve(); }
+  const tk = ++pvToken, big = file.size > 60 * 1048576;
   mutate((d) => {
-    const rv = d.review;
-    if (!rv) return;
-    const [i, fid] = rv.list[rv.pos].split('|');
-    const dr = d.allRows[+i].ai[fid];
-    if (!dr) { reviewMoveIn(d, 1); return; }
-    const v = (text ?? dr.text).trim();
-    if (v && v !== dr.text) { dr.text = v; dr.edited = true; }
-    if (!dr.ok) { dr.ok = true; rv.done++; }
-    reviewMoveIn(d, 1);
+    d.pv = { name: file.name, size: file.size, ext, loading: !big, done: false };
+    if (big) d.pv.err = 'File lớn hơn 60 MB, không xem trước được.';
+    d.pvSheet = 0; d.pvFs = false;
   });
+  if (big) return Promise.resolve();
+  const done = (patch: Partial<PreviewFile>): void => { if (tk === pvToken) mutate((d) => { if (d.pv) Object.assign(d.pv, castDraft(patch), { loading: false }); }); };
+  return file.arrayBuffer().then(pvParse).then(done, (e: unknown) => done({ err: (e instanceof Error && e.message) || 'Không đọc được file này.' }));
 }
+/** "Đọc file này": nạp file đã xem trước. */
+export function pvGo(): void {
+  const f = getState().pv;
+  if (!f || !f.sheets) return;
+  mutate((d) => { if (d.pv) d.pv.done = true; });
+  loadFile(f.name);
+}
+export function pvSetSheet(k: number): void { mutate((d) => { d.pvSheet = k; }); }
+export function pvSetFs(open: boolean): void { mutate((d) => { d.pvFs = open && !!d.pv?.sheets; }); }
 
-export function reviewDrop() {
-  mutate((d) => {
-    const rv = d.review;
-    if (!rv) return;
-    const [i, fid] = rv.list[rv.pos].split('|');
-    const r = d.allRows[+i];
-    delete r.ai[fid];
-    const f = fieldOf(d, fid);
-    pushLog(d, 'Bỏ nháp AI', `${r.code} · ${f.col} ${f.name}`, 'Ô để trống, có thể tự gõ sau');
-    reviewMoveIn(d, 1);
-  });
+/** "Thay file khác" (bỏ file đang xem trước) / "Giữ file đang dùng". */
+export function setReplaceFile(on: boolean): void {
+  if (on) pvToken++;
+  mutate((d) => { d.replaceFile = on; if (on) { d.pv = null; d.pvSheet = 0; d.pvFs = false; } });
 }
+/** "Huỷ, chọn file khác" ở màn Đang đọc. */
+export function impCancel(): void {
+  mutate((d) => { d.importing = null; if (d.pv) d.pv.done = false; toast(d, 'Đã huỷ đọc file'); });
+}
+export function setImpF(v: AppState['impF']): void { mutate((d) => { d.impF = v; }); }
+export function histToggle(): void { mutate((d) => { d.histOpen = !d.histOpen; }); }
 
-/** duyệt hàng loạt các dự án đang tick chọn */
-export function approveSelectedRows() {
-  mutate((d) => {
-    const rows = selectRows(d);
-    const sr = rows.filter((r) => d.rowSel[r.i]);
-    let na = 0;
-    sr.forEach((r) => AI_IDS.forEach((k) => { if (r.ai[k] && !r.ai[k]!.ok) { r.ai[k]!.ok = true; na++; } }));
-    pushLog(d, 'Duyệt cả dự án', sr.length === rows.length ? `Tất cả ${sr.length} dự án` : sr.map((r) => r.code).join(', '), `${na} ô AI (AC, AS, AT) duyệt một lượt`);
-    d.rowSel = {};
-    setToast(d, `Đã duyệt ${na} ô của ${sr.length} dự án — vẫn sửa được từng ô trên bảng`);
-  });
-}
-
-export function reviewSelectedRows() {
-  const s = getState();
-  const keys: string[] = [];
-  selectRows(s).filter((r) => s.rowSel[r.i]).forEach((r) => AI_IDS.forEach((k) => keys.push(ck(r.i, k))));
-  mutate((d) => { d.rowSel = {}; });
-  startReview(keys);
-}
-
-export function byProject() {
-  mutate((d) => {
-    d.modal = null; d.view = 'grid'; d.onlyFix = false; d.panel = null;
-    AI_IDS.forEach((fid) => { delete d.hidden[fid]; });
-    setToast(d, 'Tick ô bên trái mỗi dự án (hoặc ô trên cùng để chọn tất cả), rồi bấm “Duyệt … ô của … dự án”');
-  });
-}
-
-/* ---------- hướng dẫn ---------- */
-export function tourGo(n: number) {
-  if (n < 0) return;
-  if (n < TOUR.length && TOUR[n].load && !getState().loaded) loadFileNow('Jira sample.xlsx');
-  mutate((d) => {
-    if (n >= TOUR.length) { d.tour = null; try { localStorage.setItem(STORAGE.tour, '1'); } catch { /* bỏ qua */ } return; }
-    d.tour = n; d.menu = null; d.modal = null; d.pop = null; d.edit = null;
-    TOUR[n].prep?.(d);
-  });
-}
-export function tourEnd() {
-  mutate((d) => { d.tour = null; });
-  try { localStorage.setItem(STORAGE.tour, '1'); } catch { /* bỏ qua */ }
-}
-
-/* ---------- bước 2: ánh xạ cột, quy đổi giá trị, ghép dự án ---------- */
-const mapLog = (d: AppState, id: string) => {
-  const f = fieldOf(d, id);
-  pushLog(d, 'Sửa ánh xạ cột', `${f.col} ${f.name}`, `Nguồn: ${f.src} · áp dụng ${selectRows(d).length} dòng`);
-};
-export function setFieldSrc(id: string, src: string) {
-  mutate((d) => { fieldOf(d, id).src = src; mapLog(d, id); setToast(d, `Đã ánh xạ cột ${fieldOf(d, id).col} “${fieldOf(d, id).name}”`); });
-}
-export function applyMap(id: string, name: string, src?: string) {
-  mutate((d) => {
-    const f = fieldOf(d, id);
-    if (name.trim()) f.name = name.trim();
-    if (src !== undefined) f.src = src;
-    pushLog(d, 'Sửa ánh xạ cột', f.name, `Nguồn: ${f.src} · áp dụng ${selectRows(d).length} dòng`);
-    d.pop = null;
-    setToast(d, `Đã áp dụng ánh xạ cho cột “${f.name}”`);
-  });
-}
-export function toggleRequired(id: string) { mutate((d) => { const f = fieldOf(d, id); f.required = !f.required; }); }
-export function unmapCol(id: string) {
-  mutate((d) => {
-    const f = fieldOf(d, id);
-    f.src = FIELDS.find((x) => x.id === id)!.src;
-    pushLog(d, 'Hoàn tác ánh xạ cột', `${f.col} ${f.name}`, 'Cột quay về chưa gán');
-  });
-}
-export function autoMapCols() {
-  mutate((d) => {
-    chkCols(d).forEach((f) => {
-      if (f.src === UNASSIGNED) { f.src = 'Custom field (Progress)'; pushLog(d, 'Sửa ánh xạ cột', `${f.col} ${f.name}`, `Nguồn: ${f.src} · tự khớp theo gợi ý`); }
-    });
-    setToast(d, 'Đã tự khớp theo gợi ý');
-  });
-}
-
-export function applyValRule(d: AppState, cc: string, vv: string, value: string) {
-  if (cc === 'lifecycleStep') {
-    const k = parseInt(value, 10);
-    if (k) { d.phaseBucket[vv] = k; delete d.phaseIgnore[vv]; } else { d.phaseIgnore[vv] = true; delete d.phaseBucket[vv]; }
-    d.unsorted = d.unsorted.filter((x) => x !== vv);
-    pushLog(d, 'Sửa rổ gom giá trị', 'AJ · AI Lifecycle', k ? `Gom “${vv}” vào bước ${k}` : `“${vv}” không thuộc bước nào · để trống`);
-  } else {
-    (cc === 'progress' ? d.progMap : d.statusMap)[vv] = value;
-    pushLog(d, 'Sửa rổ gom giá trị', cc === 'progress' ? 'J · Tiến độ' : 'I · Trạng thái', `${vv} → ${value}`);
-  }
-}
-export const setValRule = (cc: string, vv: string, value: string) => mutate((d) => applyValRule(d, cc, vv, value));
-export function useSuggestion(cc: string, vv: string) {
-  mutate((d) => { const sg = sugVal(cc, vv); if (sg) applyValRule(d, cc, vv, sg); });
-}
-export function useAllSuggestions(cc: string) {
-  mutate((d) => {
-    const g = chkValGroups(d, selectRows(d)).find((x) => x.c === cc);
-    let n = 0;
-    g?.vals.forEach((v) => { const x = sugVal(cc, v); if (x) { applyValRule(d, cc, v, x); n++; } });
-    setToast(d, `Đã dùng ${n} đề xuất`);
-  });
-}
-export function undoRule(cc: string, vv: string) {
-  mutate((d) => {
-    if (cc === 'status') delete d.statusMap[vv];
-    else if (cc === 'progress') delete d.progMap[vv];
-    else { delete d.phaseBucket[vv]; delete d.phaseIgnore[vv]; if (!d.unsorted.includes(vv)) d.unsorted.push(vv); }
-    pushLog(d, 'Hoàn tác quy đổi', vv, 'Giá trị quay về chưa có luật');
-  });
-}
-
-export function assignOrphan(key: string, value: string) {
-  mutate((d) => {
-    if (!value) { delete d.orphanDone[key]; return; }
-    d.orphanDone[key] = value;
-    pushLog(d, 'Ghép issue', key, value === 'Không đưa vào báo cáo' ? 'Bỏ qua, không đưa vào báo cáo' : 'Gán vào dòng ' + value);
-  });
-}
-export function useOrphanSuggestion(key: string) {
-  mutate((d) => {
-    const to = SUG_ORPH[key];
-    d.orphanDone[key] = to;
-    pushLog(d, 'Ghép issue', key, to === 'Không đưa vào báo cáo' ? 'Bỏ qua, không đưa vào báo cáo' : `Gán vào dòng ${to} · theo đề xuất`);
-  });
-}
-export function undoOrphan(key: string) { mutate((d) => { delete d.orphanDone[key]; pushLog(d, 'Hoàn tác ghép issue', key, 'Issue quay về chưa ghép'); }); }
-
-export function dupFix(how: 'merge' | 'keep') {
-  mutate((d) => {
-    d.dupDone = true;
-    if (how === 'merge') { d.dupMerged = true; pushLog(d, 'Gộp dòng trùng mã', 'II.D.2.1', 'Bỏ dòng 35 của mẫu'); } else pushLog(d, 'Giữ dòng trùng mã', 'II.D.2.1', 'Dòng 35 để trống');
-  });
-}
-export function newCodes(how: 'added' | 'skipped') {
-  mutate((d) => {
-    d.newCodes = how;
-    if (how === 'added') { pushLog(d, 'Thêm dòng vào bảng', 'I.A.7.1, II.B.2.1', 'Dự án mới · các cột nhập tay còn trống'); setToast(d, 'Đã thêm 2 dòng — nhớ điền Mảng việc, Loại dự án, Market'); }
-    else pushLog(d, 'Bỏ qua mã mới', 'I.A.7.1, II.B.2.1', 'Không đưa vào báo cáo tuần này');
-  });
-}
-export const labelOk = () => mutate((d) => { d.labelOk = true; pushLog(d, 'Xác nhận nhóm', selectRows(d).filter(labelBad).map((r) => r.code).join(', '), 'Giữ nhóm theo mã, bỏ qua Labels'); });
-export const undoNew = () => mutate((d) => { d.newCodes = 'pending'; pushLog(d, 'Hoàn tác', 'I.A.7.1, II.B.2.1', 'Mã mới quay về chờ quyết định'); });
-export const undoDup = () => mutate((d) => { d.dupDone = false; d.dupMerged = false; pushLog(d, 'Hoàn tác', 'II.D.2.1', 'Mã trùng quay về chờ quyết định'); });
-export const undoLabel = () => mutate((d) => { d.labelOk = false; pushLog(d, 'Hoàn tác', 'Labels lệch nhóm', 'Quay về chờ quyết định'); });
-export const setChk = (k: 'chkTab' | 'chkFlt' | 'chkValCol' | 'chkItem', v: string | null) => mutate((d) => { d[k] = v as never; if (k === 'chkTab') d.view = 'check'; });
-export const toggleDone = (n: string) => mutate((d) => { d.showDone[n] = !d.showDone[n]; });
-
-/* ---------- rổ gom ---------- */
-export const openBuckets = (col: string) => mutate((d) => { d.pop = null; d.bucketCol = col; d.modal = 'buckets'; d.pickedVal = null; });
-export const setBucketCol = (col: string) => mutate((d) => { d.bucketCol = col; d.pickedVal = null; });
-export const pickValue = (v: string) => mutate((d) => { d.pickedVal = v; });
-export function dropPhase(k: number) {
-  mutate((d) => {
-    if (!d.pickedVal) { setToast(d, 'Chọn một giá trị bên trái trước'); return; }
-    d.phaseBucket[d.pickedVal] = k;
-    d.unsorted = d.unsorted.filter((v) => v !== d.pickedVal);
-    pushLog(d, 'Sửa rổ gom giá trị', 'AJ · AI Lifecycle', `Gom “${d.pickedVal}” vào giai đoạn ${k}`);
-    d.pickedVal = null;
-  });
-}
-export function dropStatus(t: string, unsortedNow: string[]) {
-  mutate((d) => {
-    const isTD = d.bucketCol === 'progress';
-    if (!d.pickedVal || !unsortedNow.includes(d.pickedVal)) { setToast(d, 'Chọn một giá trị bên trái trước'); return; }
-    (isTD ? d.progMap : d.statusMap)[d.pickedVal] = t;
-    pushLog(d, 'Sửa rổ gom giá trị', isTD ? 'J · Tiến độ' : 'I · Trạng thái', `${d.pickedVal} → ${t} · cột AA tự tính lại`);
-    d.pickedVal = null;
-  });
-}
-
-/* ---------- cảnh báo / dự án / ghi chú / hỏi AI ---------- */
-export const dismissIssue = (key: string, title: string) => mutate((d) => { d.issDis[key] = true; pushLog(d, 'Bỏ qua cảnh báo', title, 'Ẩn trong tuần này'); setToast(d, 'Đã bỏ qua — xem lại ở mục “Đã bỏ qua”'); });
-export const restoreIssue = (key: string) => mutate((d) => { delete d.issDis[key]; });
-export const setIssFlt = (v: string) => mutate((d) => { d.issFlt = v; });
-export const openProject = (i: number) => mutate((d) => { d.panel = 'project'; d.panelRow = i; d.stage = 7; });
-export const setStage = (k: number) => mutate((d) => { d.stage = k; });
-export function saveStage(state: string, why: string) {
-  mutate((d) => {
-    if (!why.trim()) { setToast(d, 'Phải ghi lý do trước khi lưu'); return; }
-    const r = d.allRows[d.panelRow!];
-    r.stages[d.stage] = state as Row['stages'][number];
-    r.reasons[d.stage] = why.trim();
-    pushLog(d, 'Sửa ô', `${r.code} · Giai đoạn ${d.stage + 1}`, `Trạng thái mới, có ghi lý do ${why.trim().length} ký tự`);
-    setToast(d, 'Đã lưu, lý do sẽ đi kèm vào cột Note khi xuất');
-  });
-}
-export function addNote(code: string, text: string) {
-  mutate((d) => {
-    if (!text.trim()) { setToast(d, 'Nhập nội dung ghi chú'); return; }
-    const t = new Date();
-    d.notes.unshift({ code, by: d.lockBy || 'Bạn', at: `${t.getDate()}/${t.getMonth() + 1} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`, text: text.trim(), done: false });
-    pushLog(d, 'Thêm ghi chú', code, text.trim().slice(0, 60));
-  });
-}
-export const toggleNote = (k: number) => mutate((d) => { d.notes[k].done = !d.notes[k].done; });
-export function ask(q: string) {
-  if (!q.trim()) return;
-  mutate((d) => { d.askLog.push({ q, a: askAnswer(d, q) }); pushLog(d, 'Hỏi AI', q, ''); });
-}
-export const setPanelFor = (p: PanelId) => setPanel(p);
-
-/* ---------- chốt & xuất ---------- */
-export function doLock(by: string, note: string) {
-  mutate((d) => {
-    if (!by.trim()) { d.lockMsg = 'Gõ tên người chốt trước.'; return; }
-    const rows = selectRows(d);
-    if (blockers(d, rows).length) return;
-    const lc = lastCur(d);
-    const snap = snapshot(d);
-    const nv = (lc ? lc.v : 0) + 1;
-    let hand = 0; let aiOk = 0;
-    rows.forEach((r) => { hand += Object.keys(r.ovr).length; AI_IDS.forEach((k) => { if (r.ai[k] && r.ai[k]!.ok) aiOk++; }); });
-    d.versions.unshift({ wk: 'w3', v: nv, by: by.trim(), at: nowStr(), note: note.trim(), exported: '', snap, stats: { rows: rows.length, hand, ai: aiOk }, changes: [] });
-    d.lockBy = by.trim(); d.lockMsg = null; d.verSel = `w3|${nv}`;
-    pushLog(d, 'Chốt bản', `Tuần 3/11 · v${nv}`, by.trim() + (note ? ' · ' + note : '') + ` · ${rows.length} dự án`);
-    setToast(d, `Đã chốt bản v${nv} — giờ có thể xuất file`);
-  });
-}
-export const pickVersion = (k: string) => mutate((d) => { d.verSel = k; });
-export const reExport = (k: string) => mutate((d) => { pushLog(d, 'Tải lại file đã xuất', k.replace('|', ' · v'), 'Lấy đúng file của bản đã chốt'); setToast(d, 'Bản thử: file đã xuất được tải lại từ bản đã chốt'); });
-export const setExOut = (k: 'f49' | 'exec', v: boolean) => mutate((d) => { d.exOut[k] = v; });
-export const setExFmt = (v: string) => mutate((d) => { d.exFmt = v; });
-export const switchWeek = (wk: string) => mutate((d) => {
-  d.menu = null;
-  if (wk === 'w3') return;
-  const vv = d.versions.find((v) => v.wk === wk);
-  d.view = 'ver'; d.verSel = vv ? `${vv.wk}|${vv.v}` : null;
-  setToast(d, `Tuần đã chốt chỉ xem, không sửa — đang mở bản v${vv ? vv.v : 1}`);
-});
-
-export function markExported(fn: string, formatLabel: string): string | null {
-  let out: string | null = null;
-  mutate((d) => {
-    d.doneExport = true;
-    if (!d.exOut.f49 && !d.exOut.exec) { setToast(d, 'Chọn ít nhất một file để xuất'); return; }
-    out = [d.exOut.f49 ? fn || 'bao-cao.xlsx' : '', d.exOut.exec ? '20261121_DAN_Bao-cao-dieu-hanh.' + formatLabel : ''].filter(Boolean).join(' · ');
-    d.exported = out;
-    const lc = lastCur(d);
-    if (lc) lc.exported = out;
-    const nf = Object.keys(d.fmt).length;
-    pushLog(d, 'Xuất báo cáo', out, `Từ bản v${lc ? lc.v : '?'} · ${selectRows(d).length} dòng · 49 cột · chỉ ghi khối Tuần 3/11 (AR–AT)` + (nf ? ` · giữ định dạng ${nf} ô` : '') + ' · cột ẩn trên màn hình vẫn được xuất');
-  });
-  return out;
-}
-
-/* ---------- báo cáo điều hành ---------- */
-export function runExAiDraft() {
-  mutate((d) => {
-    const { nk, nc } = exAiDraft(d);
-    pushLog(d, 'AI soạn phần điều hành', 'Báo cáo điều hành', `${nk} kết quả KPI · ${nc} ý kiến cần chỉ đạo · nhận xét chung`, 'AI');
-    setToast(d, `AI đã soạn nháp ${nk + nc + 1} ô — duyệt từng ô (nền tím) trước khi xuất`);
-  });
-}
-export function setExDraft(k: 'kpiResult' | 'directive' | 'note', code: string | null, text: string, approve = true) {
-  mutate((d) => {
-    if (k === 'note') { d.exNote = { text, ok: approve, why: d.exNote?.why }; return; }
-    const e = (d.ex[code!] = d.ex[code!] || { hl: true });
-    e[k] = { text, ok: approve, why: e[k]?.why || 'người dùng nhập' };
-    pushLog(d, 'Sửa báo cáo điều hành', `${code} · ${k === 'kpiResult' ? 'Kết quả KPI' : 'Ý kiến cần chỉ đạo'}`, text ? 'Lưu và duyệt' : 'Xoá nội dung');
-  });
-}
-export function approveExDraft(k: 'kpiResult' | 'directive' | 'note', code: string | null, text: string) {
-  mutate((d) => {
-    const dr = k === 'note' ? d.exNote : d.ex[code!]?.[k];
-    if (!dr) return;
-    dr.text = text.trim(); dr.ok = true;
-    pushLog(d, 'Duyệt nháp AI', k === 'note' ? 'Nhận xét chung' : `${code} · ${k === 'kpiResult' ? 'Kết quả KPI' : 'Ý kiến cần chỉ đạo'}`, 'Báo cáo điều hành');
-  });
-}
-export const setExHl = (code: string, on: boolean) => mutate((d) => { (d.ex[code] = d.ex[code] || { hl: true }).hl = on; });
-export const addExDirective = (code: string) => mutate((d) => { (d.ex[code] = d.ex[code] || { hl: true }).directive = { text: '', ok: true, why: 'người dùng nhập' }; });
-
-/* ---------- chế độ test ---------- */
-let testOrig: ReturnType<typeof snapshotRows> | null = null;
-export function enterTest(sc: string) {
-  mutate((d) => {
-    if (!testOrig) testOrig = snapshotRows(d.allRows);
-    restoreRows(d.allRows, testOrig);
-    d.test = sc; d.testSeed = d.testSeed || 7; d.menu = null; d.pe = null;
-    applyScenario(d.allRows, sc, d.testSeed);
-    pushLog(d, 'Chế độ test', SCEN[sc].name, 'Dữ liệu giả — không ảnh hưởng dữ liệu thật');
-    setToast(d, 'Chế độ test · ' + SCEN[sc].name);
-  });
-}
-export function reseedTest() { const sc = getState().test; if (!sc) return; mutate((d) => { d.testSeed = (d.testSeed || 7) + 1; }); enterTest(sc); }
-export function exitTest() {
-  mutate((d) => {
-    if (testOrig) restoreRows(d.allRows, testOrig);
-    d.test = null; d.pe = null; d.menu = null;
-    pushLog(d, 'Thoát chế độ test', '', 'Khôi phục dữ liệu demo');
-    setToast(d, 'Đã thoát chế độ test');
-  });
-}
-export const setCleanIdx = (delta: number) => mutate((d) => { d.cleanIdx = Math.max(0, d.cleanIdx + delta); });
-
-/* ---------- hệ thống (catalog) ---------- */
-export { seedCatalog, clone, writeJson };
-
-export const cancelImport = () => mutate((d) => { d.importing = null; setToast(d, 'Đã huỷ đọc file'); });
-export const openVersions = () => mutate((d) => { d.menu = null; d.view = 'ver'; });
+/* ---------- màn Nhật ký: lọc loại / người, tìm ---------- */
+export function lgSetF(f: string): void { mutate((d) => { d.lgF = f === 'all' ? '' : f; }); }
+export function lgSetW(w: string): void { mutate((d) => { d.lgW = w; }); }
+export function lgSetQ(q: string): void { mutate((d) => { d.lgQ = q; }); }
+export function lgReset(): void { mutate((d) => { d.lgF = ''; d.lgW = ''; }); }

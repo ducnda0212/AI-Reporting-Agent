@@ -1,224 +1,275 @@
-import { useState, type DragEvent, type ReactNode } from 'react';
-import { DEMO, ORPHANS } from '@/data/constants';
-import { chkCounts } from '@/lib/check';
-import { cleanStats } from '@/lib/cleanStats';
-import { checkCount, orphansLeft, unsortedOf } from '@/lib/selectors';
-import { fieldOf } from '@/lib/cell';
-import { loadSavedCfg } from '@/store';
-import { useAppState, useRows } from '@/hooks/useDerived';
-import { FileTypeIcon, Ico } from '@/components/common/Icons';
-import { PreviewCard, PreviewFullscreen, StagedDrop } from './FilePreview';
-import { clearFile, markDone, stageFile, usePv } from '@/store/preview';
-import { IMPORT_STEPS, GUIDE_KEY, cancelImport, goStep, toast, loadFile, replaceFile, setChk, setView, toggle, toggleGuide } from '@/store/actions/flow';
+/* Bước 1 · Nhập file (prototype viewImport L4611 → impPreA L11205 / impLoadA L7898 + R16 / impPostA L7560 + R5, impStats L9228 + vòng 6,
+   impRecent L11597, impSaved L9712, pvCard L8518, pvDropStaged R28 L11217). Ba trạng thái: trước khi nạp, đang đọc, đã nạp. */
+import { useMemo, type ChangeEvent, type DragEvent } from 'react';
+import demoData from '@/data/demo.json';
+import { FIELDS, NO_JIRA } from '@/data/constants';
+import { displayText, fieldById } from '@/lib/cell';
+import { pvBytes, pvCol, pvNum } from '@/lib/xlsx';
+import { now, rowsOf, useAppState } from '@/store';
+import {
+  baseRows, FILE_STATS, goStep, histToggle, impCancel, loadFile, GOLD_FILE, pvGo, pvSetFs, pvSetSheet, pvStage, setImpF, setReplaceFile
+} from '@/store/actions/flow';
+import { verOpen, wkName } from '@/store/actions/versions';
+import type { AppState, Field, PreviewFile, PreviewSheet, Row } from '@/types';
+import { FileIcon, IcExpand, IcStroke, IcUpload } from '@/components/common/Icons';
+import { FilePreviewModal } from './FilePreviewModal';
 
-/** Các lần nhập file trước đây (mock). */
-export const IMPORTS = [
-  { name: 'Jira_PMO_bao-cao-tuan_14-11.csv', wk: 'Tuần 02/11 · 07–14/11', at: '14/11 16:02', by: 'Khuê', issues: 39, cols: 277, prj: 38, ver: 'v2 đã chốt' },
-  { name: 'Jira_PMO_bao-cao-tuan_07-11.csv', wk: 'Tuần 01/11 · 31/10–06/11', at: '07/11 09:12', by: 'Tuấn', issues: 38, cols: 276, prj: 37, ver: 'v1 đã chốt' },
-];
+const ACCEPT = '.csv,.tsv,.txt,.xlsx,.xlsm,.xls';
+const p2 = (n: number): string => String(n).padStart(2, '0');
+const fileKind = (f: PreviewFile): 'csv' | 'xls' => (f.kind ? (f.kind === 'csv' ? 'csv' : 'xls') : /^(csv|tsv|txt)$/.test(f.ext) ? 'csv' : 'xls');
+/** Số issue trong file: file thật lấy theo thống kê file, dữ liệu giả lập đếm dòng + 2 issue lẻ + 1 issue thiếu mã (prototype realSet). */
+const issuesOf = (s: AppState): number => (s.realOnly ? FILE_STATS.issues : s.allRows.filter((r) => !r.isNew).length + 3);
+const orphansOf = (s: AppState): number => (s.realOnly ? demoData.gold.orphans.length : 1);
 
-const guideSeen = () => { try { return localStorage.getItem(GUIDE_KEY) === '1'; } catch { return false; } };
-const Code = ({ children }: { children: ReactNode }) => <code>{children}</code>;
-const ARow = ({ glyph, cls, title, sub, label, onClick }: { glyph: string; cls: string; title: ReactNode; sub?: ReactNode; label?: string; onClick?: () => void }) => (
-  <div className="arow"><span className={'ag ' + cls}>{glyph}</span><div className="at"><div>{title}</div>{sub && <small>{sub}</small>}</div>
-    {label ? <button className="alink" onClick={onClick}>{label}</button> : <span />}</div>
-);
-const ANext = ({ t, n, cls = '', sub, tab }: { t: string; n: string | number; cls?: string; sub?: string; tab: string }) => {
-  const done = n === 'xong';
-  const c = cls || (done ? 'ok' : '');
-  return <button className="anx ai2" onClick={() => setChk('chkTab', tab)}><span className={'anic ' + c}><Ico k={tab} /></span><span>{t}</span><span className={'an ' + c}>{done ? '✓ xong' : n}</span>{sub && <small>{sub}</small>}</button>;
-};
-/** Một dòng trong danh sách "Đã sẵn sàng": bấm được nếu có `onClick`. */
-function ResRow({ kind, title, meta, onClick }: { kind: 'xls' | 'csv' | 'ver' | 'db' | 'cfg'; title: string; meta: string; onClick?: () => void }) {
-  const body = <><FileTypeIcon kind={kind} /><span className="arm"><b>{title}</b><small>{meta}</small></span>{onClick && <span className="achev" aria-hidden="true">›</span>}</>;
-  return onClick ? <button className="ares" onClick={onClick}>{body}</button> : <div className="ares">{body}</div>;
+function onPick(e: ChangeEvent<HTMLInputElement>): void {
+  const f = e.target.files?.[0];
+  e.target.value = '';
+  if (f) void pvStage(f);
 }
-const FileIcon = () => <span className="aico" aria-hidden="true">CSV</span>;
+const FileInput = (): JSX.Element => <input id="csv" type="file" accept={ACCEPT} style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }} onChange={onPick} />;
 
-function DropZone({ loaded }: { loaded: boolean }) {
-  const [over, setOver] = useState(false);
-  const staged = usePv((s) => !!s.file && !s.file.done);
-  const onDrop = (e: DragEvent) => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files[0]; if (f) stageFile(f); else toast('Không thấy file nào được thả vào'); };
-  if (staged) return <div onDragOver={(e) => e.preventDefault()} onDrop={onDrop}><StagedDrop onPick={stageFile} /></div>;
-  return (
-    <div className={'drop imdrop' + (over ? ' over' : '')} id="dropzone"
-      onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={onDrop}>
-      <div className="imup2">
-        <svg width="54" height="54" viewBox="0 0 54 54" fill="none" aria-hidden="true"><rect x="10" y="5" width="30" height="40" rx="5" fill="var(--bg)" stroke="var(--accentLine)" strokeWidth="2" /><path d="M17 16h16M17 23h16M17 30h9" stroke="var(--accentLine)" strokeWidth="2" strokeLinecap="round" /><circle cx="38" cy="38" r="11" fill="var(--accent)" /><path d="M38 43v-9m0 0l-4 4m4-4l4 4" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+/* ô kéo thả: thả file vào thì xem trước */
+const dz = {
+  onDragOver: (e: DragEvent<HTMLDivElement>): void => { e.preventDefault(); e.currentTarget.classList.add('over'); },
+  onDragLeave: (e: DragEvent<HTMLDivElement>): void => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) e.currentTarget.classList.remove('over'); },
+  onDrop: (e: DragEvent<HTMLDivElement>): void => { e.preventDefault(); e.currentTarget.classList.remove('over'); void pvStage(e.dataTransfer?.files?.[0]); }
+};
+
+function Drop({ s }: { s: AppState }): JSX.Element {
+  const f = s.pv;
+  if (f && !f.done) {
+    const bad = !!f.err, busy = f.loading;
+    return (
+      <div className="drop imdrop pvstaged" id="dropzone" {...dz}>
+        <div className="pvfile"><FileIcon kind={fileKind(f)} /><div><b>{f.name}</b><small>{pvBytes(f.size)}</small></div></div>
+        {bad && <p className="pvsub pverr">{f.err}</p>}
+        <div className="imbtns">
+          <button className="btn pri imbig" onClick={pvGo} disabled={bad || busy}>{busy ? 'Đang mở…' : 'Đọc file này'}</button>
+          <label className="btn imbig2" htmlFor="csv">Chọn file khác</label><FileInput />
+        </div>
       </div>
+    );
+  }
+  return (
+    <div className="drop imdrop" id="dropzone" {...dz}>
+      <div className="imup2"><IcUpload /></div>
       <div className="imdt">Kéo file CSV hoặc Excel export từ Jira vào đây</div>
       <div className="imbtns">
-        <label className="btn pri imbig" htmlFor="csv">Chọn file CSV / Excel</label>
-        <input id="csv" type="file" accept=".csv,.tsv,.txt,.xlsx,.xlsm,.xls" style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }} onChange={(e) => e.target.files?.[0] && stageFile(e.target.files[0])} />
-        <button className="btn imbig2" onClick={() => loadFile('Jira sample.xlsx')}>{loaded ? 'Nạp lại dữ liệu mẫu' : 'Dùng dữ liệu mẫu'}</button>
+        <label className="btn pri imbig" htmlFor="csv">Chọn file CSV / Excel</label><FileInput />
+        <button className="btn imbig2" onClick={() => loadFile(GOLD_FILE)}>{s.loaded ? 'Nạp lại dữ liệu mẫu' : 'Dùng dữ liệu mẫu'}</button>
       </div>
     </div>
   );
 }
 
-function Guide() {
-  const s = useAppState();
-  const open = s.guideOpen === undefined ? !guideSeen() : s.guideOpen;
+function PvMini({ sh }: { sh: PreviewSheet }): JSX.Element {
+  const R = Math.min(sh.rows.length, 60), C = Math.min(Math.max(sh.nCols, 1), 14), cs = Array.from({ length: C }, (_x, j) => j);
   return (
-    <div className={'imguide' + (open ? ' open' : '')}>
-      <button className="imgl" onClick={() => toggleGuide(guideSeen())} aria-expanded={open}><span>{open ? '▾' : '▸'}</span>Chưa biết cách xuất file từ Jira? <b>Xem hướng dẫn</b></button>
-      {open && <>
-        <ol className="imsteps">
-          <li><span>1</span>Trên Jira, mở bộ lọc issue mà nhóm dùng cho báo cáo tuần</li>
-          <li><span>2</span>Chọn <b>Export → Export Excel CSV (all fields)</b></li>
-          <li><span>3</span>Kéo file vừa tải vào ô phía trên. Không cần sửa gì trong file — tên cột khác thì bước 2 sẽ hỏi</li>
-        </ol>
-      </>}
-    </div>
+    <table style={{ width: 34 + C * 104 }}>
+      <colgroup><col style={{ width: 34 }} />{cs.map((j) => <col key={j} style={{ width: 104 }} />)}</colgroup>
+      <tbody>
+        <tr><th className="rn" />{cs.map((j) => <th key={j}>{pvCol(j)}</th>)}</tr>
+        {sh.rows.slice(0, R).map((row, i) => (
+          <tr key={i} className={i === 0 ? 'hr' : undefined}><th className="rn">{i + 1}</th>{cs.map((j) => <td key={j}>{String(row[j] ?? '').slice(0, 40)}</td>)}</tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 
-/** Đang đọc file: các bước dọc có kết quả, bên phải hiện dần những gì đã tìm thấy. */
-function Importing() {
-  const s = useAppState();
-  const rows = useRows();
-  const imp = s.importing!;
-  const st = imp.step;
-  const nIss = rows.length + 2 + ORPHANS.length; const nCol = DEMO.fileStats.cols; const nPrj = rows.length;
-  const nOrph = ORPHANS.length; const nNew = DEMO.newRows.length;
-  const done: Array<[string, string]> = [
-    [IMPORT_STEPS[0], `${nCol} cột, ${nIss} issue`],
-    [IMPORT_STEPS[1], `${DEMO.fileStats.dupGroups} nhóm cột đã gộp`],
-    [IMPORT_STEPS[2], `${nPrj} dự án ghép được${nOrph ? `, ${nOrph} issue chưa có mã` : ''}`],
-    [IMPORT_STEPS[3], `${nNew} mã mới, 1 mã biến mất`],
-  ];
-  const pct = Math.round(((st + 0.5) / done.length) * 100);
-  const found: Array<[string, number, number, string?]> = [
-    ['Issue trong file', nIss, 0], ['Cột Jira', nCol, 0], ['Nhóm cột trùng đã gộp', DEMO.fileStats.dupGroups, 1],
-    ['Dự án ghép vào mẫu', nPrj, 2], ['Issue chưa có Mã DA', nOrph, 2, 'e'], ['Mã mới so với tuần trước', nNew, 3, 'w'],
-  ];
+/** Khung xem trước file đang chọn (pvCard 'pre'); chưa chọn file thì không hiện gì. */
+function PvCard({ s }: { s: AppState }): JSX.Element | null {
+  const f = s.pv;
+  if (!f) return null;
+  const head = (fs: boolean): JSX.Element => (
+    <div className="pvhd"><FileIcon kind={f.kind === 'csv' ? 'csv' : 'xls'} /><div className="pvfn"><b title={f.name}>{f.name}</b><small>{pvBytes(f.size)}</small></div>
+      {fs && <button className="pvfsb" onClick={() => pvSetFs(true)} aria-label="Xem toàn màn hình" title="Xem toàn màn hình"><IcExpand /></button>}</div>
+  );
+  if (f.loading) return <section className="pvc" aria-label="Xem trước file">{head(false)}<div className="pvempty"><span className="spin" aria-hidden="true" /><p role="status">Đang đọc file để xem trước…</p></div></section>;
+  if (f.err || !f.sheets) return <section className="pvc" aria-label="Xem trước file">{head(false)}<div className="pvempty err"><p role="alert">{f.err}</p></div></section>;
+  const k = Math.min(s.pvSheet, f.sheets.length - 1), sh = f.sheets[k];
+  return (
+    <section className="pvc" aria-label="Xem trước file">
+      {head(true)}
+      <div className="pvscreen" style={{ height: Math.min(200, Math.max(116, Math.round((Math.min(sh.rows.length, 16) + 1) * 26 * 0.6) + 16)) }}>
+        <div className="pvmini">{sh.rows.length ? <PvMini sh={sh} /> : null}</div>
+        {!sh.rows.length && <div className="pvempty" style={{ position: 'absolute', inset: 0 }}><p>Sheet này đang trống.</p></div>}
+        <button className="pvhit" onClick={() => pvSetFs(true)} aria-label="Mở xem trước toàn màn hình"><span className="pvopen"><IcExpand />Toàn màn hình</span></button>
+      </div>
+      <div className="pvft">
+        <span><b>{pvNum(sh.nData)}</b> dòng · <b>{pvNum(sh.nCols)}</b> cột</span><span className="pvsp" />
+        {f.sheets.length > 1 && (
+          <select className="sel pvsel" aria-label="Chọn sheet" value={k} onChange={(e) => pvSetSheet(+e.target.value)}>
+            {f.sheets.map((x, j) => <option key={j} value={j}>{x.name}</option>)}
+          </select>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function Recent({ s }: { s: AppState }): JSX.Element {
+  const L = s.impHist[0], mine = s.versions.filter((v) => v.snap && v.mine).slice(0, 3);
+  return (
+    <>
+      <h2 className="ah2">Lần nhập gần nhất</h2>
+      <div className="alast"><FileIcon kind="csv" /><div><b title={L.name}>{L.name}</b></div></div>
+      <button className="alink" onClick={() => loadFile(L.name)}>Nhập lại file này</button>
+      {s.impHist.length > 1 && <button className="alink mut" onClick={histToggle} aria-expanded={s.histOpen}>{(s.histOpen ? 'Ẩn' : 'Xem') + ' ' + (s.impHist.length - 1) + ' file cũ hơn'}</button>}
+      {s.histOpen && s.impHist.slice(1).map((x) => <button key={x.name} className="anx" onClick={() => loadFile(x.name)}><span>{x.name}</span><span className="an">{x.at.split(' ')[0]}</span></button>)}
+      {mine.length > 0 && (
+        <div className="imsaved"><span className="imsl">Bản đã lưu trên hệ thống</span>
+          {mine.map((v) => (
+            <button key={v.wk + v.v} className="imsv" onClick={() => verOpen(v.wk + '|' + v.v)}><b>{'v' + v.v}</b><span>{wkName(v.wk, true) + ' · chốt ' + v.at + ' · ' + v.by}</span><em>Mở →</em></button>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+function PreLoad({ s }: { s: AppState }): JSX.Element {
   return (
     <div className="gridwrap gut aimp"><div className="awrap"><div className="acols">
       <div className="aleft">
-        <div className="lfile"><FileTypeIcon kind={/\.xlsx?$/i.test(imp.name) ? 'xls' : 'csv'} />
-          <div><b>{imp.name}</b><small>Tuần 3/11, nhập lúc {new Date().toTimeString().slice(0, 5)}</small></div></div>
+        <h1 className="ah1">{s.replaceFile ? 'Thay file Jira' : 'Nhập file Jira'}</h1>
+        <Drop s={s} />
+        {s.replaceFile && <button className="alink back" onClick={() => setReplaceFile(false)}>{'Giữ file đang dùng: ' + s.fileName}</button>}
+        <PvCard s={s} />
+      </div>
+      <aside className="aright"><Recent s={s} /></aside>
+    </div></div></div>
+  );
+}
+
+/* màn Đang đọc: các bước dọc có kết quả, bên phải hiện dần những gì đã tìm thấy */
+function Loading({ s, nPrj }: { s: AppState; nPrj: number }): JSX.Element {
+  const st = s.importing!.step, name = s.importing!.name, t = now();
+  const nIss = issuesOf(s), nCol = FILE_STATS.cols, nOrph = orphansOf(s), g = FILE_STATS.dupGroups;
+  const S: [string, string][] = [
+    ['Đọc file và nhận diện cột', nCol + ' cột, ' + nIss + ' issue'],
+    ['Gộp các cột trùng tên', g + ' nhóm cột đã gộp'],
+    ['Tách mã dự án, ghép vào mẫu 49 cột', nPrj + ' dự án ghép được' + (nOrph ? ', ' + nOrph + ' issue chưa có mã' : '')],
+    ['So với tuần trước và cấu hình đã lưu', 'Không có mã mới']
+  ];
+  const pct = Math.round(((st + 0.5) / S.length) * 100);
+  const found: [string, number, number, string?][] = [['Issue trong file', nIss, 0], ['Cột Jira', nCol, 0], ['Nhóm cột trùng đã gộp', g, 1], ['Dự án ghép vào mẫu', nPrj, 2], ['Issue chưa có Mã DA', nOrph, 2, 'e'], ['Mã mới so với tuần trước', 0, 3, 'w']];
+  return (
+    <div className="gridwrap gut aimp"><div className="awrap"><div className="acols">
+      <div className="aleft">
+        <div className="lfile"><FileIcon kind={/\.xlsx?$/i.test(name) ? 'xls' : 'csv'} /><div><b>{name}</b><small>{'Nhập lúc ' + p2(t.getHours()) + ':' + p2(t.getMinutes())}</small></div></div>
         <h1 className="ah1">Đang đọc file Jira</h1>
         <p className="asub">Chỉ mất vài giây. Xong sẽ tự chuyển sang phần tóm tắt.</p>
         <div className="lbar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label="Tiến độ đọc file"><i style={{ width: pct + '%' }} /></div>
         <ol className="lsteps" aria-live="polite">
-          {done.map(([t, res], k) => (
-            <li key={t} className={'lst ' + (k < st ? 'ok' : k === st ? 'now' : '')}>
-              <span className="ldot">{k < st ? <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg> : k === st ? <span className="spin sm" aria-hidden="true" /> : k + 1}</span>
-              <div className="ltx"><b>{t}</b><small>{k < st ? res : k === st ? 'Đang xử lý…' : 'Chờ'}</small></div>
+          {S.map((x, k) => (
+            <li key={k} className={'lst ' + (k < st ? 'ok' : k === st ? 'now' : '')}>
+              <span className="ldot">{k < st
+                ? <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+                : k === st ? <span className="spin sm" aria-hidden="true" /> : k + 1}</span>
+              <div className="ltx"><b>{x[0]}</b><small>{k < st ? x[1] : k === st ? 'Đang xử lý…' : 'Chờ'}</small></div>
             </li>
           ))}
         </ol>
-        <button className="btn" onClick={() => { markDone(false); cancelImport(); }}>Huỷ, chọn file khác</button>
+        <button className="btn" onClick={impCancel}>Huỷ, chọn file khác</button>
       </div>
       <aside className="aright">
         <h2 className="ah2">Đã tìm thấy</h2>
-        <ul className="lfound">
-          {found.map(([l, v, at, c]) => (
-            <li key={l} className={'lf' + (st > at ? ' in' : '')}><span>{l}</span>{st > at ? <b className={c || ''}>{v}</b> : <i className="skel" aria-hidden="true" />}</li>
-          ))}
-        </ul>
+        <ul className="lfound">{found.map((f) => <li key={f[0]} className={'lf' + (st > f[2] ? ' in' : '')}><span>{f[0]}</span>{st > f[2] ? <b className={f[3] || ''}>{f[1]}</b> : <i className="skel" aria-hidden="true" />}</li>)}</ul>
         <p className="lnote">Phần tóm tắt và các việc cần xử lý sẽ hiện ngay sau khi đọc xong.</p>
       </aside>
     </div></div></div>
   );
 }
 
-/** Trước khi nạp file (hoặc đang thay file). */
-function PreLoad() {
-  const s = useAppState();
-  const L = IMPORTS[0];
-  const prev = s.versions.find((v) => v.wk === 'w2');
-  const cfg = loadSavedCfg();
+/* ---------- đã nạp: tóm tắt file + bảng 42 cột có nguồn Jira (ẩn 7 cột NO_JIRA) ---------- */
+const IS_SEM: Record<string, string> = { 'Đúng tiến độ': 'sg', 'Đã hoàn thành': 'sd', 'Đang thực hiện': 'sb', 'Chậm tiến độ': 'slt', 'Tạm dừng': 'sa', 'Chưa thực hiện': 'sn', 'Hủy': 'sx', 'Huỷ': 'sx', '(trống)': 'sx' };
+const isc = (label: string, k: number): string => IS_SEM[label.normalize('NFC')] || 'c' + (k % 5);
+const IS_KIND: Record<string, string> = { jira: 'Jira', bucket: 'Jira', report: 'Jira', cfg: 'Jira', ai: 'AI', manual: 'Nhập tay', calc: 'Tính', past: 'Đã chốt', future: 'Tuần sau', none: 'Trống', tpl: 'Mẫu' };
+const isSrcTxt = (f: Field): string => String(f.src || '').replace(/^Hệ thống\s*(·\s*)?/, '').replace(/^\((.*)\)\s*/, '$1 ').replace(/^nhập tay\s*(·\s*)?/i, '').trim();
+const COLS = FIELDS.filter((f) => !NO_JIRA.includes(f.id));
+const FILE_COLS: readonly string[] = demoData.gold.cols;
+/* số cột của file được dùng (Summary cho khoá ghép) */
+const USED = FIELDS.map((f) => (f.key ? 'Summary' : f.src)).filter((c, i, A) => FILE_COLS.includes(c) && A.indexOf(c) === i).length;
+
+function Source({ f }: { f: Field }): JSX.Element {
+  if (f.key) return <span title="Summary">Summary</span>;
+  if (f.kind === 'jira' || f.kind === 'bucket') return <><span className="isk jira">Jira</span><span title={f.src} className={/chưa có/.test(f.src) ? 'isn' : undefined}>{f.src}</span></>;
+  return <><span className={'isk ' + (f.kind === 'cfg' ? 'jira' : f.kind)}>{IS_KIND[f.kind] || ''}</span><span title={f.src}>{isSrcTxt(f)}</span></>;
+}
+
+function Dist({ title, fid, rows, s }: { title: string; fid: 'tt' | 'td'; rows: Row[]; s: AppState }): JSX.Element {
+  const m: Record<string, number> = {}, f = fieldById(fid)!;
+  rows.forEach((r) => { const t = displayText(r, f, s) || '(trống)'; m[t] = (m[t] || 0) + 1; });
+  const d = Object.entries(m).sort((a, b) => b[1] - a[1]);
   return (
-    <div className="gridwrap gut aimp"><div className="awrap"><div className="acols">
-      <div className="aleft">
-        <h1 className="ah1">{s.replaceFile ? 'Thay file Jira cho tuần 3/11' : 'Nhập file Jira cho tuần 3/11'}</h1>
-        <p className="asub">Kéo file CSV hoặc Excel vừa xuất từ Jira.</p>
-        <DropZone loaded={s.loaded} />
-        {s.replaceFile && <button className="alink back" onClick={() => replaceFile(false)}>Giữ file đang dùng: {s.fileName || 'Jira sample.xlsx'}</button>}
-        <Guide />
-      </div>
-      <aside className="aright">
-        <PreviewCard mode="pre" />
-        <h2 className="ah2">Lần nhập gần nhất</h2>
-        <div className="alast"><FileTypeIcon kind="csv" /><div><b title={L.name}>{L.name}</b><small>{L.wk.split(' · ')[0]}, {L.by} nhập lúc {L.at}</small><small>{L.issues} issue, {L.prj} dự án, {L.ver}</small></div></div>
-        <button className="alink" onClick={() => loadFile(L.name)}>Nhập lại file này</button>
-        {IMPORTS.length > 1 && <button className="alink mut" onClick={() => toggle('histOpen')} aria-expanded={s.histOpen}>{s.histOpen ? 'Ẩn' : 'Xem'} {IMPORTS.length - 1} file cũ hơn</button>}
-        {s.histOpen && IMPORTS.slice(1).map((x) => <button key={x.name} className="anx" onClick={() => loadFile(x.name)}><span>{x.name}</span><span className="an">{x.at.split(' ')[0]}</span></button>)}
-        <h2 className="ah2" style={{ marginTop: 26 }}>Đã sẵn sàng</h2>
-        <div className="areslist">
-          <ResRow kind="ver" title="Bản chốt tuần trước" meta={prev ? `v${prev.v}, chốt ngày ${prev.at.split(' ')[0]}` : 'Chưa có bản chốt'} onClick={() => setView('ver')} />
-          <ResRow kind="xls" title="Mẫu báo cáo 49 cột" meta="Tháng 11, khối tuần đến AR–AT" onClick={() => setView('tpl')} />
-          <ResRow kind="db" title="Dữ liệu hệ thống" meta={`${Object.keys(s.cat.projects).length} dự án, cột A–H và O–W`} onClick={() => setView('cat')} />
-          <ResRow kind="cfg" title="Cấu hình quy đổi" meta={cfg ? 'Đã lưu, dùng lại khi nhập file' : 'Đang dùng mặc định'} />
-        </div>
-      </aside>
-    </div></div></div>
+    <div className="is3d"><span className="is3l">{title}</span>
+      <div className="isbar">{d.map(([l, n], k) => <span key={l} className={'isg ' + isc(l, k)} style={{ flex: n }} title={l + ': ' + n} />)}</div>
+      <div className="isleg">{d.map(([l, n], k) => <span key={l} title={l}><i className={isc(l, k)} />{l}<b>{n}</b></span>)}</div>
+    </div>
   );
 }
 
-/** Sau khi nạp file: tóm tắt thay đổi so với lần nhập trước + việc còn lại. */
-function PostLoad() {
-  const s = useAppState();
-  const rows = useRows();
-  const P = s.fileName === IMPORTS[0].name ? IMPORTS[1] : IMPORTS[0];
-  const nIss = rows.length + 2 + ORPHANS.length;
-  const dIss = nIss - P.issues;
-  const vals = unsortedOf(s, rows, 'status').concat(fieldOf(s, 'progress').src === '— chưa gán —' ? [] : unsortedOf(s, rows, 'progress')).concat(s.unsorted);
-  const newC = s.newCodes === 'pending' ? DEMO.newRows.map((r) => r.code) : [];
-  const CC = chkCounts(s);
-  const S = cleanStats(s);
-  const orph = orphansLeft(s).length;
-  const left = checkCount(s, rows);
-  const wk = P.wk.split(' · ')[0].toLowerCase();
-  const parts: ReactNode[] = [];
-  if (newC.length) parts.push(<b key="n" className="hl w">{newC.length} mã mới</b>);
-  parts.push(<b key="m" className="hl e">1 mã biến mất</b>);
-  if (vals.length) parts.push(<span key="v"><b className="hl w">{vals.length} giá trị Jira</b> chưa có luật quy đổi</span>);
+function ImpStats({ s }: { s: AppState }): JSX.Element {
+  const rows = rowsOf(s), n = rows.length, F = s.impF;
+  const info = COLS.map((f) => {
+    const vals = rows.map((r) => displayText(r, f, s)).filter(Boolean);
+    return { f, k: vals.length, smp: [...new Set(vals.map((v) => v.replace(/\s+/g, ' ')))].slice(0, 2) };
+  });
+  const full = info.filter((x) => x.k === n).length, low = info.length - full;
+  const pic = rows.filter((r) => displayText(r, fieldById('pic')!, s)).length;
+  const pills: [AppState['impF'], string, number][] = [['all', 'Tất cả', COLS.length], ['full', 'Đủ dữ liệu', full], ['low', 'Thiếu dữ liệu', low]];
+  const list = info.filter((x) => F === 'all' || (F === 'full' ? x.k === n : x.k < n));
+  return (
+    <div className="isum">
+      <div className="iscard is3">
+        <div className="is3n"><span className="is3l">Issue</span><b>{issuesOf(s)}</b><small>{'Dùng ' + USED + ' trong ' + FILE_STATS.cols + ' cột của file'}</small></div>
+        <div className="is3n"><span className="is3l">Dự án</span><b>{n}</b><small>{new Set(rows.map((r) => r.g)).size + ' nhóm · ' + pic + ' có PIC'}</small></div>
+        <Dist title="Trạng thái" fid="tt" rows={rows} s={s} /><Dist title="Tiến độ" fid="td" rows={rows} s={s} />
+      </div>
+      <div className="iscard">
+        <div className="ish"><div><b>Các cột trong mẫu báo cáo</b><span>{COLS.length + ' cột · lấy từ đâu, kèm giá trị mẫu'}</span></div>
+          <div className="ispills">{pills.map(([k, l, c]) => <button key={k} className={'ispill' + (F === k ? ' on' : '')} onClick={() => setImpF(k)}>{l}<em>{c}</em></button>)}</div>
+        </div>
+        <div className="isr ishd"><span>Nguồn</span><span /><span>Cột trong báo cáo</span><span>Giá trị mẫu</span><span>Có giá trị</span></div>
+        {list.length ? list.map(({ f, k, smp }) => {
+          const pct = n ? Math.round((k / n) * 100) : 0;
+          return (
+            <div key={f.id} className={'isr' + (!k ? ' z' : '')}>
+              <div className="isfrom"><span className="isjira"><IcStroke d="jira" size={14} /></span><Source f={f} /></div>
+              <span className="isarr"><IcStroke d="arrow" size={14} /></span>
+              <div className="isto"><span className="iscl">{f.col}</span><b>{f.name}</b></div>
+              <div className="issmp">{smp.length ? smp.map((v) => <span key={v} title={v}>{v}</span>) : <span className="isn">Không có giá trị nào trong file</span>}</div>
+              <div className="ispc"><span className="ispb"><i style={{ width: pct + '%' }} className={pct === 100 ? '' : pct ? 'lo' : ''} /></span><span>{k + '/' + n}</span></div>
+            </div>
+          );
+        }) : <div className="isempty">Không có trường nào trong nhóm này</div>}
+      </div>
+    </div>
+  );
+}
+
+function PostLoad({ s }: { s: AppState }): JSX.Element {
+  const xl = /\.xlsx?$/i.test(s.fileName || GOLD_FILE);
   return (
     <div className="gridwrap gut aimp"><div className="awrap">
-      <div className="ahead"><FileIcon />
-        <div className="ahm"><h1 className="ah1">{s.fileName || 'Jira sample.xlsx'}</h1><p className="asub">{nIss} issue, {DEMO.fileStats.cols} cột, nhập lúc {s.loadedAt}</p></div>
-        <button className="btn" onClick={() => { clearFile(); replaceFile(true); }}>Thay file khác</button></div>
-      <p className="asum">Ghép được <b className="hl ok">{rows.length} dự án</b> vào mẫu 49 cột. So với {wk} có{' '}
-        {parts.map((p, k) => <span key={k}>{k > 0 && (k === parts.length - 1 ? ' và ' : ', ')}{p}</span>)}.
-        {orph > 0 && <> <b className="hl e">{orph} issue</b> chưa có Mã DA cần ghép trước khi xuất.</>}</p>
-      <div className="acols">
-        <div className="aleft">
-          <h2 className="ah2">Thay đổi so với {wk}</h2>
-          <div className="arows">
-            <ARow glyph={dIss >= 0 ? '+' : '−'} cls={dIss >= 0 ? 'add' : 'del'} title={`${Math.abs(dIss)} issue ${dIss >= 0 ? 'mới' : 'ít hơn'} trong file`} sub={`${P.issues} issue tuần trước, ${nIss} issue tuần này`} label="Xem" onClick={() => setChk('chkTab', 'prj')} />
-            {newC.length > 0 && <ARow glyph="+" cls="add" title={`${newC.length} mã chưa có dòng trong mẫu`} sub={newC.join(' và ')} label="Thêm dòng" onClick={() => setChk('chkTab', 'prj')} />}
-            <ARow glyph="−" cls="del" title="II.D.1.3 không còn trong file" sub="Tuần trước đang thực hiện. Dự án đã đóng hay bị lọc mất?" label="Kiểm tra" onClick={() => setChk('chkTab', 'prj')} />
-            <ARow glyph="~" cls="chg" title="Cột Jira đổi tên" sub={<><Code>Custom field (Progress %)</Code> thành <Code>Custom field (Progress)</Code>, đã tự khớp</>} label="Xem" onClick={() => setChk('chkTab', 'col')} />
-            {vals.length > 0 && <ARow glyph="?" cls="chg" title={`${vals.length} giá trị chưa có luật`} sub={vals.slice(0, 3).map((v, k) => <span key={v}>{k > 0 && ', '}<Code>{v}</Code></span>)} label="Chọn" onClick={() => setChk('chkTab', 'val')} />}
-            {s.cfgUsed && <ARow glyph="✓" cls="add" title="Dùng lại cấu hình quy đổi" sub={`lưu lúc ${s.cfgUsed.at}`} />}
-          </div>
-        </div>
-        <aside className="aright">
-          <PreviewCard mode="post" />
-          <h2 className="ah2">Còn lại ở bước Kiểm tra</h2>
-          <div className="arows">
-            <ANext t="Khớp cột" n={CC.col ? CC.col + ' chặn xuất' : 'xong'} cls={CC.col ? 'e' : ''} sub={CC.col ? 'Cột chưa có nguồn sẽ để trống khi xuất' : ''} tab="col" />
-            <ANext t="Quy đổi giá trị" n={CC.val || 'xong'} cls={CC.val ? 'w' : ''} sub={CC.val ? 'Không chặn xuất, nên chọn trước khi AI soạn' : ''} tab="val" />
-            <ANext t="Làm sạch nội dung" n={S.all ? S.all.toLocaleString('vi-VN') + ' chỗ' : 'tự động'} tab="fmt" />
-            <ANext t="Ghép dự án" n={CC.prjE ? CC.prjE + ' chặn xuất' : CC.prj.length || 'xong'} cls={CC.prjE ? 'e' : CC.prj.length ? 'w' : ''} sub={CC.prj.length ? `${CC.prjE} chặn, ${CC.prjW} nên xử lý` : ''} tab="prj" />
-          </div>
-          <h2 className="ah2" style={{ marginTop: 24 }}>Lần nhập trước</h2>
-          <div className="arows">
-            {IMPORTS.filter((x) => x.name !== s.fileName).slice(0, 2).map((x) => <div key={x.name} className="anx static"><span>{x.name}</span><span className="an">{x.at.split(' ')[0]}</span></div>)}
-          </div>
-        </aside>
+      <div className="ahead">
+        <span className={'aico' + (xl ? ' xl' : '')} aria-hidden="true">{xl ? 'XLSX' : 'CSV'}</span>
+        <div className="ahm"><h1 className="ah1">{s.fileName || GOLD_FILE}</h1></div>
+        <button className="btn" onClick={() => setReplaceFile(true)}>Thay file khác</button>
+        <button className="btn pri" onClick={() => goStep(3)}>Mở bảng báo cáo</button>
       </div>
-      <div className="afoot"><button className="btn abtn" onClick={() => goStep(left ? 2 : 3)}>{left ? 'Tiếp tục kiểm tra dữ liệu' : 'Tiếp tục điền và duyệt'}</button></div>
+      <ImpStats s={s} />
     </div></div>
   );
 }
 
-export function ImportView() {
-  const s = useAppState();
-  const fs = usePv((p) => p.fullscreen && !!p.file?.sheets);
-  const body = s.importing ? <Importing /> : !s.loaded || s.replaceFile ? <PreLoad /> : <PostLoad />;
-  return <>{body}{fs && <PreviewFullscreen />}</>;
+export function ImportView(): JSX.Element {
+  const s = useAppState((x) => x);
+  /* lần nhập đầu: số dự án sẽ ghép được lấy từ dữ liệu của file (bảng chưa có) */
+  const first = !!s.importing && !s.loaded;
+  const firstPrj = useMemo(() => (first ? rowsOf({ allRows: baseRows(), newCodes: 'added', dupMerged: true, realOnly: true }).length : 0), [first]);
+  if (s.importing) return <Loading s={s} nPrj={first ? firstPrj : rowsOf(s).length} />;
+  if (!s.loaded || s.replaceFile) return <><PreLoad s={s} /><FilePreviewModal /></>;
+  return <PostLoad s={s} />;
 }
-

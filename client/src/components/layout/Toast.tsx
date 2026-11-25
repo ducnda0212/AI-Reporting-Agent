@@ -1,30 +1,22 @@
-import { useEffect } from 'react';
-import { useStore } from '@/store';
-import { clearToast } from '@/store/actions/flow';
+/* Thông báo nổi và thanh "AI đang đọc" (lớp #layers trong prototype render L5655-5660). */
+import { useAppState } from '@/store';
 
-/** Thông báo nổi tự tắt sau 2,2 giây. Đổi nội dung thì tính lại giờ. */
-export function Toast() {
-  const msg = useStore((s) => s.toast);
-  useEffect(() => {
-    if (!msg) return;
-    const t = setTimeout(clearToast, 2200);
-    return () => clearTimeout(t);
-  }, [msg]);
-  return msg ? <div className="toast tin" key={msg}>{msg}</div> : null;
-}
-
-export function AiRunBar() {
-  const run = useStore((s) => s.aiRun);
-  if (!run) return null;
-  const pct = Math.round((run.n / run.total) * 100);
+export function Toast(): JSX.Element {
+  const toast = useAppState((s) => s.toast), run = useAppState((s) => s.aiRun);
   return (
-    <div className="airun" role="status">
-      <span className="aispark" aria-hidden="true">✦</span>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="airunt">AI đang đọc Progress Report và Comment</div>
-        <div className="xbar airunbar"><i style={{ width: pct + '%' }} /></div>
-      </div>
-      <span className="airunn">{run.n}/{run.total} dự án</span>
-    </div>
+    <>
+      {run && (
+        <div className="airun" role="status">
+          <span className="aispark" aria-hidden="true">✦</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="airunt">AI đang đọc Progress Report và Comment</div>
+            <div className="xbar airunbar"><i id="airunbar" style={{ width: Math.round((run.n / run.total) * 100) + '%' }} /></div>
+          </div>
+          <span className="airunn" id="airuntxt">{run.n + '/' + run.total + ' dự án'}</span>
+        </div>
+      )}
+      {/* key = nội dung: thông báo mới chạy lại hiệu ứng trượt vào (.tin) */}
+      {toast && <div key={toast} className="toast tin">{toast}</div>}
+    </>
   );
 }

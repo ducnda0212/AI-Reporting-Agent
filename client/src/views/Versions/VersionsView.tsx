@@ -1,129 +1,131 @@
-import type { Version } from '@/types';
+/* Màn Phiên bản bản cuối (prototype vbBlock L11993 + vlTable3 L12118): so sánh 2 bản (4 thẻ số + biểu đồ cột ghép SVG + dự án đổi tình trạng)
+   ở trên, danh sách bản đã chốt theo tuần ở dưới; bấm một dòng xổ 5 chỉ số, "Mở trên bảng" mở lại bản đó trên bảng tính. */
+import type { KeyboardEvent, MouseEvent } from 'react';
 import { WEEKS } from '@/data/constants';
-import { changedSinceLock, diffSnap, lastCur } from '@/lib/versions';
-import { useAppState } from '@/hooks/useDerived';
-import { pickVersion, reExport, setModal } from '@/store/actions/flow';
+import { vCompare2, vhList, vKey, vSide, type Compare, type CmpOverview } from '@/lib/versions';
+import { rowsOf, useAppState } from '@/store';
+import { vbSetA, vbSetB, vbToggleMore, vFind, vlEdit, vlTogExpand, wkName } from '@/store/actions/versions';
+import type { AppState } from '@/types';
+import { IcDoc } from '@/components/common/Icons';
 
-type Change = [string, string, string | null, string | null];
+const side = (s: AppState, k: string) => vSide(vFind(s, k) || null, rowsOf(s), s);
+function compare(s: AppState, ka: string, kb: string): Compare | null {
+  const A = side(s, ka), B = side(s, kb);
+  return A && B ? vCompare2(A, B, rowsOf(s)) : null;
+}
+/** Tổng quan một bản (prototype vOv): so bản với chính nó cho ra đúng 5 chỉ số của bản đó. */
+function overview(s: AppState, k: string): CmpOverview | null {
+  const S = side(s, k);
+  return S ? vCompare2(S, S, rowsOf(s)).A : null;
+}
+const vhFull = (s: AppState, k: string): string => {
+  const v = vFind(s, k);
+  return wkName(v ? v.wk : 'w3', true) + ' · ' + (v ? 'Bản ' + v.v : 'Bảng đang làm');
+};
 
-const Empty = ({ style }: { style?: React.CSSProperties }) => <span className="dold" style={{ textDecoration: 'none', background: 'var(--row)', color: 'var(--mut2)', ...style }}>(trống)</span>;
+const M: [k: 'ok' | 'risk' | 'late' | 'high', label: string, upGood: boolean][] = [['ok', 'Đúng tiến độ', true], ['risk', 'Nguy cơ chậm', false], ['late', 'Chậm tiến độ', false], ['high', 'Rủi ro cao', false]];
+const W = 560, H = 190, PAD = 28, BW = 30;
 
-function ChangeTable({ list, title, note }: { list: Change[]; title: string; note?: string }) {
+function VbBlock({ s }: { s: AppState }): JSX.Element | null {
+  const K = vhList(s.versions).map((x) => x.k);
+  if (K.length < 2) return null;
+  const b = s.vbB && K.includes(s.vbB) ? s.vbB : K[0];
+  const a = s.vbA != null && K.includes(s.vbA) && s.vbA !== b ? s.vbA : K[K.indexOf(b) + 1] || '';
+  const C = a ? compare(s, a, b) : null;
+  if (!C) return null;
+  const opt = (other: string): JSX.Element[] => K.filter((k) => k !== other).map((k) => <option key={k} value={k}>{vhFull(s, k)}</option>);
+  const gw = (W - PAD * 2) / M.length, mx = Math.max(...M.map(([k]) => Math.max(C.A[k], C.B[k])), 1);
+  const y = (v: number): number => H - 30 - (v / mx) * (H - 60);
+  const keep = (x: { k: string }): boolean => x.k === 'tt' || x.k === 'rui', nb = C.bad.filter(keep), ng = C.good.filter(keep);
+  const ch = [...nb.map((x) => [x, 'bad'] as const), ...ng.map((x) => [x, 'good'] as const)], show = s.vbMore ? ch : ch.slice(0, 5);
   return (
-    <div className="dsec" style={{ borderTop: '1px solid var(--line2)' }}>
-      <div className="dsh">{title}<span>{list.length} ô{note ? ' · ' + note : ''}</span></div>
-      {list.length ? (
-        <div className="dtb">
-          <div className="drow h"><span>Dự án</span><span>Cột</span><span>Thay đổi</span></div>
-          {list.slice(0, 40).map((c, k) => (
-            <div className="drow" key={k}>
-              <span className="ma">{c[0]}</span><span>{c[1]}</span>
-              <span className="dchg">
-                {c[2] === null || c[2] === '' ? <Empty /> : <span className="dold">{c[2]}</span>}
-                <span className="dar">→</span>
-                {c[3] === null || c[3] === '' ? <span className="dnew" style={{ background: 'var(--row)', color: 'var(--mut2)' }}>(trống)</span> : <span className="dnew">{c[3]}</span>}
-              </span>
-            </div>
-          ))}
-          {list.length > 40 && <div className="drow" style={{ color: 'var(--mut)' }}>… và {list.length - 40} ô khác</div>}
+    <section className="vb">
+      <div className="vbh"><b>So sánh</b>
+        <select className="sel sm" aria-label="Bản này" value={b} onChange={(e) => vbSetB(e.target.value)}>{opt(a)}</select>
+        <span className="vbvs">so với</span>
+        <select className="sel sm" aria-label="Bản trước" value={a} onChange={(e) => vbSetA(e.target.value)}>{opt(b)}</select>
+      </div>
+      <div className="vbks">{M.map(([k, label, up]) => {
+        const vb = C.B[k], va = C.A[k], d = vb - va, good = d === 0 ? '' : d > 0 === up ? 'up' : 'dn';
+        return <div key={k} className="vbk"><span>{label}</span><b>{vb}{d ? <em className={good}>{(d > 0 ? '↑' : '↓') + Math.abs(d)}</em> : <em className="eq">=</em>}</b><i>{'Bản trước: ' + va}</i></div>;
+      })}</div>
+      <div className="vbbody">
+        <div className="vbchart">
+          <div className="vblg"><span><i className="vbA" />{vhFull(s, a)}</span><span><i className="vbB" />{vhFull(s, b)}</span></div>
+          <svg className="vbsvg" viewBox={'0 0 ' + W + ' ' + H} role="img" aria-label="Biểu đồ so sánh số dự án theo tình trạng giữa hai bản">
+            <line x1={PAD} y1={H - 30} x2={W - PAD} y2={H - 30} className="vbax" />
+            {M.map(([k, label], j) => {
+              const cx = PAD + gw * j + gw / 2, va = C.A[k], vb = C.B[k];
+              return (
+                <g key={k}>
+                  <rect x={cx - BW - 2} y={y(va)} width={BW} height={H - 30 - y(va)} rx="3" className="vbA"><title>{vhFull(s, a) + ': ' + va}</title></rect>
+                  <rect x={cx + 2} y={y(vb)} width={BW} height={H - 30 - y(vb)} rx="3" className="vbB"><title>{vhFull(s, b) + ': ' + vb}</title></rect>
+                  <text x={cx - BW / 2 - 2} y={y(va) - 5} className="vbv">{va}</text><text x={cx + BW / 2 + 2} y={y(vb) - 5} className="vbv b">{vb}</text>
+                  <text x={cx} y={H - 10} className="vbl">{label}</text>
+                </g>
+              );
+            })}
+          </svg>
         </div>
-      ) : <div style={{ fontSize: 12, color: 'var(--mut2)' }}>Không có thay đổi.</div>}
-    </div>
+        {ch.length ? (
+          <div className="vbch">
+            <div className="vbcht">Dự án đổi tình trạng <span>{nb.length + ' xấu đi · ' + ng.length + ' tốt lên'}</span></div>
+            {show.map(([x, c]) => (
+              <div key={x.ma + x.k} className="vbr"><i className={'vhst ' + c} /><span className="c2code">{x.ma}</span><span className="vbrn" title={x.viec}>{x.viec}</span><span className={'vbrw ' + c}>{x.what}</span></div>
+            ))}
+            {ch.length > 5 && <button className="alink" onClick={vbToggleMore}>{s.vbMore ? 'Thu gọn' : 'Xem thêm ' + (ch.length - 5) + ' dự án'}</button>}
+          </div>
+        ) : <div className="vbch"><div className="vbcht">Không dự án nào đổi tình trạng hay mức rủi ro</div></div>}
+      </div>
+    </section>
   );
 }
 
-/** Các phiên bản đã chốt theo tuần, so sánh thay đổi giữa các bản. */
-export function VersionsView() {
-  const s = useAppState();
-  const all = s.versions;
-  const selKey = s.verSel || (all.length ? `${all[0].wk}|${all[0].v}` : null);
-  const sel = all.find((v) => `${v.wk}|${v.v}` === selKey);
-  const ch = changedSinceLock(s);
-  const lc = lastCur(s);
-  const canExport = !!(lc && ch && !ch.length);
-  const openExport = () => setModal('export');
+function versionRows(s: AppState): JSX.Element[] {
+  const out: JSX.Element[] = [];
+  WEEKS.forEach((w) => {
+    const L = s.versions.filter((v) => v.wk === w.k).sort((x, y) => y.v - x.v);
+    if (!L.length) return;
+    out.push(<tr key={w.k} className="vlg"><td colSpan={6}>{wkName(w.k, true)}<span>{w.name.split(' · ')[1] || ''}</span></td></tr>);
+    L.forEach((v, i) => {
+      const k = vKey(v), on = s.vlOpen === k, o = on ? overview(s, k) : null;
+      const edit = (e: MouseEvent): void => { e.stopPropagation(); vlEdit(k); };
+      const key = (e: KeyboardEvent): void => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); vlTogExpand(k); } };
+      out.push(
+        <tr key={k} className={'vlrow' + (on ? ' on' : '')} onClick={() => vlTogExpand(k)} onKeyDown={key} role="button" tabIndex={0} aria-expanded={on}>
+          <td>
+            <span className="vlchev" aria-hidden="true">{on ? '▾' : '▸'}</span><b className="vlb">{'Bản ' + v.v}</b>{i === 0 && <em className="vhtag">mới nhất</em>}
+            <div className="vlfile">{v.exported ? <><IcDoc />{v.exported}</> : 'Chưa xuất file'}</div>
+          </td>
+          <td className="vlnum">{v.at}</td><td>{v.by}</td>
+          <td>{v.exported ? <span className="vlst ok">Đã xuất</span> : <span className="vlst">Đã chốt</span>}</td>
+          <td className="vlnote" title={v.note || ''}>{v.note || <span className="vhe">–</span>}</td>
+          <td className="vlact"><button className="btn sm" onClick={edit}>Mở trên bảng</button></td>
+        </tr>
+      );
+      if (on) out.push(
+        <tr key={k + '+'} className="vlexp"><td colSpan={6}>{o ? <>
+          <div className="vloks">{([['Đang chạy', o.run], ['Đúng tiến độ', o.ok], ['Nguy cơ chậm', o.risk], ['Chậm tiến độ', o.late], ['Rủi ro cao', o.high]] as const).map(([lb, n]) => <div key={lb} className="vlok"><span>{lb}</span><b>{n}</b></div>)}</div>
+          <div className="vlexa"><span>{'Chốt ' + v.at + ' · ' + v.by + (v.stats ? ' · ' + v.stats.rows + ' dự án' : '')}</span><button className="btn sm pri" onClick={edit}>Mở trên bảng tính →</button></div>
+        </> : <div className="vhnone">Bản này không có dữ liệu để xem.</div>}</td></tr>
+      );
+    });
+  });
+  return out;
+}
 
-  let detail: React.ReactNode;
-  if (!sel) detail = <div className="card" style={{ padding: 28, textAlign: 'center', color: 'var(--mut)', fontSize: 12.5 }}>Chọn một phiên bản bên trái để xem chi tiết.</div>;
-  else {
-    const wk = WEEKS.find((w) => w.k === sel.wk)!;
-    const prev = all.find((v) => v.wk === sel.wk && v.v === sel.v - 1);
-    const changes: Change[] = sel.snap && prev && prev.snap ? diffSnap(s, prev.snap, sel.snap) : sel.changes || [];
-    const after = sel === lc && ch ? ch : null;
-    const st = sel.exported ? <span className="stpill ok">Đã xuất file</span>
-      : wk.cur && sel === lc && ch && ch.length ? <span className="stpill w">Có thay đổi sau chốt</span> : <span className="stpill">Chưa xuất</span>;
-    detail = (
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div className="vhd">
-          <span className="vbig">v{sel.v}</span>
-          <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>{wk.name}</div>
-            <div style={{ fontSize: 11.5, color: 'var(--mut)', marginTop: 1 }}>Bản chốt {sel === lc ? 'mới nhất' : 'số ' + sel.v} của tuần</div>
-          </div>
-          {st}
-          {sel.exported && <button className="btn sm" onClick={() => reExport(`${sel.wk}|${sel.v}`)}>Tải lại file</button>}
-          {wk.cur && sel === lc && ch && !ch.length && !sel.exported && <button className="btn sm pri" onClick={openExport}>Xuất từ bản này</button>}
-        </div>
-        <div className="mgrid">
-          <div><div className="k">Người chốt</div><div className="v">{sel.by}</div></div>
-          <div><div className="k">Thời điểm</div><div className="v">{sel.at}</div></div>
-          <div><div className="k">Nội dung</div><div className="v">{sel.stats.rows} dự án</div><div style={{ fontSize: 11, color: 'var(--mut)', marginTop: 1 }}>{sel.stats.ai} ô AI · {sel.stats.hand} ô sửa tay</div></div>
-          <div><div className="k">File đã xuất</div><div className={'v' + (sel.exported ? ' mono' : '')} style={{ fontSize: sel.exported ? '11.5px' : '12.5px', ...(sel.exported ? {} : { color: 'var(--mut2)', fontWeight: 500 }) }}>{sel.exported || 'Chưa xuất'}</div></div>
-        </div>
-        {sel.note && <><div className="vnote">{sel.note}</div><div style={{ height: 12 }} /></>}
-        {sel.v > 1 ? <ChangeTable list={changes} title={`Thay đổi so với v${sel.v - 1}`} />
-          : <div className="dsec" style={{ borderTop: '1px solid var(--line2)', fontSize: 12, color: 'var(--mut)' }}>Bản đầu tiên của tuần — không có bản trước để so sánh.</div>}
-        {after && after.length > 0 && <ChangeTable list={after} title="Đã đổi sau khi chốt" note="chưa vào bản nào" />}
-      </div>
-    );
-  }
-
+export function VersionsView(): JSX.Element {
+  const s = useAppState((x) => x);
+  if (!s.loaded) return <div className="gridwrap gut vlwrap"><div className="v2msg">Nhập file Jira trước để có phiên bản.</div></div>;
+  const body = versionRows(s);
   return (
-    <div className="gridwrap gut" style={{ paddingBlock: 18 }}>
-      <div style={{ maxWidth: 1180, margin: '0 auto' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', marginBottom: 14 }}>
-          <div style={{ flex: '1 1 320px', minWidth: 0 }}>
-            <h1 style={{ fontSize: 17, fontWeight: 600, margin: '0 0 3px' }}>Phiên bản đã chốt</h1>
-          </div>
-          <button className="btn pri" onClick={openExport}>{canExport ? `Xuất từ v${lc!.v}` : 'Chốt bản mới'}</button>
-        </div>
-        {lc && ch && ch.length > 0 && (
-          <div className="card" style={{ padding: '10px 14px', marginBottom: 12, borderColor: 'var(--wrnLine)', background: 'var(--wrnBg)', fontSize: 12.5, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{ flex: '1 1 260px' }}><b>{ch.length} ô đã đổi sau khi chốt v{lc.v}.</b> Bản v{lc.v} vẫn giữ nguyên.</span>
-            <button className="btn sm" onClick={openExport}>Chốt thành v{lc.v + 1}</button>
-          </div>
-        )}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-start' }}>
-          <div className="card" style={{ flex: '1 1 270px', minWidth: 0, maxWidth: 340, padding: 4 }}>
-            <div className="vtl">
-              {WEEKS.filter((w) => !w.future).reverse().map((w) => {
-                const vs: Version[] = all.filter((v) => v.wk === w.k);
-                return (
-                  <div key={w.k}>
-                    <div className="vwk">{w.name}{w.cur && <span className="now">đang làm</span>}</div>
-                    {!vs.length && <div className="vempty">Chưa chốt bản nào.{w.cur && <button className="btn sm" onClick={openExport}>Chốt bản đầu tiên</button>}</div>}
-                    {vs.map((v, i) => {
-                      const k = `${v.wk}|${v.v}`;
-                      const dirty = w.cur && v === lc && ch && ch.length;
-                      return (
-                        <button key={k} className={'vnode' + (k === selKey ? ' on' : '') + (i === 0 ? ' first' : '') + (i === vs.length - 1 ? ' last' : '')} onClick={() => pickVersion(k)}>
-                          <span className="vrail"><span className={'vdot' + (dirty ? ' dirty' : v.exported ? ' exp' : '')} /></span>
-                          <span className="vnb">
-                            <span className="vnt"><b>v{v.v}</b><span>{v.at}</span><span style={{ color: 'var(--mut)' }}>· {v.by}</span></span>
-                            <span className="vnn">{v.note || 'Không có ghi chú'}</span>
-                            {dirty ? <span className="vtag dirty" style={{ marginTop: 5 }}>{ch!.length} ô đổi sau chốt</span> : null}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          <div style={{ flex: '2 1 440px', minWidth: 0 }}>{detail}</div>
-        </div>
-      </div>
-    </div>
+    <div className="gridwrap gut vlwrap7"><div className="vlm">
+      <div className="vlh"><div><h2>Phiên bản đã chốt</h2><span>Bấm một bản để xem nhanh tổng quan · “Mở trên bảng” để mở lại bản đó trên bảng tính.</span></div></div>
+      <VbBlock s={s} />
+      <div className="vltb"><table className="vlt">
+        <thead><tr><th>Phiên bản · file</th><th>Chốt lúc</th><th>Người chốt</th><th>Trạng thái</th><th>Ghi chú</th><th /></tr></thead>
+        <tbody>{body.length ? body : <tr><td colSpan={6} className="vhnone">Chưa có bản nào được chốt.</td></tr>}</tbody>
+      </table></div>
+    </div></div>
   );
 }
