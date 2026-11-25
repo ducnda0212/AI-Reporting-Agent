@@ -2,7 +2,7 @@
    nhật ký/thông báo và lưu localStorage an toàn (không chạm trình duyệt khi chạy trong node/SSR). */
 import { create } from 'zustand';
 import { castDraft, produce, type Draft } from 'immer';
-import { FIELDS, IMPORTS, PHASE_BUCKET, SEED_VERSIONS } from '@/data/constants';
+import { FIELDS } from '@/data/constants';
 import type { AppState, FieldId, LogResult, NavSnap, Row, UndoSnap, VersionItem } from '@/types';
 
 /* ---------- trình duyệt & localStorage ---------- */
@@ -45,7 +45,7 @@ export function sortVersions(L: VersionItem[]): VersionItem[] {
   return L.sort((a, b) => (a.wk === b.wk ? b.v - a.v : a.wk < b.wk ? 1 : -1));
 }
 function loadVersions(): VersionItem[] {
-  const L = structuredClone(SEED_VERSIONS);
+  const L: VersionItem[] = [];
   (lsJson<{ versions: VersionItem[] }>(LS.store).versions || []).slice().reverse().forEach((v) => {
     if (!L.some((x) => x.wk === v.wk && x.v === v.v)) L.unshift(v);
   });
@@ -55,8 +55,10 @@ function loadVersions(): VersionItem[] {
 export function initialState(): AppState {
   const gx = lsJson<AppState['gx']>(LS.grid), pn = lsJson<AppState['pn']>(LS.panel), cols = lsJson<{ hidden: AppState['hidden']; pin: boolean }>(LS.cols);
   const s: AppState = {
-    view: 'import', panel: null, modal: null, test: null, testSeed: 7, loaded: false, importing: null, fileName: '',
-    realOnly: true, newCodes: 'pending', dupMerged: false, phaseBucket: { ...PHASE_BUCKET }, unsorted: [],
+    view: 'import', panel: null, modal: null, loaded: false, importing: null, fileName: '',
+    realOnly: true, newCodes: 'pending', dupMerged: false, phaseBucket: {}, unsorted: [],
+    cycleId: '2026_11_w3', weeks: [], activeToday: '', sessionId: null, fileCols: [], fileStats: null, groups: [], applied: null,
+    orphans: [], blockers: [], warnings: [], mappings: [], mpUsed: null, mpSrc: {}, mpDirty: false, mpSave: false, busy: false, importErr: null,
     allRows: [], sel: null, range: null, search: '', onlyFix: false, collapsed: {}, rowSel: {},
     hidden: cols.hidden || { x: true, mang: true }, pinViec: cols.pin !== false, menu: null, pop: null, pk: null, pe: null, peAuto: true, svflash: [], fpop: null, ctx: null, colFilter: {}, sort: null,
     fmt: {}, wrap: {},
@@ -73,9 +75,9 @@ export function initialState(): AppState {
     vlOpen: null, vbA: null, vbB: null, vbMore: false, openedVer: null,
     lockBy: 'Khuê', lockMsg: null, exported: null, exCols: 'vis',
     log: [], lgQ: '', lgF: '', lgW: '',
-    help: false, helpQ: '', helpOpen: null, tour: null, tourKey: 'all', toast: null, pv: null, pvSheet: 0, pvFs: false, impHist: [...IMPORTS], replaceFile: false, impF: 'all', histOpen: false,
+    help: false, helpQ: '', helpOpen: null, tour: null, tourKey: 'all', toast: null, pv: null, pvSheet: 0, pvFs: false, impHist: [], replaceFile: false, impF: 'all', histOpen: false,
     nav: { st: [], ix: -1 }, undoStack: [], redoStack: [],
-    touched: {}, fixPos: {}, fxTip: null, logSeq: 0, lockSeq: 0, stgSeq: 0, testOrig: null
+    touched: {}, fixPos: {}, fxTip: null, logSeq: 0, lockSeq: 0, stgSeq: 0
   };
   s.nav = { st: [navSnap(s)], ix: 0 };
   return s;
@@ -118,9 +120,9 @@ export function restoreSnap(d: Draft<AppState>, x: UndoSnap): boolean {
 function clearUndo(next: AppState, d: Draft<AppState>): void {
   if (next.undoStack.length || next.redoStack.length) { d.undoStack = []; d.redoStack = []; }
 }
-/* hoàn tác không vượt qua ranh giới dữ liệu: chưa nạp, vào/ra chế độ thử, nạp lại file (`resetUndo`) */
+/* hoàn tác không vượt qua ranh giới dữ liệu: chưa nạp, nạp lại file (`resetUndo`) */
 function trackUndo(prev: AppState, next: AppState, d: Draft<AppState>): void {
-  if (!next.loaded || prev.test !== next.test) return clearUndo(next, d);
+  if (!next.loaded) return clearUndo(next, d);
   if (!prev.loaded || (prev.allRows === next.allRows && prev.fmt === next.fmt && prev.wrap === next.wrap)) return;
   const a = undoSnap(prev), b = undoSnap(next);
   if (JSON.stringify(a) === JSON.stringify(b)) return;
@@ -166,9 +168,9 @@ export function log(d: Draft<AppState>, a: string, o: string, detail: string, r:
   d.log.unshift({ t: p2(t.getHours()) + ':' + p2(t.getMinutes()), a, o, d: detail, r, day: p2(t.getDate()) + '/' + p2(t.getMonth() + 1) + '/' + t.getFullYear(), seq: d.logSeq });
 }
 
-export function toast(d: Draft<AppState>, m: string): void {
+export function toast(d: Draft<AppState>, m: string, ms = 2200): void {
   d.toast = m;
-  if (inBrowser()) setTimeout(() => { if (getState().toast === m) mutate((x) => { x.toast = null; }); }, 2200);
+  if (inBrowser()) setTimeout(() => { if (getState().toast === m) mutate((x) => { x.toast = null; }); }, ms);
 }
 
 /* ---------- dữ liệu dẫn xuất ---------- */

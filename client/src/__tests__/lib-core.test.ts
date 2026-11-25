@@ -5,7 +5,8 @@ import { selKeys, visibleFields } from '@/lib/grid';
 import { parseMilestones, poNm } from '@/lib/popout';
 import { vCompare2, cxNote, diffSnap, vhList, type CmpSide } from '@/lib/versions';
 import { getStoredTheme, toggleTheme } from '@/lib/theme';
-import { STATUS_MAP, SEED_VERSIONS } from '@/data/constants';
+import { STATUS_MAP } from '@/data/constants';
+import { SEED_VERSIONS, setFixtureCycle } from './fixtures';
 
 const side = (key: string, wk: CmpSide['wk'], snap: CmpSide['snap']): CmpSide => ({ key, wk, snap });
 
@@ -84,6 +85,7 @@ describe('Core Pure Helpers', () => {
 
   it('diffSnap và vhList', () => {
     expect(diffSnap({ 'I.A.3.1|tt': 'a' }, { 'I.A.3.1|tt': 'b' })).toEqual([['I.A.3.1', 'I ' + fieldById('tt')!.name, 'a', 'b']]);
+    setFixtureCycle();
     expect(vhList(SEED_VERSIONS).map((x) => x.k)).toEqual(['cur', 'w2|2', 'w2|1', 'w1|1']);
   });
 

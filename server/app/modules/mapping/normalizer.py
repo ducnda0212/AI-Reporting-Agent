@@ -57,12 +57,21 @@ def normalize_progress(val: str | None, table: dict[str, str] | None = None) -> 
     return _lookup(table or _PROGRESS_MAP, val)
 
 
-def normalize_phase(val: str | None, table: dict[str, str] | None = None) -> str:
+def phase_number(val: str | None, bucket: dict[str, int] | None = None) -> int:
+    """AI lifecycle step 1..12 of a raw Jira phase (explicit `bucket` entry first, else its leading number); 0 = unknown."""
+    if not val or not val.strip() or val.strip().upper() == "TBD":
+        return 0
+    if bucket and val.strip() in bucket:
+        return bucket[val.strip()]
+    m = re.match(r"\s*(?:phase|bước|buoc|step)?\s*(\d{1,2})\b", val, re.I)
+    return int(m.group(1)) if m and 1 <= int(m.group(1)) <= len(PHASE_NAMES) else 0
+
+
+def normalize_phase(val: str | None, table: dict[str, str] | None = None, bucket: dict[str, int] | None = None) -> str:
     if not val or not val.strip() or val.strip().upper() == "TBD":
         return ""
-    m = re.match(r"\s*(?:phase|bước|buoc|step)?\s*(\d{1,2})\b", val, re.I)
-    if m and 1 <= int(m.group(1)) <= len(PHASE_NAMES):
-        return (table or _PHASE_MAP).get(str(int(m.group(1))), val.strip())
+    if n := phase_number(val, bucket):
+        return (table or _PHASE_MAP).get(str(n), val.strip())
     return val.strip()
 
 

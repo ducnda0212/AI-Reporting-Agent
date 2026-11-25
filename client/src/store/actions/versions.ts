@@ -7,7 +7,6 @@ import { snapshot, verEditsNow, vKey, vSnap, type Snap } from '@/lib/versions';
 import { exFields, exXlsx, xlsxName } from '@/lib/xlsx';
 import type { AppState, VersionItem, WeekKey } from '@/types';
 import { getState, inBrowser, log, LS, lsJson, lsSet, mutate, nowStr, rowsOf, sortVersions, toast } from '@/store';
-import { GOLD_FILE, loadFileNow } from './flow';
 
 export const wkName = (k: WeekKey, short = false): string => {
   const w = WEEKS.find((x) => x.k === k);
@@ -111,9 +110,9 @@ function openVersion(d: Draft<AppState>, v: VersionItem, snap: Snap): void {
 
 /** "Mở trên bảng tính →": nạp bản cũ (bản chưa lưu ảnh dùng ảnh minh hoạ) và bật banner "Đang sửa tiếp". Không đổi danh sách bản. */
 export function vlEdit(k: string): void {
-  let s = getState(), v = vFind(s, k);
+  const s = getState(), v = vFind(s, k);
   if (!v) return;
-  if (!s.loaded) { loadFileNow(v.fileName || s.fileName || GOLD_FILE); s = getState(); v = vFind(s, k)!; }
+  if (!s.loaded) return mutate((d) => toast(d, 'Nhập file Jira của tuần này trước, rồi mở lại bản'));
   const snap = vSnap(v, rowsOf(s), s), ver = v;
   mutate((d) => {
     if (!snap) return toast(d, 'Bản này không có dữ liệu để mở lại');
@@ -125,9 +124,9 @@ export function vlEdit(k: string): void {
 }
 /** "Mở →" ở "Bản đã lưu trên hệ thống" (bước 1): mở lại bản đã chốt trên bảng, không cần nhập file. */
 export function verOpen(k: string): void {
-  let s = getState(), v = vFind(s, k);
+  const s = getState(), v = vFind(s, k);
   if (!v || !v.snap) return mutate((d) => toast(d, 'Bản này không có dữ liệu để mở lại'));
-  if (!s.loaded) { loadFileNow(v.fileName || s.fileName || GOLD_FILE); s = getState(); v = vFind(s, k)!; }
+  if (!s.loaded) return mutate((d) => toast(d, 'Nhập file Jira của tuần này trước, rồi mở lại bản'));
   const ver = v, snap = v.snap!;
   mutate((d) => { openVersion(d, ver, snap); toast(d, 'Đã mở bản v' + ver.v + ' (' + ver.at + ') — sửa tiếp rồi chốt thành bản mới'); });
 }

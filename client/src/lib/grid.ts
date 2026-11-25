@@ -1,5 +1,5 @@
 /* Cột hiển thị, lọc cột, tìm kiếm, vùng chọn, độ rộng cột. Port từ prototype v4; mọi hàm nhận state tường minh. */
-import { AI_IDS, FIELDS, GROUPS } from '@/data/constants';
+import { AI_IDS, FIELDS } from '@/data/constants';
 import type { AppState, CellRef, Field, FieldId, FilterMap, FindState, Row, SelectionRange } from '@/types';
 import { cellValue, ck, colNum, displayText, fieldById, optsFor, phName, type CellCtx } from './cell';
 
@@ -37,12 +37,12 @@ export const hitCell = (r: Row, f: Field, F: FindState, ctx: CellCtx, selF?: Fie
 export interface FindMatch { i: number; f: FieldId; t: string }
 
 /** Các ô khớp, theo thứ tự nhóm dự án → dòng → cột đang hiện. */
-export function findMatches(state: Pick<AppState, 'find' | 'hidden' | 'phaseBucket'> & { sel?: CellRef | null }, rows: Row[]): FindMatch[] {
+export function findMatches(state: Pick<AppState, 'find' | 'hidden' | 'phaseBucket' | 'groups'> & { sel?: CellRef | null }, rows: Row[]): FindMatch[] {
   const F = state.find;
   if (!F.q.trim()) return [];
   const out: FindMatch[] = [];
   const vf = visibleFields(state.hidden).filter((f) => scopeHas(f, F, state.sel?.f));
-  GROUPS.forEach((g) => {
+  state.groups.forEach((g) => {
     rows.forEach((r) => {
       if (r.g !== g.k) return;
       vf.forEach((f) => {

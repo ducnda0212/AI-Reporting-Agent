@@ -20,7 +20,7 @@ React 18, TypeScript (strict), Vite 5, zustand + immer (state), vitest (môi tr�
 
 ## Luồng sử dụng (3 bước)
 
-1. **Nhập file** — kéo thả / chọn file CSV, Excel, hoặc "Dùng dữ liệu mẫu"; xem trước file (`FilePreviewModal`); màn tóm tắt sau khi nạp (issue, dự án, trạng thái, tiến độ, các cột lấy từ Jira).
+1. **Nhập file** — kéo thả / chọn file CSV hoặc Excel (`.csv .tsv .txt .xlsx .xlsm`; `.xls` cũ bị máy chủ từ chối, hãy lưu sang `.xlsx`); xem trước file (`FilePreviewModal`); màn tóm tắt sau khi nạp (issue, dự án, trạng thái, tiến độ, các cột lấy từ Jira).
 2. **Bảng · điền & duyệt** — lưới 49 cột, sửa tại ô, bấm 1 lần ở cột có danh sách thì hiện bảng chọn (1-touch picker), lọc/sắp xếp theo cột, tìm, chọn vùng, kéo điền, menu chuột phải, định dạng (đậm/nghiêng/màu/căn lề/wrap), ẩn/hiện/ghim cột, "Duyệt từng ô" cho nháp AI.
 3. **Chốt & xuất** — hộp 3 bước (Kiểm tra → Chốt bản vN → Xuất file); chỉ xuất từ bản đã chốt; xuất **Excel 49 cột** (không còn PDF/Word).
 
@@ -31,11 +31,25 @@ Các phần chính khác:
 - **Project popout** — bấm mã dự án ở cột Mã DA: xem thông tin, milestone, báo cáo từng tuần, tìm trong dự án, đổi cỡ chữ, chuyển dự án.
 - **Phiên bản** — danh sách bản đã chốt, so sánh 2 bản, mở lại bản cũ trên bảng.
 - **Nhật ký** — ai làm gì trên báo cáo, có lọc theo hoạt động / người / từ khoá.
-- **Hướng dẫn** (nút ?) và tour; **Dữ liệu thử** (kịch bản test, thoát thì khôi phục nguyên trạng); giao diện sáng/tối; chọn kỳ báo cáo; cấu hình mẫu (số tuần, cột) ở panel bên phải.
+- **Hướng dẫn** (nút ?) và tour; **đã bỏ** chế độ "Dữ liệu thử" và nút "Dùng dữ liệu mẫu" (toàn bộ dữ liệu giờ từ máy chủ); giao diện sáng/tối; chọn kỳ báo cáo; cấu hình mẫu (số tuần, cột) ở panel bên phải.
 
 ## Dữ liệu và localStorage
 
-Mock ở `src/data/demo.json` + `src/data/constants.ts` (49 field, hướng dẫn, tour, FAQ...). Dữ liệu mẫu "GOLD" có **56 dòng dự án** (`stats.epics` = 64 là số epic trong file Jira gốc). Mã field giữ nguyên theo prototype (`ma`, `rui`, `kh`, `vd`, `tt`...), không đổi sang tiếng Anh.
+**Dữ liệu thật từ máy chủ (Giai đoạn 1).** Bảng chỉ được nạp từ API `server/` qua `src/services/api.ts` (proxy Vite `/api` → `http://127.0.0.1:8000`, không dùng `localhost` vì Node 17+ phân giải ra `::1`):
+
+| Việc | API |
+|---|---|
+| Kỳ báo cáo, ngày báo cáo (`TODAY`, `WEEKS`) | `GET /api/v1/cycles/active` |
+| Đọc file Jira (CSV / Excel) | `POST /api/v1/ingest/upload` |
+| "Lần nhập gần nhất", nhập lại file cũ | `GET /api/v1/ingest/history`, `GET /api/v1/sessions/{id}` |
+| Cấu hình mapping (chọn / lưu mới / cập nhật / nhân bản / đặt mặc định / xoá) | `/api/v1/mappings…` |
+| Đổi nguồn một cột Jira (xem trước, chưa lưu) | `POST /api/v1/mapping/recalculate` với `src_overrides` |
+
+**Thông báo lỗi và màn đọc file (sửa giao diện Giai đoạn 1).** Mã lỗi của máy chủ được đổi sang câu tiếng Việt cụ thể bởi `friendlyError` trong `src/services/api.ts` (vd file thiếu cột `Summary` / `Issue key`, định dạng `.xls`, file quá 50 MB, mất kết nối server); mã lạ giữ thông báo gốc. Lỗi nhập file hiện thành khung đỏ cố định ngay trong ô xem trước (`importErr`), file đã chọn được giữ để thử lại; lỗi ở thao tác mapping hiện thông báo nổi 6 giây. Màn **Đang đọc file** làm đúng prototype (`impLoadA`) với số liệu thật: đứng ở bước 1 chờ máy chủ, rồi 4 bước chạy lần lượt mỗi `IMPORT_STEP_MS` = 650 ms, bước xong hiện dòng kết quả ("90 cột, 125 issue", "3 nhóm cột đã gộp", "56 dự án ghép được, 12 issue chưa có mã", "N mã mới" hoặc "Chưa có file tuần trước để so"), cột "Đã tìm thấy" có 6 dòng hiện số dần theo bước (thêm "Mã mới so với tuần trước"), dừng `IMPORT_END_MS` = 400 ms (tổng 3 giây) rồi tự sang màn tóm tắt. Chữ dựng ở `src/lib/importSteps.ts` từ phản hồi `POST /ingest/upload`. Nút "Xem tóm tắt ngay" bỏ qua phần chờ, "Huỷ" giữa chừng thì không nạp bảng; chế độ giảm chuyển động (`prefers-reduced-motion`) không chờ. Tên file dài ở "Lần nhập gần nhất" xuống tối đa 2 dòng (tên đầy đủ ở `title`). Ô chọn cột Jira nằm gọn trong cột "Nguồn". Màn nhập file cuộn được nhờ `body.onimp #root{display:flex;flex-direction:column}` (React gắn vào `#root` trong khi CSS prototype chỉ xếp cột cho `#app`); quy tắc chỉ áp cho màn nhập file. Ảnh chụp mới cần chụp tay: khung lỗi nhập file, màn đọc file có số liệu, bảng mapping có ô chọn cột.
+
+Ở màn **Nhập file** sau khi nạp: thanh **Cấu hình mapping** (`mpBar`) trên bảng 49 cột và ô chọn cột Jira (`mapQuick`) cho 25 cột lấy được từ Jira (`MAPPABLE` trong `ImportView.tsx`); các cột khoá ghép, tính toán, nhập tay/AI và 12 cột tuần giữ nguồn cố định. Đổi nguồn chỉ xem trước (cờ `mpDirty`), bấm "Cập nhật" / "Lưu thành cấu hình mới" mới ghi vào SQLite. `kh` / `vd` (AS, AT) hiện ngay nội dung máy chủ bóc từ Progress Report / Risk Notes bằng quy tắc, chưa có AI (AI là dịch vụ `ai/` riêng, giai đoạn sau); nháp AI nếu có sẽ đè lên.
+
+`src/data/constants.ts` giữ 49 field, hướng dẫn, tour, FAQ... Mã field giữ nguyên theo prototype (`ma`, `rui`, `kh`, `vd`, `tt`...) và là mã dùng chung với `server/`. Dữ liệu dùng trong test nằm riêng ở `src/__tests__/fixtures*` (không vào mã chạy thật).
 
 Khoá localStorage: `pmo-theme`, `pmo-tour-v1`, `pmo-tour-ver`, `pmo-proto-store-v1`, `pmo-proto-grid-v1` (rộng cột), `pmo-proto-cols-v4` (ẩn cột + ghim), `pmo-proto-panel-v1`, `pmo-proto-imphist-v1` (lịch sử nhập), `pmo-po-fz`, `pmo-po-sidew` (popout).
 
@@ -49,11 +63,12 @@ client/
 └─ src/
    ├─ main.tsx, App.tsx           # App: ghép Rail/TopBar/panel/lớp nổi, đóng menu khi bấm ra ngoài
    ├─ types/index.ts
-   ├─ data/         demo.json, constants.ts
+   ├─ data/         constants.ts
+   ├─ services/     api.ts (máy khách API, ApiError)
    ├─ lib/          hàm thuần: cell, grid, clean, ai, versions, popout, xlsx (ghi .xlsx), theme
    ├─ store/        index.ts (zustand+immer) và actions/ (ai, flow, grid, help, popout, versions)
    ├─ hooks/        useKeyboard, useGridResize
-   ├─ components/   layout/ (TopBar, Rail, StatusBar, EditBanner, TestBanner, Toast)
+   ├─ components/   layout/ (TopBar, Rail, StatusBar, EditBanner, Toast)
    │                grid/ (Grid, Cell, CellEditor, PickerPop, FillHandle, FormatBar, SelBar, AgentCursor)
    │                layers/ (ContextMenu, FilterPopup, FindCard, PECard, Spotlight)
    │                modals/ (ExportModal, AiDoneModal, HelpDrawer, ProjectPopout)
@@ -91,12 +106,14 @@ Kế hoạch: `docs/superpowers/plans/2026-11-25-fe-rebuild-prototype-v4-lite.md
 **Quyết định cần reviewer biết**
 - Prototype HTML là chuẩn khi lệch với plan/test (parity 1:1); mỗi chỗ sửa literal test được ghi trong báo cáo từng task.
 - Excel: hàng tiêu đề dùng **một màu nền xám** như hàm xuất của prototype, dù plan/spec ghi "màu theo nhóm". Muốn màu theo nhóm thì là việc nhỏ thêm trong `lib/xlsx.ts`.
-- Dữ liệu GOLD có 56 dòng dự án (không phải 64); test dùng số thật của prototype.
-- Thoát chế độ "Dữ liệu thử" khôi phục đúng ảnh chụp trước khi vào (prototype chỉ reset rồi áp lại nên mất sửa tay).
+- Bộ dòng dùng trong test có 56 dòng dự án (`src/__tests__/fixtures/jira-rows.json`); `loadFixture()` nạp qua đúng hàm production `applyIngest`.
+- Giai đoạn 1 kiểm bằng `npm run typecheck` và `npm test` (không chạy `npm run build`).
 - Các màn ẩn của prototype (mẫu BC, Điều hành, Rủi ro, Hệ thống...) **cố ý không port**; HELP/TOUR/FAQ đã viết lại theo luồng gọn.
 - Picker, filter, menu, find, popout là lớp nổi gắn ngoài `.gridwrap`; `App` đóng menu khi bấm ra ngoài và bỏ qua Esc khi xem trước file toàn màn hình đang mở.
 - `main.tsx` chỉ áp theme khi đã lưu `pmo-theme` (giống prototype). Store và component an toàn khi chạy trong node (không có DOM) để test bằng vitest không cần jsdom.
-- Không thêm dependency; không đụng `server/`.
+- Không thêm dependency. Giai đoạn 1 có đụng `server/` (hợp đồng `Row`, upload Excel, lịch sử, mở lại phiên, mapping preview) nhưng không đụng `ai/`.
+- Màn Phiên bản / Chốt & xuất chưa nối máy chủ (Giai đoạn 3): danh sách bản đã chốt khởi tạo rỗng, chỉ có bản lưu cục bộ.
+- Ảnh chụp màn hình mới của bước 1 (mpBar, mapQuick) cần chụp tay khi chạy `npm run dev` cùng `server/`; chưa có trong `docs/screenshots/`.
 
 ## Trạng thái và hạn chế đã biết
 - Mọi dữ liệu là mock. Nạp file là giả lập (chưa gửi backend).

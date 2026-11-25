@@ -1,15 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import { getState, mutate, resetStore, rowsOf } from '@/store';
 import {
-  enterTest, fillCount, histToggle, impCancel, lgReset, lgSetF, lgSetQ, lgSetW, loadFileNow, pvGo, pvSetFs, pvSetSheet, pvStage,
+  fillCount, histToggle, impCancel, lgReset, lgSetF, lgSetQ, lgSetW, pvGo, pvSetFs, pvSetSheet, pvStage,
   setImpF, setReplaceFile, setView, themeToggle
 } from '@/store/actions/flow';
 import { doLock, verOpen, vlEdit, vlTogExpand, wkHist, wkOpen } from '@/store/actions/versions';
 import { TopBar } from '@/components/layout/TopBar';
 import { Rail } from '@/components/layout/Rail';
 import { StatusBar } from '@/components/layout/StatusBar';
-import { TestBanner } from '@/components/layout/TestBanner';
 import { EditBanner } from '@/components/layout/EditBanner';
 import { Toast } from '@/components/layout/Toast';
 import { RiskText, textHasRisk } from '@/components/common/RiskText';
@@ -17,13 +16,15 @@ import { ImportView } from '@/views/Import/ImportView';
 import { FilePreviewModal } from '@/views/Import/FilePreviewModal';
 import { VersionsView } from '@/views/Versions/VersionsView';
 import { LogView } from '@/views/Log/LogView';
+import { api } from '@/services/api';
+import { fixtureResponse, loadFixture, seedVersions } from './fixtures';
 
 const csvFile = (name: string, text: string) => ({ name, size: text.length, arrayBuffer: async () => new TextEncoder().encode(text).buffer as ArrayBuffer });
 
 describe('Layout Shell & Views SSR', () => {
   it('TopBar hiển thị đúng 3 bước và Rail chỉ có 3 mục Bảng, Phiên bản, Nhật ký', () => {
     resetStore();
-    loadFileNow('20261125_DAN_Jira-Export-Clean-Dataset_64DA.csv');
+    loadFixture();
     const top = renderToString(<TopBar />);
     expect(top).toContain('Nhập file');
     expect(top).toContain('Bảng · điền &amp; duyệt');
@@ -45,12 +46,15 @@ describe('Layout Shell & Views SSR', () => {
   it('ImportView, VersionsView (kèm SVG chart) và LogView render sạch', () => {
     resetStore();
     expect(renderToString(<ImportView />)).toContain('Nhập file Jira');
-    loadFileNow('x.csv');
+    loadFixture('x.csv');
     const imp = renderToString(<ImportView />);
     expect(imp).toContain('Mở bảng báo cáo');
-    expect(imp).toContain('42 cột · lấy từ đâu, kèm giá trị mẫu');
+    expect(imp).toContain('49 cột · lấy từ đâu, kèm giá trị mẫu');
     expect(imp).toContain('<b>112</b>');
-    expect(imp).not.toContain('Phòng chịu trách nhiệm'); // NO_JIRA bị ẩn
+    expect(imp).toContain('Phòng chịu trách nhiệm'); // đủ 49 cột
+    expect(imp).toContain('class="mpbar"');
+    expect(imp).toContain('class="sel issel"');
+    seedVersions();
     const verHtml = renderToString(<VersionsView />);
     expect(verHtml).toContain('vbsvg');
     expect(verHtml).toContain('Mở trên bảng');
@@ -60,18 +64,57 @@ describe('Layout Shell & Views SSR', () => {
     expect(logHtml).toContain('lgav sys');
   });
 
+  it('màn Đang đọc theo công thức impLoadA của prototype, số liệu thật', () => {
+    resetStore();
+    const found = { issues: 125, cols: 90, dupGroups: 3, projects: 56, orphans: 12, newCodes: 2 };
+    mutate((d) => { d.importing = { name: 'a.csv', step: 0 }; });
+    const wait = renderToString(<ImportView />);
+    expect(wait).toContain('skel');
+    expect(wait).not.toContain('Xem tóm tắt ngay');
+    expect(wait.match(/Đang xử lý…/g)).toHaveLength(1);
+    expect(wait.match(/class="lst ok"/g)).toBeNull();
+
+    mutate((d) => { d.importing = { name: 'a.csv', step: 2, found }; });
+    const mid = renderToString(<ImportView />);
+    expect(mid).toContain('90 cột, 125 issue');
+    expect(mid).toContain('3 nhóm cột đã gộp');
+    expect(mid).not.toContain('56 dự án ghép được'); // bước 3 chưa xong
+    expect(mid.match(/class="lst ok"/g)).toHaveLength(2);
+    expect(mid.match(/Đang xử lý…/g)).toHaveLength(1);
+    expect(mid.match(/Chờ/g)).toHaveLength(1);
+    for (const v of ['>125</b>', '>90</b>', '>3</b>']) expect(mid).toContain(v);
+    expect(mid).not.toContain('>56</b>');
+    expect(mid.match(/class="skel"/g)).toHaveLength(3);
+    expect(mid).toContain('aria-valuenow="63"');
+    expect(mid).toContain('Xem tóm tắt ngay');
+
+    mutate((d) => { d.importing = { name: 'a.csv', step: 4, found }; });
+    const all = renderToString(<ImportView />);
+    expect(all.match(/class="lst ok"/g)).toHaveLength(4);
+    expect(all).toContain('56 dự án ghép được, 12 issue chưa có mã');
+    expect(all).toContain('2 mã mới');
+    expect(all).toContain('class="e">12</b>');
+    expect(all).toContain('class="w">2</b>');
+    expect(all).not.toContain('skel');
+    expect(all).toContain('aria-valuenow="100"');
+
+    mutate((d) => { d.importing = { name: 'a.csv', step: 4, found: { ...found, newCodes: null } }; });
+    const first = renderToString(<ImportView />);
+    expect(first).toContain('Chưa có file tuần trước để so');
+    expect(first).toContain('>—</b>');
+  });
+
   it('màn Đang đọc, Thay file, lọc cột ở bước 1', () => {
     resetStore();
     mutate((d) => { d.importing = { name: 'a.csv', step: 2 }; });
     const ld = renderToString(<ImportView />);
     expect(ld).toContain('Đang đọc file Jira');
-    expect(ld).toContain('4 nhóm cột đã gộp');
     expect(ld).toContain('Huỷ, chọn file khác');
     impCancel();
     expect(getState().importing).toBeNull();
     expect(getState().toast).toBe('Đã huỷ đọc file');
 
-    loadFileNow('x.csv');
+    loadFixture('x.csv');
     setReplaceFile(true);
     expect(renderToString(<ImportView />)).toContain('Thay file Jira');
     setReplaceFile(false);
@@ -82,10 +125,10 @@ describe('Layout Shell & Views SSR', () => {
     expect(getState().histOpen).toBe(true);
   });
 
-  it('StatusBar, TestBanner, EditBanner, Toast, RiskText', () => {
+  it('StatusBar, EditBanner, Toast, RiskText', () => {
     resetStore();
     expect(renderToString(<StatusBar />)).toBe('');
-    loadFileNow('x.csv');
+    loadFixture('x.csv');
     setView('grid');
     const sb = renderToString(<StatusBar />);
     expect(sb).toContain(rowsOf(getState()).length + ' dòng · 49 cột');
@@ -93,11 +136,12 @@ describe('Layout Shell & Views SSR', () => {
     expect(sb).not.toContain('ftcell');
     expect(sb).not.toContain('ô bắt buộc còn trống');
 
-    enterTest('risk');
-    expect(renderToString(<TestBanner />)).toContain('CHẾ ĐỘ TEST');
-    expect(renderToString(<Toast />)).toContain('Chế độ test · Nhiều rủi ro');
+    mutate((d) => { d.toast = 'Đã lưu'; });
+    expect(renderToString(<Toast />)).toContain('Đã lưu');
 
     resetStore();
+    loadFixture('x.csv');
+    seedVersions();
     vlEdit('w2|2');
     expect(renderToString(<EditBanner />)).toContain('Đang sửa tiếp Bản 2 · Tuần 02/11 · 07–14/11');
 
@@ -108,7 +152,8 @@ describe('Layout Shell & Views SSR', () => {
 
   it('VersionsView: bấm dòng xổ 5 chỉ số; LogView: lọc loại, người, tìm', () => {
     resetStore();
-    loadFileNow('x.csv');
+    loadFixture('x.csv');
+    seedVersions();
     vlTogExpand('w2|2');
     const v = renderToString(<VersionsView />);
     expect(v).toContain('vloks');
@@ -150,7 +195,10 @@ describe('Hành động mới cho bước 1, chọn tuần, nhật ký, giao di�
     expect(fs).toContain('id="pvq"');
     pvSetFs(false);
     expect(renderToString(<FilePreviewModal />)).toBe('');
-    pvGo();
+    const up = vi.spyOn(api, 'ingestUpload').mockResolvedValue(fixtureResponse('jira.csv'));
+    await pvGo();
+    expect(up).toHaveBeenCalledOnce();
+    up.mockRestore();
     expect(getState().pv?.done).toBe(true);
     expect([getState().loaded, getState().fileName]).toEqual([true, 'jira.csv']);
     await pvStage(undefined);
@@ -169,11 +217,11 @@ describe('Hành động mới cho bước 1, chọn tuần, nhật ký, giao di�
 
   it('Thay file khác bỏ file xem trước; nạp file tắt chế độ thay file', async () => {
     resetStore();
-    loadFileNow('x.csv');
+    loadFixture('x.csv');
     await pvStage(csvFile('b.csv', 'A\n1\n'));
     setReplaceFile(true);
     expect([getState().replaceFile, getState().pv]).toEqual([true, null]);
-    loadFileNow('y.csv');
+    loadFixture('y.csv');
     expect(getState().replaceFile).toBe(false);
   });
 
@@ -181,7 +229,7 @@ describe('Hành động mới cho bước 1, chọn tuần, nhật ký, giao di�
     resetStore();
     verOpen('w2|2');
     expect(getState().toast).toBe('Bản này không có dữ liệu để mở lại');
-    loadFileNow('x.csv');
+    loadFixture('x.csv');
     doLock('Khuê', '');
     const k = getState().verSel!;
     setView('import');
@@ -192,6 +240,7 @@ describe('Hành động mới cho bước 1, chọn tuần, nhật ký, giao di�
 
   it('wkOpen / wkHist, fillCount, themeToggle', () => {
     resetStore();
+    seedVersions();
     mutate((d) => { d.menu = 'week'; });
     wkOpen('w3');
     expect([getState().menu, getState().view]).toEqual([null, 'import']);
@@ -202,10 +251,8 @@ describe('Hành động mới cho bước 1, chọn tuần, nhật ký, giao di�
     expect(getState().view).toBe('ver');
 
     expect(fillCount(getState())).toBe(0);
-    loadFileNow('x.csv');
+    loadFixture('x.csv');
     expect(fillCount(getState())).toBeGreaterThan(0); // mọi nháp AI đang chờ duyệt
-    enterTest('many');
-    expect(fillCount(getState())).toBe(0);
 
     expect(themeToggle()).toBe('dark'); // node: theme hiện tại mặc định 'light'
     expect(getState().toast).toBe('Đã chuyển sang giao diện tối');

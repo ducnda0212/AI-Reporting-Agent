@@ -21,11 +21,12 @@ def test_full_phase2_postman_flow():
     default_vm = client.get("/api/v1/mappings/map_default_pmo_49col").json()["value_mappings"]
     assert default_vm["status_map"]["In Progress"] == "Đang thực hiện"
 
-    # 4. demo ingest (19 issues, default mapping): the out-of-catalog issue is an orphan
-    demo = client.post("/api/v1/ingest/demo", json={"cycle_id": "2026_11_w3"}).json()
+    # 4. upload (19 issues, default mapping): the out-of-catalog issue is an orphan
+    demo = client.post("/api/v1/ingest/upload", data={"cycle_id": "2026_11_w3", "force_reload": "true"},
+                       files={"file": ("golden.csv", golden_csv(), "text/csv")}).json()
     session_id = demo["session_id"]
     assert any(o["key"] == "PMOGOLD-18" for o in demo["orphans"])
-    assert all(r["trang_thai"] != "Đang làm gấp" for r in demo["rows"])
+    assert all(r["tt"] != "Đang làm gấp" for r in demo["rows"])
 
     # 5. recalculate: cloned mapping + orphan link + manual override
     recalc = client.post("/api/v1/mapping/recalculate", json={
@@ -35,10 +36,10 @@ def test_full_phase2_postman_flow():
     }).json()
     assert recalc["success"] is True and recalc["session_id"] == session_id
     assert not any(o["key"] == "PMOGOLD-18" for o in recalc["orphans"])
-    ic12 = next(r for r in recalc["rows"] if r["ma_da"] == "I.C.1.2")
+    ic12 = next(r for r in recalc["rows"] if r["ma"] == "I.C.1.2")
     assert ic12["pic"] == "Chuyên Viên PMO Postman"
     assert any(s["key"] == "PMOGOLD-18" for s in ic12["subtasks"])
-    assert ic12["trang_thai"] == "Đang làm gấp"  # new mapping applied
+    assert ic12["tt"] == "Đang làm gấp"  # new mapping applied
 
     # 6-7. save + read draft
     log = {"at": "2026-11-19T22:30:00", "ma_da": "I.C.1.2", "field": "pic", "old_val": ic12["pic"], "new_val": "Chuyên Viên PMO Postman", "by": "Tester"}
@@ -63,7 +64,7 @@ def test_e_no_code_blocker_cleared_by_orphan_assignment():
     }).json()
     assert not any(b["code"] == "E_NO_CODE" and b["key"] == "PKD-202" for b in recalc["blockers"])
     assert not any(o["key"] == "PKD-202" for o in recalc["orphans"])
-    ic12 = next(r for r in recalc["rows"] if r["ma_da"] == "I.C.1.2")
+    ic12 = next(r for r in recalc["rows"] if r["ma"] == "I.C.1.2")
     assert any(s["key"] == "PKD-202" for s in ic12["subtasks"])
 
     bad = client.post("/api/v1/mapping/recalculate", json={

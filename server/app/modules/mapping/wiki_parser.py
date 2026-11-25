@@ -40,26 +40,36 @@ def _week_of(d: date, weeks: list[dict]) -> int | None:
     return next((w["week"] for w in weeks if w["start"] <= d <= w["end"]), None)
 
 
-def parse_progress_report(wiki_table_str: str | None, week_boundaries: list[dict]) -> dict[int, dict[str, str]]:
+def progress_entries(wiki_table_str: str | None, week_boundaries: list[dict]) -> list[dict]:
+    """Every dated Progress Report row: {date, week (None when outside the cycle), done, plan, blockers}, sanitized."""
     if not wiki_table_str:
-        return {}
+        return []
     parts = _DATE_ROW.split(_protect_links(wiki_table_str.replace("\r\n", "\n")))
-    buckets: dict[int, dict[str, list[str]]] = {}
+    out = []
     for iso, body in zip(parts[1::2], parts[2::2]):
-        wk = _week_of(date.fromisoformat(iso), week_boundaries)
-        if wk is None:
-            continue
         cells = body.strip().rstrip("|").split("|")
         main, plan = cells[0], "\n".join(cells[1:])  # extra pipes (corrupt cells) stay in the plan
         m = _BLOCKER.search(main)
         completed, blockers = (main[: m.start()], main[m.end():]) if m else (main, "")
         if p := _PROGRESS_PART.search(completed):  # rule AL: prefer the part after "Tiến độ:"
             completed = completed[p.end():]
-        b = buckets.setdefault(wk, {"completed": [], "plan": [], "blockers": []})
-        for key, val in (("completed", completed), ("plan", plan), ("blockers", blockers)):
-            val = sanitize_jira_markup(val)
+        out.append({
+            "date": iso, "week": _week_of(date.fromisoformat(iso), week_boundaries),
+            "done": sanitize_jira_markup(completed), "plan": sanitize_jira_markup(plan),
+            "blockers": sanitize_jira_markup(blockers),
+        })
+    return out
+
+
+def parse_progress_report(wiki_table_str: str | None, week_boundaries: list[dict]) -> dict[int, dict[str, str]]:
+    buckets: dict[int, dict[str, list[str]]] = {}
+    for e in progress_entries(wiki_table_str, week_boundaries):
+        if e["week"] is None:
+            continue
+        b = buckets.setdefault(e["week"], {"completed": [], "plan": [], "blockers": []})
+        for key, val in (("completed", e["done"]), ("plan", e["plan"]), ("blockers", e["blockers"])):
             if val:
-                b[key].append(f"[{iso}] {val}")
+                b[key].append(f"[{e['date']}] {val}")
     return {wk: {k: "\n".join(v) for k, v in b.items()} for wk, b in sorted(buckets.items())}
 
 

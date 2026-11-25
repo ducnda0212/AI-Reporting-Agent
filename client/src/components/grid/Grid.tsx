@@ -2,7 +2,7 @@
    Header 2 tầng màu nhóm, dòng nhóm (số chậm, fixGo), cột ghim (ô tick, Mã DA, Công việc), tay kéo cao dòng.
    Mọi thao tác chuột của ô đi qua một bộ xử lý chung trên .gridwrap (như data-act của prototype). */
 import { useEffect, useRef, type MouseEvent } from 'react';
-import { FIELDS, GROUPS, GRP } from '@/data/constants';
+import { FIELDS, GRP } from '@/data/constants';
 import { cellValue, ck, fieldById } from '@/lib/cell';
 import { headerWidth, needsFix, scopeHas, selKeys, sortRows, tplColor, visibleFields } from '@/lib/grid';
 import { rowsOf, useAppState } from '@/store';
@@ -122,7 +122,7 @@ export function Grid(): JSX.Element {
   const bandLeft = 40 + 92 + (s.pinViec ? 215 : 0) + 10;
 
   /* thứ tự dòng (theo nhóm, đã sắp xếp), vùng chọn, ô Agent đang đề xuất */
-  const groups = GROUPS.map((g) => ({ g, gr: sortRows(list.filter((r) => r.g === g.k), s.sort, s) })).filter((x) => x.gr.length);
+  const groups = s.groups.map((g) => ({ g, gr: sortRows(list.filter((r) => r.g === g.k), s.sort, s) })).filter((x) => x.gr.length);
   const order: number[] = [];
   groups.forEach((x) => { if (!s.collapsed[x.g.k]) x.gr.forEach((r) => order.push(r.i)); });
   const picked = new Set(s.range ? selKeys(s.sel, s.range, order, vf.map((f) => f.id)) : []);

@@ -47,34 +47,34 @@ def test_e2e_golden_dataset_processing():
     assert data["file_stats"]["total_cols"] == 88
     assert data["file_stats"]["matched_projects"] == 6
 
-    rows = {r["ma_da"]: r for r in data["rows"]}
+    rows = {r["ma"]: r for r in data["rows"]}
     assert set(rows) == {"I.A.3.1", "I.A.4.1", "I.A.4.2", "I.A.4.3", "I.A.5.2", "I.C.1.2"}
 
     # Choice A: children (incl. grandchildren and the x.x.x placeholder) are audit subtasks only
     assert [s["key"] for s in rows["I.C.1.2"]["subtasks"]] == [f"PMOGOLD-{n}" for n in (15, 16, 17, 21, 22)]
     assert [s["key"] for s in rows["I.A.3.1"]["subtasks"]] == [f"PMOGOLD-{n}" for n in (8, 9, 10, 19, 20)]
     assert [s["key"] for s in rows["I.A.5.2"]["subtasks"]] == ["PMOGOLD-13", "PMOGOLD-14"]
-    assert rows["I.A.5.2"]["trang_thai"] == "Đang thực hiện"  # not rolled up from Done/Monitoring children
+    assert rows["I.A.5.2"]["tt"] == "Đang thực hiện"  # not rolled up from Done/Monitoring children
 
     assert [(o["key"], o["reason"]) for o in data["orphans"]] == [("PMOGOLD-18", "CODE_NOT_IN_CATALOG")]
     assert not any(b["code"] == "E_NO_CODE" for b in data["blockers"])
 
     # Progress Report wiki table split over W1..W4 (I.C.1.2 has entries 10-16 .. 11-15)
     ic = rows["I.C.1.2"]
-    assert "pilot giai đoạn 1" in ic["hoan_thanh_w1"] and "Kafka" in ic["van_de_w1"]
-    assert "Tăng số lượng partition Kafka" in ic["ke_hoach_w1"]
-    assert "30% cuốc xe" in ic["hoan_thanh_w2"] and "fallback heuristic" in ic["van_de_w2"]
-    assert "nghiệm thu kỹ thuật" in ic["hoan_thanh_w3"] and "Hội đồng Kiến trúc" in ic["ke_hoach_w3"]
-    assert ic["hoan_thanh_w4"] == "" and ic["van_de_w4"] == ""
+    assert "pilot giai đoạn 1" in ic["w1ht"] and "Kafka" in ic["w1vd"]
+    assert "Tăng số lượng partition Kafka" in ic["w1kh"]
+    assert "30% cuốc xe" in ic["w2ht"] and "fallback heuristic" in ic["w2vd"]
+    assert "nghiệm thu kỹ thuật" in ic["ht"] and "Hội đồng Kiến trúc" in ic["kh"]
+    assert ic["w4ht"] == "" and ic["w4vd"] == ""
     assert "{{" not in ic["milestone"] and "2026-12-31" in ic["milestone"]
-    assert ic["trang_thai_1"] == "Đang thực hiện Đúng tiến độ" and ic["market"] == "VN"
+    assert ic["tt1"] == "Đang thực hiện Đúng tiến độ" and ic["market"] == "VN"
 
     warn = {(w["code"], w["key"]) for w in data["warnings"]}
     assert ("W_PROGRESS_CONFLICT", "PMOGOLD-7") in warn  # on-track but Blockers recorded
     assert ("W_UNMAPPED_VALUE", "PMOGOLD-5") in warn  # progress 'Late' is not in the PMO table
     assert ("W_UNMAPPED_VALUE", "PMOGOLD-14") in warn  # spec §8.1 example: subtask status 'Monitoring'
     assert ("W_UNMAPPED_VALUE", "PMOGOLD-17") in warn  # spec §7.5 example: typo 'Cancled'
-    assert "Phạm D" not in ic["muc_tieu"] and ic["muc_tieu"].startswith("1. BÀI TOÁN")
+    assert "Phạm D" not in ic["muctieu"] and ic["muctieu"].startswith("1. BÀI TOÁN")
 
 
 def test_e2e_issue_without_da_code_is_blocker_and_orphan():
@@ -96,8 +96,8 @@ def test_e2e_reupload_keeps_user_override_and_flags_changed_source():
     with SessionLocal() as db:  # simulate the user's manual edit on the stored session
         sess = db.get(IngestSession, first["session_id"])
         resp = json.loads(sess.response_json)
-        ic = next(r for r in resp["rows"] if r["ma_da"] == "I.C.1.2")
-        ic["pic"], ic["overrides"] = "Manual PIC", {"pic": "Manual PIC"}
+        ic = next(r for r in resp["rows"] if r["ma"] == "I.C.1.2")
+        ic["pic"], ic["ovr"] = "Manual PIC", {"pic": "Manual PIC"}
         sess.response_json = json.dumps(resp, ensure_ascii=False)
         db.commit()
 
@@ -108,8 +108,8 @@ def test_e2e_reupload_keeps_user_override_and_flags_changed_source():
                 r[i_po] = "Người Mới"
 
     second = _upload(_edited_csv(change_po), cycle=cycle)
-    ic = next(r for r in second["rows"] if r["ma_da"] == "I.C.1.2")
+    ic = next(r for r in second["rows"] if r["ma"] == "I.C.1.2")
     assert ic["pic"] == "Manual PIC" and ic["needs_review"] is True
     assert second["diff_summary"]["modified_count"] == 1
-    others = [r for r in second["rows"] if r["ma_da"] != "I.C.1.2"]
+    others = [r for r in second["rows"] if r["ma"] != "I.C.1.2"]
     assert not any(r["needs_review"] for r in others)

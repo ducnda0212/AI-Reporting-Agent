@@ -35,20 +35,21 @@ def test_map_jira_issue_to_row():
         "Custom field (AI Lifecycle)": "4. Phát triển mô hình AI",
     }
     catalog = {"I.C.1.2": {"mang_viec": "AI Mobility"}}
-    row = map_jira_issue_to_row(issue, catalog.get("I.C.1.2"), WEEKS, stt=1)
+    row = map_jira_issue_to_row(issue, catalog.get("I.C.1.2"), WEEKS, i=0)
 
-    assert row.ma_da == "I.C.1.2"
-    assert row.issue_key == "PMOGOLD-1"
-    assert row.mang_viec == "AI Mobility"
-    assert row.muc_tieu == "Mục tiêu hệ thống"
+    assert row.ma == "I.C.1.2"
+    assert row.key == "PMOGOLD-1"
+    assert row.mang == "AI Mobility"
+    assert row.muctieu == "Mục tiêu hệ thống"
     assert "2026-11-20" in row.milestone and "Go-live" in row.milestone
     assert row.pic == "Đức Nguyễn"
-    assert row.bat_dau == date(2026, 10, 1) and row.ket_thuc == date(2026, 11, 30)
-    assert row.trang_thai == "Đang thực hiện"
-    assert row.tien_do == "Đúng tiến độ"
-    assert row.trang_thai_1 == "Đang thực hiện Đúng tiến độ"
-    assert row.ai_lifecycle_phase == row.ai_lifecycle == "4.Thiết kế giải pháp"
-    assert row.loai_du_an == "KHHĐ 2026"
+    assert row.start == "01/10/2026" and row.end == "30/11/2026"
+    assert row.tt == "Đang thực hiện"
+    assert row.td == "Đúng tiến độ"
+    assert row.tt1 == "Đang thực hiện Đúng tiến độ"
+    assert (row.buocso, row.buoc, row.done) == ("Bước 4", "4.Thiết kế giải pháp", 4)
+    assert row.stages[:5] == ["done", "done", "doing", "doing", "todo"]
+    assert row.loai == "KHHĐ 2026"
     assert row.market == "VN"
 
 
@@ -64,15 +65,15 @@ def test_pic_fallback_kpi_table_goal_fallback_and_default_workstream():
         "Status": "Monitoring",
         "Custom field (Phase)": "TBD",
     }
-    row = map_jira_issue_to_row(issue, None, WEEKS, stt=7)
-    assert row.stt == 7
-    assert row.pic == "Lê Ngọc Anh" and row.product_owner == "Lê Ngọc Anh"
-    assert row.muc_tieu == "Mục tiêu từ Goals"
+    row = map_jira_issue_to_row(issue, None, WEEKS, i=6)
+    assert row.i == 6
+    assert row.pic == "Lê Ngọc Anh" and row.po == "Lê Ngọc Anh"
+    assert row.muctieu == "Mục tiêu từ Goals"
     assert row.kpi == "1. Pickup ETA\n2. Hủy cuốc"  # rule E: "STT. KPI" per line
-    assert row.mang_viec == "I.A.9"  # no catalog entry -> workstream prefix
-    assert row.trang_thai == "Monitoring"  # unmapped kept raw for W_UNMAPPED_VALUE
-    assert row.ai_lifecycle_phase == ""
-    assert row.bat_dau is None
+    assert row.mang == "I.A.9"  # no catalog entry -> workstream prefix
+    assert row.tt == "Monitoring"  # unmapped kept raw for W_UNMAPPED_VALUE
+    assert row.buocso == ""
+    assert row.start == ""
 
 
 def test_weekly_blocks_from_progress_report_and_risk_notes():
@@ -85,32 +86,32 @@ def test_weekly_blocks_from_progress_report_and_risk_notes():
         ),
         "Custom field (Risk Notes)": "||*STT*||*Date*||*Mô tả*||*Todo*||\n|1|2026-11-07|Thiết bị cũ lag|Tối ưu heatmap|",
     }
-    row = map_jira_issue_to_row(issue, None, WEEKS, stt=1)
-    assert "Pilot 1" in row.hoan_thanh_w1 and "Tăng partition" in row.ke_hoach_w1
-    assert "Lệch tải Kafka" in row.van_de_w1
-    assert "Pilot 2" in row.hoan_thanh_w2 and "Fallback rule" in row.ke_hoach_w2
-    assert "Thiết bị cũ lag" in row.van_de_w2
-    assert row.hoan_thanh_w3 == "" and row.van_de_w4 == ""
-    assert row.hoan_thanh_w1.startswith("[2026-10-31]")
+    row = map_jira_issue_to_row(issue, None, WEEKS, i=0)
+    assert "Pilot 1" in row.w1ht and "Tăng partition" in row.w1kh
+    assert "Lệch tải Kafka" in row.w1vd
+    assert "Pilot 2" in row.w2ht and "Fallback rule" in row.w2kh
+    assert "Thiết bị cũ lag" in row.w2vd
+    assert row.ht == "" and row.w4vd == ""
+    assert row.w1ht.startswith("[2026-10-31]")
 
 
 def test_goal_rule_joins_lines_and_has_no_whole_description_fallback():
     base = {"Summary": "I.C.1.2 X"}
     desc = "*Giảm thời gian chờ*\nTăng tỉ lệ nhận cuốc\n\n4. MILESTONES:\n{{2026-12-31}} (PROD) Go-live\n+ chi tiết"
     row = map_jira_issue_to_row({**base, "Description": desc}, None, WEEKS, 1)
-    assert row.muc_tieu == "Giảm thời gian chờ Tăng tỉ lệ nhận cuốc"
+    assert row.muctieu == "Giảm thời gian chờ Tăng tỉ lệ nhận cuốc"
     assert row.milestone.splitlines() == ["2026-12-31 (PROD) Go-live", "+ chi tiết"]
     no_header = {**base, "Description": "mô tả dài không có tiêu đề mốc"}
-    assert map_jira_issue_to_row(no_header, None, WEEKS, 1).muc_tieu == ""
-    assert map_jira_issue_to_row({**no_header, "Custom field (Business Goal)": "BG"}, None, WEEKS, 1).muc_tieu == "BG"
+    assert map_jira_issue_to_row(no_header, None, WEEKS, 1).muctieu == ""
+    assert map_jira_issue_to_row({**no_header, "Custom field (Business Goal)": "BG"}, None, WEEKS, 1).muctieu == "BG"
     both = {**no_header, "Custom field (Goals)": "G", "Custom field (Business Goal)": "BG"}
-    assert map_jira_issue_to_row(both, None, WEEKS, 1).muc_tieu == "G"
+    assert map_jira_issue_to_row(both, None, WEEKS, 1).muctieu == "G"
 
 
 def test_progress_report_prefers_text_after_tien_do():
     table = "||*W*||*A*||*B*||\n|{{2026-11-06}}|*Mục tiêu:* mục tiêu tuần\n*Tiến độ:* đã xong 80%|* kế hoạch|\n"
     row = map_jira_issue_to_row({"Summary": "I.C.1.2 X", "Custom field (Progress Report)": table}, None, WEEKS, 1)
-    assert row.hoan_thanh_w1 == "[2026-11-06] đã xong 80%"
+    assert row.w1ht == "[2026-11-06] đã xong 80%"
 
 
 def test_org_fields_priority_link_and_status_category_fallback():
@@ -125,10 +126,10 @@ def test_org_fields_priority_link_and_status_category_fallback():
         "Custom field (PRD (URL))": "https://other.example",
     }
     row = map_jira_issue_to_row(issue, None, WEEKS, 1)
-    assert row.trang_thai == "Đang thực hiện"
-    assert (row.gdk_qltt, row.phong, row.business_owner) == ("Fajar", "Phòng AI", "BO")
-    assert row.product_owner == "PM"
-    assert row.software_engineer == "An\nBình\nChi"
-    assert row.priority == "High"
-    assert row.link_confluence == "https://wiki.example/prd/1"
-    assert map_jira_issue_to_row({"Summary": "I.C.1.2 X"}, None, WEEKS, 1).link_confluence == ""
+    assert row.tt == "Đang thực hiện"
+    assert (row.gdk, row.phong, row.bo) == ("Fajar", "Phòng AI", "BO")
+    assert row.po == "PM"
+    assert row.swe == "An\nBình\nChi"
+    assert row.prio == "High"
+    assert row.link == "https://wiki.example/prd/1"
+    assert map_jira_issue_to_row({"Summary": "I.C.1.2 X"}, None, WEEKS, 1).link == ""

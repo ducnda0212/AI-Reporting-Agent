@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { findMatches, needsFix, passColFilters, sortRows } from '@/lib/grid';
 import { verEditList } from '@/lib/versions';
-import { SEED_VERSIONS } from '@/data/constants';
+import { SEED_VERSIONS } from './fixtures';
 import type { FindState, Row, VersionItem } from '@/types';
 
 const ctx = { phaseBucket: {} };
@@ -23,7 +23,7 @@ describe('grid: lọc cột, tìm kiếm, sắp xếp, dòng cần sửa', () =>
   });
 
   it('findMatches theo thứ tự dòng → cột, bỏ cột ẩn, khớp cả ô / hoa thường', () => {
-    const st = { find: find('chậm tiến độ', { whole: true }), hidden: {}, phaseBucket: {} };
+    const st = { find: find('chậm tiến độ', { whole: true }), hidden: {}, phaseBucket: {}, groups: [{ k: 'I.A.3', name: 'I.A.3' }] };
     expect(findMatches({ ...st, find: find('chậm') }, rows).map((m) => m.f)).toEqual(['td', 'tt1']);
     expect(findMatches(st, rows)).toEqual([{ i: 1, f: 'td', t: 'Chậm tiến độ' }]);
     expect(findMatches({ ...st, hidden: { td: true } }, rows)).toEqual([]);

@@ -5,11 +5,11 @@ import { getState, mutate, resetStore } from '@/store';
 import { TopBar } from '@/components/layout/TopBar';
 import { Rail } from '@/components/layout/Rail';
 import { StatusBar } from '@/components/layout/StatusBar';
-import { loadFileNow, setView, setPanel, setModal } from '@/store/actions/flow';
+import { setView, setPanel, setModal } from '@/store/actions/flow';
+import { GOLD_FILE, loadFixture } from './fixtures';
 import { trOpen } from '@/store/actions/ai';
 import { poOpen } from '@/store/actions/popout';
 
-const FILE = '20261125_DAN_Jira-Export-Clean-Dataset_64DA.csv';
 
 describe('Full App Integration SSR', () => {
   it('import -> grid -> panel/popout -> ver -> log, không có màn ẩn', () => {
@@ -18,7 +18,7 @@ describe('Full App Integration SSR', () => {
     expect(imp).toContain('Kéo file CSV hoặc Excel export từ Jira vào đây');
     expect(imp).not.toContain('class="rail"');
 
-    loadFileNow(FILE);
+    loadFixture(GOLD_FILE);
     setView('grid');
     const grid = renderToString(<App />);
     expect(grid).toContain('class="rail"');
@@ -60,7 +60,7 @@ describe('Full App Integration SSR', () => {
   });
 
   it('StatusBar: link "Xem AI soạn ra sao" chỉ khi chọn đúng 1 ô AI', () => {
-    resetStore(); loadFileNow(FILE); setView('grid');
+    resetStore(); loadFixture(GOLD_FILE); setView('grid');
     const link = 'Xem AI soạn ra sao';
     mutate((d) => { d.sel = { i: 0, f: 'rui' }; d.range = null; });
     expect(renderToString(<StatusBar />)).toContain(link);

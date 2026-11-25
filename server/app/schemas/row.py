@@ -1,24 +1,30 @@
-from datetime import date
-
 from pydantic import Field
 
 from server.app.schemas.common import ApiModel
 
-# Template column letter -> ReportRow field (A..AW, sheet "Mẫu báo cáo"). X is the untitled spacer.
+# Template column letter -> ReportRow field (A..AW, sheet "Mẫu báo cáo"). Ids are the client FieldIds;
+# week 3 (the working week) is ht/kh/vd, X is the untitled spacer.
 COLUMN_FIELDS: dict[str, str] = {
-    "A": "mang_viec", "B": "ma_da", "C": "cong_viec", "D": "muc_tieu", "E": "kpi", "F": "pic",
-    "G": "bat_dau", "H": "ket_thuc", "I": "trang_thai", "J": "tien_do", "K": "milestone",
-    "L": "ai_lifecycle_phase", "M": "output", "N": "note", "O": "gdk_qltt", "P": "phong",
-    "Q": "tp", "R": "business_owner", "S": "product_owner", "T": "ai_engineer",
-    "U": "ai_researcher", "V": "data_mlops", "W": "software_engineer", "X": "",
-    "Y": "cai_tien", "Z": "priority", "AA": "trang_thai_1", "AB": "gia_tri",
-    "AC": "muc_do_rui_ro", "AD": "action", "AE": "next_step", "AF": "loai_du_an",
-    "AG": "link_confluence", "AH": "domain", "AI": "market", "AJ": "ai_lifecycle",
-    "AK": "uoc_tinh_gia_tri",
-    "AL": "hoan_thanh_w1", "AM": "ke_hoach_w1", "AN": "van_de_w1",
-    "AO": "hoan_thanh_w2", "AP": "ke_hoach_w2", "AQ": "van_de_w2",
-    "AR": "hoan_thanh_w3", "AS": "ke_hoach_w3", "AT": "van_de_w3",
-    "AU": "hoan_thanh_w4", "AV": "ke_hoach_w4", "AW": "van_de_w4",
+    "A": "mang", "B": "ma", "C": "viec", "D": "muctieu", "E": "kpi", "F": "pic",
+    "G": "start", "H": "end", "I": "tt", "J": "td", "K": "milestone",
+    "L": "buocso", "M": "output", "N": "note", "O": "gdk", "P": "phong",
+    "Q": "tp", "R": "bo", "S": "po", "T": "aieng",
+    "U": "airs", "V": "mlops", "W": "swe", "X": "x",
+    "Y": "caitien", "Z": "prio", "AA": "tt1", "AB": "giatri",
+    "AC": "rui", "AD": "action", "AE": "nextstep", "AF": "loai",
+    "AG": "link", "AH": "domain", "AI": "market", "AJ": "buoc",
+    "AK": "uoctinh",
+    "AL": "w1ht", "AM": "w1kh", "AN": "w1vd",
+    "AO": "w2ht", "AP": "w2kh", "AQ": "w2vd",
+    "AR": "ht", "AS": "kh", "AT": "vd",
+    "AU": "w4ht", "AV": "w4kh", "AW": "w4vd",
+}
+# Jira-sourced values: what a diff compares and what a manual override may target.
+SOURCE_FIELDS: frozenset[str] = frozenset(COLUMN_FIELDS.values()) - {"x"}
+WEEK_TEXT: dict[str, tuple[str, str, str, str]] = {  # kind -> field of week 1..4
+    "done": ("w1ht", "w2ht", "ht", "w4ht"),
+    "plan": ("w1kh", "w2kh", "kh", "w4kh"),
+    "issues": ("w1vd", "w2vd", "vd", "w4vd"),
 }
 
 
@@ -29,65 +35,100 @@ class SubtaskAudit(ApiModel):
     assignee: str = ""
 
 
-def _s() -> str:
-    return ""
+class WeekReportEntry(ApiModel):
+    date: str = ""  # ISO yyyy-mm-dd
+    done: str = ""
+    plan: str = ""
+
+
+class JiraPeople(ApiModel):
+    pic: str = ""
+    po: str = ""
+    gdk: str = ""
 
 
 class ReportRow(ApiModel):
-    stt: int
-    issue_key: str = ""
+    """One project row, shaped like the client `Row` (client/src/types). Dates are dd/mm/yyyy."""
+    i: int = 0
+    key: str = ""
+    g: str = ""
+    real: bool = True
+    dup: bool = False
+    isNew: bool = False
+    tplRow: int = 0
+    rawStatus: str = ""
+    rawProgress: str = ""
+    rawPhase: str = ""
+    labels: str = ""
+    jira: JiraPeople = Field(default_factory=JiraPeople)
+    tl: str = ""
+    poField: str = ""
+    idOnly: bool = False
     # A..W
-    mang_viec: str = ""
-    ma_da: str = ""
-    cong_viec: str = ""
-    muc_tieu: str = ""
+    mang: str = ""
+    ma: str = ""
+    viec: str = ""
+    muctieu: str = ""
     kpi: str = ""
     pic: str = ""
-    bat_dau: date | None = None
-    ket_thuc: date | None = None
-    trang_thai: str = ""
-    tien_do: str = ""
+    start: str = ""
+    end: str = ""
+    tt: str = ""
+    td: str = ""
     milestone: str = ""
-    ai_lifecycle_phase: str = ""
+    buocso: str = ""
     output: str = ""
     note: str = ""
-    gdk_qltt: str = ""
+    gdk: str = ""
     phong: str = ""
     tp: str = ""
-    business_owner: str = ""
-    product_owner: str = ""
-    ai_engineer: str = ""
-    ai_researcher: str = ""
-    data_mlops: str = ""
-    software_engineer: str = ""
+    bo: str = ""
+    po: str = ""
+    aieng: str = ""
+    airs: str = ""
+    mlops: str = ""
+    swe: str = ""
     # Y..AK
-    cai_tien: str = ""
-    priority: str = ""
-    trang_thai_1: str = ""
-    gia_tri: str = ""
-    muc_do_rui_ro: str = ""
+    caitien: str = ""
+    prio: str = ""
+    tt1: str = ""
+    giatri: str = ""
+    rui: str = ""
     action: str = ""
-    next_step: str = ""
-    loai_du_an: str = ""
-    link_confluence: str = ""
+    nextstep: str = ""
+    loai: str = ""
+    link: str = ""
     domain: str = ""
     market: str = ""
-    ai_lifecycle: str = ""
-    uoc_tinh_gia_tri: str = ""
-    # AL..AW (4 weeks x done/plan/issues)
-    hoan_thanh_w1: str = ""
-    ke_hoach_w1: str = ""
-    van_de_w1: str = ""
-    hoan_thanh_w2: str = ""
-    ke_hoach_w2: str = ""
-    van_de_w2: str = ""
-    hoan_thanh_w3: str = ""
-    ke_hoach_w3: str = ""
-    van_de_w3: str = ""
-    hoan_thanh_w4: str = ""
-    ke_hoach_w4: str = ""
-    van_de_w4: str = ""
+    buoc: str = ""
+    uoctinh: str = ""
+    # AL..AW (4 weeks x done/plan/issues); week 3 = ht/kh/vd
+    w1ht: str = ""
+    w1kh: str = ""
+    w1vd: str = ""
+    w2ht: str = ""
+    w2kh: str = ""
+    w2vd: str = ""
+    ht: str = ""
+    kh: str = ""
+    vd: str = ""
+    w4ht: str = ""
+    w4kh: str = ""
+    w4vd: str = ""
+    # report data and progress
+    pr: list[WeekReportEntry] = Field(default_factory=list)
+    prw: dict[str, WeekReportEntry] = Field(default_factory=dict)
+    comment: str = ""
+    updated: str = ""
+    tags: list[str] = Field(default_factory=list)
+    done: int = 0  # AI lifecycle step 1..12 (0 = unknown)
+    total: int = 12
+    stages: list[str] = Field(default_factory=list)  # 12 x done|doing|todo
+    reasons: dict[str, str] = Field(default_factory=dict)
+    ai: dict[str, dict] = Field(default_factory=dict)  # filled by the AI stage
+    nChild: int = 0
+    priority: str = ""
     # audit / state
     subtasks: list[SubtaskAudit] = Field(default_factory=list)
-    overrides: dict[str, str] = Field(default_factory=dict)
+    ovr: dict[str, str] = Field(default_factory=dict)
     needs_review: bool = False

@@ -56,7 +56,9 @@ export function phName(f: Pick<Field, 'name'>): string {
 /** Ô có giá trị gốc lấy từ nguồn (Jira/quy đổi/tính/báo cáo) nên sửa tay sẽ lệch nguồn. */
 export const isSrc = (f: Field): boolean => ['jira', 'bucket', 'calc', 'report', 'tpl'].includes(f.kind);
 
-const statusOf = (r: Row): string | null => r.ovr?.tt || mapNorm(STATUS_MAP, r.rawStatus) || null;
+/* Trạng thái / tiến độ: sửa tay, rồi giá trị máy chủ đã quy đổi theo cấu hình mapping, rồi bảng quy đổi mặc định. */
+const statusOf = (r: Row): string | null => r.ovr?.tt || r.tt || mapNorm(STATUS_MAP, r.rawStatus) || null;
+const progOf = (r: Row): string | undefined => r.td || mapNorm(PROG_MAP, r.rawProgress);
 
 /* Cột `cfg` (hệ thống) của bản gọn không có danh mục: lấy thẳng trên dòng (`r.mang` do bước nạp dữ liệu gán). */
 export function cellValue(r: Row, f: Field, ctx: CellCtx): string | null {
@@ -67,14 +69,15 @@ export function cellValue(r: Row, f: Field, ctx: CellCtx): string | null {
   switch (f.id) {
     case 'ma': return r.ma;
     case 'tt': return statusOf(r);
-    case 'td': return normKey(r.rawStatus) === 'PENDING' ? 'Tạm dừng' : mapNorm(PROG_MAP, r.rawProgress) || null;
+    case 'td': return normKey(r.rawStatus) === 'PENDING' ? 'Tạm dừng' : progOf(r) || null;
     case 'tt1': {
       /* đề xuất, chờ chốt: kết hợp thời gian (Start/Due so với ngày báo cáo) và Tiến độ */
+      if (r.tt1 && !r.ovr?.tt && !r.ovr?.td) return r.tt1;
       const t = statusOf(r);
       if (!t) return null;
       if (t === 'Hủy' || t === 'Tạm dừng') return t;
       const due = parseVN(r.end);
-      const prog = mapNorm(PROG_MAP, r.rawProgress);
+      const prog = progOf(r);
       let late = r.ovr?.td ? r.ovr.td === 'Chậm tiến độ' : prog === 'Chậm tiến độ';
       if (t === 'Chưa thực hiện') return due && due < TODAY ? 'Chưa thực hiện Chậm tiến độ' : 'Trong kế hoạch';
       if (t === 'Đã hoàn thành') return 'Đã hoàn thành ' + (late ? 'Chậm tiến độ' : 'Đúng tiến độ');
@@ -82,8 +85,8 @@ export function cellValue(r: Row, f: Field, ctx: CellCtx): string | null {
       if (!late && !prog && !r.ovr?.td) return null;
       return 'Đang thực hiện ' + (late ? 'Chậm tiến độ' : 'Đúng tiến độ');
     }
-    case 'buoc': { const n = ctx.phaseBucket[r.rawPhase]; return n ? n + '. ' + STAGES[n - 1] : null; }
-    case 'buocso': { const n = ctx.phaseBucket[r.rawPhase]; return n ? 'Bước ' + n : null; }
+    case 'buoc': { if (r.buoc) return r.buoc; const n = ctx.phaseBucket[r.rawPhase]; return n ? n + '. ' + STAGES[n - 1] : null; }
+    case 'buocso': { if (r.buocso) return r.buocso; const n = ctx.phaseBucket[r.rawPhase]; return n ? 'Bước ' + n : null; }
     case 'note': {
       const auto = Object.keys(r.reasons)
         .map((k) => 'GĐ ' + (+k + 1) + ': ' + r.reasons[k as FieldId])
@@ -93,7 +96,9 @@ export function cellValue(r: Row, f: Field, ctx: CellCtx): string | null {
         })).join(' · ');
       return [r.note, auto].filter(Boolean).join(' · ') || null;
     }
-    case 'rui': case 'kh': case 'vd': return r.ai[f.id]?.text ?? null;
+    case 'rui': return r.ai[f.id]?.text ?? null;
+    /* kh / vd: nháp AI nếu có, không thì nội dung máy chủ bóc từ Progress Report / Risk Notes */
+    case 'kh': case 'vd': return r.ai[f.id]?.text ?? text;
   }
   if (f.kind === 'none' || f.kind === 'future') return null;
   return text;

@@ -75,11 +75,11 @@ def _unique_headers(raw: list[str]) -> list[str]:
     return out
 
 
-def clean_csv(file_bytes: bytes) -> tuple[list[str], list[dict[str, str]], int]:
-    text = decode_bytes(file_bytes).lstrip("\ufeff")
-    rows = csv.reader(io.StringIO(text, newline=""), delimiter=_delimiter(text))
+def build_table(raw_rows) -> tuple[list[str], list[str], list[dict[str, str]], int]:
+    """Row iterator (first row = header) -> (canonical headers, unique headers, records, skipped empty rows)."""
+    rows = iter(raw_rows)
     raw_headers = next(rows, None)
-    if not raw_headers:
+    if not raw_headers or not any(h.strip() for h in raw_headers):
         raise InvalidSchemaError("E_FILE_INVALID_SCHEMA: empty file")
     raw_headers = _canonical_headers(raw_headers)
     if not all(any(c in raw_headers for c in group) for group in REQUIRED_ANY):
@@ -96,4 +96,14 @@ def clean_csv(file_bytes: bytes) -> tuple[list[str], list[dict[str, str]], int]:
             continue
         cells = cells + [""] * (len(headers) - len(cells))
         records.append(dict(zip(headers, (c.replace("\r\n", "\n").replace("\r", "\n") for c in cells))))
+    return raw_headers, headers, records, skipped
+
+
+def csv_rows(file_bytes: bytes):
+    text = decode_bytes(file_bytes).lstrip("\ufeff")
+    return csv.reader(io.StringIO(text, newline=""), delimiter=_delimiter(text))
+
+
+def clean_csv(file_bytes: bytes) -> tuple[list[str], list[dict[str, str]], int]:
+    _, headers, records, skipped = build_table(csv_rows(file_bytes))
     return headers, records, skipped

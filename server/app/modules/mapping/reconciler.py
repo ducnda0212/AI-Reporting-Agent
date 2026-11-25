@@ -16,14 +16,14 @@ def _catalog_ancestor(code: str, catalog: dict) -> str | None:
 
 def reconcile_issues(
     records: list[dict], catalog: dict, week_boundaries: list[dict],
-    mapping=None, assignments: dict[str, str] | None = None,
+    mapping=None, assignments: dict[str, str] | None = None, ref_date=None,
 ) -> tuple[list[ReportRow], list[OrphanIssue]]:
-    """`mapping`: MappingConfig/None for the rule engine. `assignments`: {orphan issue key: ma_da} manual re-link."""
+    """`mapping`: MappingConfig/None for the rule engine. `assignments`: {orphan issue key: ma} manual re-link."""
     mapping = resolve_mapping(mapping)  # parse the config once, not per row
     by_key = {r.get("Issue key", ""): r for r in records}
     orphans: dict[str, OrphanIssue] = {}
-    main_by_code: dict[str, dict] = {}  # ma_da -> main record
-    owner_of: dict[str, str] = {}  # coded child key -> ma_da of its main row
+    main_by_code: dict[str, dict] = {}  # ma -> main record
+    owner_of: dict[str, str] = {}  # coded child key -> ma of its main row
 
     def orphan(rec: dict, reason: str) -> None:
         orphans[rec.get("Issue key", "")] = OrphanIssue(
@@ -78,7 +78,7 @@ def reconcile_issues(
     for rec in records:
         code = main_codes_by_key.get(rec.get("Issue key", ""))
         if code is not None:
-            row = map_jira_issue_to_row(rec, catalog.get(code), week_boundaries, stt=len(rows) + 1, mapping_config=mapping)
+            row = map_jira_issue_to_row(rec, catalog.get(code), week_boundaries, i=len(rows), mapping_config=mapping, ref_date=ref_date)
             rows.append(row)
             row_by_code[code] = row
     for rec in records:  # file order keeps subtask order stable
@@ -95,4 +95,6 @@ def reconcile_issues(
                 key=key, summary=rec.get("Summary", ""), status=rec.get("Status", ""), assignee=rec.get("Assignee", ""),
             ))
             del orphans[key]
+    for row in rows:
+        row.nChild = len(row.subtasks)
     return rows, [orphans[r.get("Issue key", "")] for r in records if r.get("Issue key", "") in orphans]

@@ -22,15 +22,6 @@ def test_health_check():
     assert response.json()["status"] == "ok"
 
 
-def test_demo_ingest_endpoint():
-    response = client.post("/api/v1/ingest/demo", json={"cycle_id": "2026_11_w3"})
-    assert response.status_code == 200
-    data = response.json()
-    assert data["success"] is True
-    assert len(data["rows"]) > 0
-    assert "file_stats" in data
-
-
 def test_upload_rejects_bad_input_cleanly():
     r = _upload(b"Summary,Other\nA,B\n", cycle="2026_10_w1")
     assert r.status_code == 422 and r.json()["detail"]["code"] == "E_FILE_INVALID_SCHEMA"

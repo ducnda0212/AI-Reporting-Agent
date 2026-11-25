@@ -1,72 +1,9 @@
-import type { AiFieldId, Field, FieldGroup, FieldId, ImportFileMeta, TestScenario, TourKey, TourStep, VersionItem, WeekKey } from '@/types';
+import type { AiFieldId, Field, FieldGroup, FieldId, TourKey, TourStep, WeekKey } from '@/types';
 
 
 export const STAGES: readonly string[] = ['Xác định bài toán AI & Ý tưởng sản phẩm','Xác định yêu cầu nghiệp vụ chi tiết (PRD)','Khảo sát & chuẩn bị dữ liệu',
   'Thiết kế giải pháp','Huấn luyện mô hình','Đánh giá mô hình','Phát triển phần mềm','Tích hợp Software & Event Logging',
   'Kiểm thử & UAT','Đánh giá An ninh Bảo mật (ANBM)','Phê duyệt & Triển khai Go-Live','Đánh giá sau Go-Live (Post-Launch Report)'];
-
-export const GROUPS: { k: string; name: string }[] = [
-  {
-    "k": "I.A.3",
-    "name": "I.A.3.PAI – Cá nhân hóa trải nghiệm cho từng khách"
-  },
-  {
-    "k": "I.A.4",
-    "name": "I.A.4.Tối ưu Food & Express"
-  },
-  {
-    "k": "I.A.5",
-    "name": "I.A.5.Tối ưu khuyến mại và thông báo"
-  },
-  {
-    "k": "I.A.6",
-    "name": "I.A.6. An toàn & Cá nhân hóa thống nhất & nâng cao"
-  },
-  {
-    "k": "I.C.1",
-    "name": "I.C.1.Bộ giải pháp Điều phối Cung-Cầu và Tối ưu Phát cuốc"
-  },
-  {
-    "k": "I.C.2",
-    "name": "I.C.2.Tối ưu Điều phối & Định giá – Dịch vụ Ride"
-  },
-  {
-    "k": "II.A.1",
-    "name": "II.A.1.Tài xế cung cấp dịch vụ 5-sao"
-  },
-  {
-    "k": "II.A.2",
-    "name": "II.A.2.AI Hỗ trợ Tài xế (Data Science)"
-  },
-  {
-    "k": "II.B.1",
-    "name": "II.B.1Quản lý phương tiện toàn diện"
-  },
-  {
-    "k": "II.D.1",
-    "name": "II.D.1Marketplace Trust System"
-  },
-  {
-    "k": "II.D.2",
-    "name": "II.D.2.AI Quản trị"
-  },
-  {
-    "k": "II.E.1",
-    "name": "II.E.1Nền tảng MLOps cho triển khai khoa học dữ liệu và máy học"
-  },
-  {
-    "k": "II.I.1",
-    "name": "II.I.1Setup, tổng hợp và chuẩn hóa các công cụ công nghệ phục vụ trung tâm MOC"
-  },
-  {
-    "k": "I.A.7",
-    "name": "I.A.7 · (mã mới, chưa có trong mẫu)"
-  },
-  {
-    "k": "II.B.2",
-    "name": "II.B.2 · (mã mới, chưa có trong mẫu)"
-  }
-];
 
 export const GRP: Record<FieldGroup, string> = {
   pin: 'Dự án', info: 'Thông tin dự án', prog: 'Tiến độ & trạng thái', org: 'Đơn vị & nhân sự', eval: 'Phân loại & đánh giá',
@@ -138,71 +75,21 @@ export const FIELDS: Field[] = [
 
 export const AI_IDS = ['rui', 'kh', 'vd'] as const;
 
-/* bản thử cố định ngày báo cáo: 20/11/2026 */
-export const TODAY = new Date(2026, 10, 20);
-
 export const STATUS_VALUES: readonly string[] = ['Chưa thực hiện','Đang thực hiện','Đã hoàn thành','Tạm dừng','Hủy'];
 
-export const STATUS_MAP: Record<string, string> = { 'TO DO':'Chưa thực hiện', 'IN PROGRESS':'Đang thực hiện', 'MONITORING':'Đang thực hiện', 'DONE':'Đã hoàn thành', 'PENDING':'Tạm dừng', 'CANCELED':'Hủy' };
+export const STATUS_MAP: Record<string, string> = { 'TO DO':'Chưa thực hiện', 'OPEN':'Chưa thực hiện', 'BACKLOG':'Chưa thực hiện', 'IN PROGRESS':'Đang thực hiện', 'REOPENED':'Đang thực hiện', 'MONITORING':'Đang thực hiện',
+  'DONE':'Đã hoàn thành', 'CLOSED':'Đã hoàn thành', 'RESOLVED':'Đã hoàn thành', 'PENDING':'Tạm dừng', 'HOLD':'Tạm dừng', 'ON HOLD':'Tạm dừng', 'PAUSED':'Tạm dừng', 'WAITING':'Tạm dừng',
+  'CANCELED':'Hủy', 'CANCELLED':'Hủy', "WON'T DO":'Hủy' };
 
-export const PROG_VALUES: readonly string[] = ['Đúng tiến độ','Chậm tiến độ','Tạm dừng'];
+export const PROG_VALUES: readonly string[] = ['Đúng tiến độ','Chậm tiến độ','Tạm dừng','Có rủi ro'];
 
-export const PROG_MAP: Record<string, string> = { 'On-track':'Đúng tiến độ', 'Off-track':'Chậm tiến độ' };
-
-/* mã giai đoạn (1-12) của từng giá trị Custom field (Phase) có trong bộ GOLD */
-export const PHASE_BUCKET: Record<string, number> = {
-  "1.Xác.định.bài.toán.AI": 1,
-  "2.Xác.định.yêu.cầu.nghiệp.vụ.chi.tiết": 2,
-  "3.Khảo.sát.dữ.liệu": 3,
-  "4.Thiết.kế.giải.pháp": 4,
-  "5.Huấn.luyện.mô.hình": 5,
-  "6.Đánh.giá.mô.hình": 6,
-  "7.Phát.triển.phần.mềm": 7,
-  "8.Tích.hợp.Software.&.Event.Logging": 8,
-  "9.Kiểm.thử.UAT": 9,
-  "10.Đánh.giá.ANBM": 10,
-  "11.Go-live": 11,
-  "12.Đánh.giá.sau.Go-live": 12,
-  "10. Triển khai thử nghiệm (Pilot)": 10,
-  "9. Kiểm thử chất lượng (SIT/UAT/A-B Test)": 9,
-  "2. Đặc tả yêu cầu nghiệp vụ": 2,
-  "7. Đóng gói mô hình và phát triển API": 7,
-  "8. Tích hợp phần mềm và ghi log sự kiện": 8,
-  "5. Chuẩn bị và xử lý dữ liệu": 5,
-  "11. Đưa vào vận hành (Go-Live)": 11,
-  "3. Thiết kế kiến trúc giải pháp": 3,
-  "6. Huấn luyện và tinh chỉnh mô hình": 6,
-  "4. Thiết kế giao diện (UI/UX)": 4,
-  "12. Vận hành, giám sát và tối ưu liên tục": 12
-};
-
-export const WEEKS: { k: WeekKey; name: string; cur?: boolean }[] = [
-  { k:'w3', name:'Tuần 3/11 · 15–22/11', cur:true },
-  { k:'w2', name:'Tuần 02/11 · 07–14/11' },
-  { k:'w1', name:'Tuần 01/11 · 31/10–06/11' }
-];
-
-export const SEED_VERSIONS: VersionItem[] = [
-  { wk:'w2', v:2, by:'Khuê', at:'14/11 16:20', note:'Sửa sau họp khối: cập nhật rủi ro II.E.1.2', exported:'20261114_DAN_Bao-cao-PMO.xlsx',
-    stats:{ rows:38, hand:6, ai:114 }, changes:[['II.E.1.2','AC Mức độ rủi ro','Thấp','Trung bình'],['II.E.1.2','AT Vấn đề, rủi ro…','Không có','Xin lùi golive sang 15/11 vì chờ PD DPO, ANBM'],['I.C.1.2','J Tiến độ','Đúng tiến độ','Chậm tiến độ']] },
-  { wk:'w2', v:1, by:'Khuê', at:'13/11 17:05', note:'Bản gửi trước họp', exported:'20261113_DAN_Bao-cao-PMO.xlsx', stats:{ rows:38, hand:4, ai:114 }, changes:[] },
-  { wk:'w1', v:1, by:'Tuấn', at:'07/11 09:40', note:'', exported:'20261107_DAN_Bao-cao-PMO.xlsx', stats:{ rows:37, hand:9, ai:111 }, changes:[] }
-];
-
-/* kịch bản dữ liệu thử (menu "Dữ liệu thử"); tên/mô tả là bản cuối sau các vòng góp ý */
-export const SCEN: Record<Exclude<TestScenario, null>, { name: string; d: string }> = {
-  dirty: { name: 'Jira bẩn định dạng', d: 'Progress Report có *đậm*, {{ngày}}, gạch đầu dòng lẫn lộn, link wiki, khoảng trắng thừa; Status/Progress viết khác kiểu' },
-  risk: { name: 'Nhiều rủi ro', d: '1/3 dự án có Comment “Risk:”, vài dự án quá hạn — xem tô đỏ và mức rủi ro' },
-  perfect: { name: 'File Jira mẫu (Clean 64DA)', d: 'File export: 112 issue, 64 epic dự án' },
-  errors: { name: 'File có lỗi', d: 'Dữ liệu giả lập có issue thiếu mã, giá trị lạ, ô trống, mã trùng — để thử Agent tự xử lý' },
-  many: { name: 'Nhiều dự án (giả lập)', d: '39 dự án giả lập theo mẫu báo cáo, để xem bảng khi đầy dữ liệu' }
-};
+export const PROG_MAP: Record<string, string> = { 'On-track':'Đúng tiến độ', 'On Track':'Đúng tiến độ', 'Off-track':'Chậm tiến độ', 'Off Track':'Chậm tiến độ', 'Delayed':'Chậm tiến độ', 'At Risk':'Có rủi ro', 'Rủi ro':'Có rủi ro', 'On Hold':'Tạm dừng' };
 
 /* Hướng dẫn tương tác (bản gọn: 3 bước Nhập file → Điền & duyệt → Chốt & xuất, không có bước Kiểm tra).
    `view` / `ver` thay cho hàm prep của prototype: màn cần mở sẵn trước khi chạy bước. */
 const T_WELCOME: TourStep = { id: 'welcome', t: 'Chào mừng tới PMO Reporting', b: 'Công cụ biến file Jira export thành báo cáo tuần 49 cột theo đúng mẫu của khối. Hướng dẫn này đi qua từng phần trong khoảng 1 phút. Dùng phím → và ← để chuyển bước, Esc để thoát.' };
 const T_STEPS: TourStep = { id: 'steps', sel: 'nav[aria-label="Các bước"]', t: 'Ba bước mỗi tuần', b: 'Nhập file → Điền & duyệt → Chốt & xuất. Bấm vào bước nào thì tới bước đó, hoặc dùng nút ‹ › để lùi hay tiến từng bước — lùi lại không làm mất gì.' };
-const T_IMPORT: TourStep = { id: 'imp', sel: '#dropzone', view: 'import', t: 'Bước 1 · Nhập file', b: 'Kéo file CSV export từ Jira vào đây, hoặc bấm “Dùng dữ liệu mẫu”. Công cụ đọc 277 cột của file, gộp cột trùng tên và so với lần nhập trước.' };
+const T_IMPORT: TourStep = { id: 'imp', sel: '#dropzone', view: 'import', t: 'Bước 1 · Nhập file', b: 'Kéo file CSV export từ Jira vào đây. Công cụ đọc 277 cột của file, gộp cột trùng tên và so với lần nhập trước.' };
 const T_GRID: TourStep[] = [
   { id: 'grid-head', sel: 'thead', view: 'grid', t: 'Bước 2 · Bảng 49 cột', b: 'Bảng có đúng 49 cột của mẫu, màu đầu cột giống file Excel. Hàng trên cùng là nhóm cột và 4 khối tuần; khối tuần này có viền hồng.' },
   { id: 'grid-col', sel: 'th:has([data-f="tt"])', view: 'grid', t: 'Đầu cột', b: 'Rê chuột lên tên cột để xem cột lấy từ trường Jira nào. Nút phễu để lọc hoặc sắp xếp, biểu tượng con mắt bên phải để ẩn cột cho dễ nhìn.' },
@@ -261,7 +148,7 @@ export const LG_CAT: readonly [id: string, label: string, test: RegExp, icon: st
 ];
 
 export const HELP: { k: string; ic: string; t: string; d: string; s: string[] }[] = [
-  { k:'imp', ic:'⤒', t:'Nhập file Jira', d:'Đưa file export vào và kiểm tra cột', s:['Bấm “Nhập file”, kéo file CSV/Excel export từ Jira vào, hoặc dùng dữ liệu mẫu.', 'Xem phần tóm tắt: cột nào lấy từ trường Jira nào (mapping).'] },
+  { k:'imp', ic:'⤒', t:'Nhập file Jira', d:'Đưa file export vào và kiểm tra cột', s:['Bấm “Nhập file”, kéo file CSV/Excel export từ Jira vào.', 'Xem phần tóm tắt: cột nào lấy từ trường Jira nào (mapping).'] },
   { k:'grid', ic:'▦', t:'Điền & duyệt trên bảng', d:'Sửa ô, lọc, duyệt nháp AI', s:['Nhấp đúp vào ô (hoặc F2) để sửa; Ctrl+Enter hoặc “Lưu” để lưu, Esc huỷ. Ô có danh sách thì bấm một lần để chọn.', 'Ô có biểu tượng khoá lấy từ Jira, chỉ xem.', '“N ô cần sửa” trên mỗi nhóm đưa bạn tới ô còn lỗi.', 'Nháp AI (chữ tím) phải được duyệt mới vào báo cáo.'] },
   { k:'ai', ic:'✦', t:'Trợ lý AI', d:'Nháp, căn cứ và hỏi đáp', s:['Bấm nút ✦ AI trên thanh công cụ để xem nháp chờ duyệt.', 'Bấm “AI soạn ra sao?” để xem AI dựa vào câu nào trong Progress Report.', 'Có thể hỏi: “Tóm tắt tuần này”, “I.A.5.1 có rủi ro gì?”.'] },
   { k:'exp', ic:'⤓', t:'Chốt & xuất báo cáo', d:'Lưu thành bản và tải file Excel', s:['Bấm “Xuất báo cáo” ở góc trên.', 'Gõ tên người chốt để lưu thành một bản. Việc còn dở chỉ là cảnh báo, vẫn chốt được.', 'Tải file Excel từ đúng bản đã chốt.'] },
@@ -279,12 +166,15 @@ export const FAQ: readonly (readonly [string, string])[] = [
 export const JIRA_OF: Partial<Record<FieldId, string>> = { viec: 'Summary', mang: 'Labels', muctieu: 'Description', kpi: 'Custom field (KPI/Outcome)', pic: 'Custom field (Tech lead)',
   start: 'Custom field (Start date)', end: 'Due date', gdk: 'Custom field (Team Name)', po: 'Custom field (PO)' };
 
-export const NO_JIRA: readonly FieldId[] = ['phong', 'tp', 'bo', 'aieng', 'airs', 'mlops', 'swe'];
-
 export const PA_LONG: readonly FieldId[] = ['muctieu', 'kpi', 'milestone'];
 
-/* "Lần nhập gần nhất" ở bước 1 (prototype IMPORTS L7076) */
-export const IMPORTS: ImportFileMeta[] = [
-  { name: 'Jira_PMO_bao-cao-tuan_14-11.csv', wk: 'Tuần 02/11 · 07–14/11', at: '14/11 16:02', by: 'Khuê', issues: 39, cols: 277, prj: 38, ver: 'v2 đã chốt' },
-  { name: 'Jira_PMO_bao-cao-tuan_07-11.csv', wk: 'Tuần 01/11 · 31/10–06/11', at: '07/11 09:12', by: 'Tuấn', issues: 38, cols: 276, prj: 37, ver: 'v1 đã chốt' }
-];
+
+/* Dữ liệu theo kỳ báo cáo do máy chủ cấp (GET /cycles/active): ngày báo cáo và các tuần đã tới. Cập nhật tại chỗ để mọi nơi đọc `TODAY` / `WEEKS` thấy ngay. */
+export let TODAY = new Date(2026, 10, 22);
+export const WEEKS: { k: WeekKey; name: string; cur?: boolean }[] = [];
+
+export function setCycle(todayIso: string, weeks: { k: string; name: string; cur: boolean; future: boolean }[]): void {
+  const [y, m, d] = todayIso.split('-').map(Number);
+  TODAY = new Date(y, m - 1, d);
+  WEEKS.splice(0, WEEKS.length, ...weeks.filter((w) => !w.future).reverse().map((w) => ({ k: w.k as WeekKey, name: w.name, cur: w.cur || undefined })));
+}

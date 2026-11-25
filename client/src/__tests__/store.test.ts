@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { getState, resetStore, setNow } from '@/store';
+import { castDraft } from 'immer';
+import { getState, mutate, resetStore, setNow } from '@/store';
 import * as F from '@/store/actions/flow';
 import * as G from '@/store/actions/grid';
 import * as AI from '@/store/actions/ai';
@@ -7,16 +8,12 @@ import * as P from '@/store/actions/popout';
 import * as V from '@/store/actions/versions';
 import * as H from '@/store/actions/help';
 import { cellValue, fieldById, sourceValue } from '@/lib/cell';
-import type { AppState, Row } from '@/types';
+import type { Row } from '@/types';
+import { GOLD_FILE, loadFixture, SEED_VERSIONS } from './fixtures';
 
-const GOLD_FILE = '20261125_DAN_Jira-Export-Clean-Dataset_64DA.csv';
 const byCode = (ma: string): Row => getState().allRows.find((r) => r.ma === ma)!;
-const dataKeys = (s: AppState) => ({
-  allRows: s.allRows, realOnly: s.realOnly, phaseBucket: s.phaseBucket, unsorted: s.unsorted,
-  newCodes: s.newCodes, dupMerged: s.dupMerged, test: s.test
-});
 
-describe('Store · luồng 3 bước, nạp dữ liệu GOLD', () => {
+describe('Store · luồng 3 bước, nạp dữ liệu từ máy chủ', () => {
   beforeEach(() => { resetStore(); setNow(() => new Date(2026, 10, 20, 9, 5)); });
 
   it('goStep chỉ nhận 1 (import), 3 (grid), 4 (export); chưa nạp thì báo nhập file trước', () => {
@@ -24,7 +21,7 @@ describe('Store · luồng 3 bước, nạp dữ liệu GOLD', () => {
     expect(getState().view).toBe('import');
     expect(getState().toast).toBe('Chưa có dữ liệu — nhập file ở bước 1 trước');
 
-    F.loadFileNow(GOLD_FILE);
+    loadFixture(GOLD_FILE);
     const s = getState();
     expect(s.loaded).toBe(true);
     expect(s.realOnly).toBe(true);
@@ -33,7 +30,9 @@ describe('Store · luồng 3 bước, nạp dữ liệu GOLD', () => {
     expect(s.allRows.every((r) => (['rui', 'kh', 'vd'] as const).every((k) => r.ai[k] && r.ai[k]!.ok === false))).toBe(true);
     /* cột hệ thống (cfg) có giá trị trên dòng */
     expect(byCode('I.A.3.1').mang).toBe('I.A.3.PAI – Cá nhân hóa trải nghiệm cho từng khách');
-    expect(s.log[0]).toMatchObject({ a: 'Nhập file Jira', o: GOLD_FILE, r: 'Cảnh báo', t: '09:05', day: '20/11/2026', seq: 1 });
+    expect(s.fileName).toBe(GOLD_FILE);
+    expect(s.groups.length).toBeGreaterThan(5);
+    expect(s.sessionId).toBe('sess_test');
     expect(s.undoStack).toEqual([]); // nạp file không phải một bước hoàn tác
 
     F.goStep(3);
@@ -49,7 +48,7 @@ describe('Store · luồng 3 bước, nạp dữ liệu GOLD', () => {
   });
 
   it('navGo quay lại / tiến tới màn trước (lịch sử 50 bước)', () => {
-    F.loadFileNow(GOLD_FILE);
+    loadFixture(GOLD_FILE);
     F.setView('grid');
     F.setView('log');
     F.navGo(-1);
@@ -61,46 +60,8 @@ describe('Store · luồng 3 bước, nạp dữ liệu GOLD', () => {
   });
 });
 
-describe('Store · chế độ dữ liệu thử', () => {
-  beforeEach(() => { resetStore(); setNow(() => new Date(2026, 10, 20, 9, 5)); F.loadFileNow(GOLD_FILE); });
-
-  it('enterTest(dirty) rồi exitTest khôi phục đúng dữ liệu GOLD', () => {
-    const before = dataKeys(getState());
-    F.enterTest('dirty');
-    expect(getState().test).toBe('dirty');
-    expect(getState().realOnly).toBe(false);
-    expect(getState().allRows[0].raw).toBeDefined();
-    F.exitTest();
-    expect(getState().test).toBeNull();
-    expect(getState().allRows[0].raw).toBeUndefined();
-    expect(dataKeys(getState())).toEqual(before);
-  });
-
-  it('mọi kịch bản, kể cả đổi qua lại giữa các kịch bản, thoát ra đều khôi phục nguyên trạng', () => {
-    const before = dataKeys(getState());
-    const check: Record<string, () => void> = {
-      dirty: () => expect(getState().allRows.some((r) => r.raw?.ht && r.raw.ht !== r.ht)).toBe(true),
-      risk: () => expect(getState().allRows[0].comment.startsWith('Risk: ')).toBe(true),
-      perfect: () => expect(getState().realOnly).toBe(true),
-      errors: () => expect(getState().allRows.every((r) => r.ai.vd && !r.ai.vd.ok)).toBe(true),
-      many: () => expect(getState().allRows.every((r) => r.ai.rui?.ok && r.ai.kh?.ok && r.ai.vd?.ok)).toBe(true)
-    };
-    (['dirty', 'risk', 'perfect', 'errors', 'many'] as const).forEach((sc) => {
-      F.enterTest(sc);
-      expect(getState().test).toBe(sc);
-      check[sc]();
-      F.exitTest();
-      expect(dataKeys(getState())).toEqual(before);
-    });
-    F.enterTest('dirty'); F.enterTest('risk'); F.testReseed();
-    expect(getState().test).toBe('risk');
-    F.exitTest();
-    expect(dataKeys(getState())).toEqual(before);
-  });
-});
-
 describe('Store · Agent xem trước, hoàn tác 100 bước', () => {
-  beforeEach(() => { resetStore(); setNow(() => new Date(2026, 10, 20, 9, 5)); F.loadFileNow(GOLD_FILE); });
+  beforeEach(() => { resetStore(); setNow(() => new Date(2026, 10, 20, 9, 5)); loadFixture(GOLD_FILE); });
 
   it('askSubmit chỉ tạo bản xem trước; bảng đổi sau stgApply, và một lần undo hoàn tác', () => {
     const r0 = byCode('I.A.3.1');
@@ -161,7 +122,7 @@ describe('Store · Agent xem trước, hoàn tác 100 bước', () => {
 });
 
 describe('Store · picker #pkPop', () => {
-  beforeEach(() => { resetStore(); F.loadFileNow(GOLD_FILE); });
+  beforeEach(() => { resetStore(); loadFixture(GOLD_FILE); });
 
   it('"Theo Jira" xoá giá trị sửa tay, ô về giá trị nguồn', () => {
     const tt = fieldById('tt')!, ctx = getState();
@@ -185,7 +146,7 @@ describe('Store · picker #pkPop', () => {
 });
 
 describe('Store · popout, phiên bản, hướng dẫn', () => {
-  beforeEach(() => { resetStore(); setNow(() => new Date(2026, 10, 20, 9, 5)); F.loadFileNow(GOLD_FILE); });
+  beforeEach(() => { resetStore(); setNow(() => new Date(2026, 10, 20, 9, 5)); loadFixture(GOLD_FILE); });
 
   it('popout mở dự án, tìm trong thẻ, đi giữa các kết quả rồi đóng', () => {
     P.poOpen(0);
@@ -204,6 +165,7 @@ describe('Store · popout, phiên bản, hướng dẫn', () => {
   });
 
   it('vlEdit mở bản cũ lên bảng, hiện banner sửa tiếp, không đổi danh sách phiên bản', () => {
+    mutate((d) => { d.versions = castDraft(structuredClone(SEED_VERSIONS)); });
     const versions = getState().versions;
     const copy = structuredClone(versions);
     V.vlEdit('w2|2');
@@ -240,62 +202,32 @@ describe('Store · popout, phiên bản, hướng dẫn', () => {
   });
 });
 
-describe('Store · ranh giới chế độ thử / nạp lại file (fix vòng 1)', () => {
-  beforeEach(() => { resetStore(); F.loadFileNow(GOLD_FILE); });
-
-  it('undo sau exitTest không đưa dữ liệu chế độ thử vào bảng thật', () => {
-    G.pkPick(0, 'tt', 'Tạm dừng');
-    const real = getState().allRows;
-    F.enterTest('dirty');
-    expect(getState().undoStack).toEqual([]);
-    G.pkPick(0, 'tt', 'Hủy');
-    F.exitTest();
-    expect(getState().undoStack).toEqual([]);
-    expect(getState().redoStack).toEqual([]);
-    G.undo();
-    expect(getState().toast).toBe('Không còn thao tác để hoàn tác');
-    expect(getState().test).toBeNull();
-    expect(getState().allRows).toBe(real);
-    expect(getState().allRows[0].ovr.tt).toBe('Tạm dừng');
-    expect((['rui', 'kh', 'vd'] as const).every((k) => getState().allRows[0].ai[k])).toBe(true);
-  });
+describe('Store · ranh giới nạp lại file', () => {
+  beforeEach(() => { resetStore(); loadFixture(GOLD_FILE); });
 
   it('nạp lại file xoá lịch sử hoàn tác: undo không áp sửa cũ lên dòng mới', () => {
     G.pkPick(0, 'tt', 'Tạm dừng');
-    F.loadFileNow(GOLD_FILE);
+    loadFixture(GOLD_FILE);
     expect(getState().undoStack).toEqual([]);
     expect(getState().allRows[0].ovr.tt).toBeUndefined();
     G.undo();
     expect(getState().allRows[0].ovr.tt).toBeUndefined();
   });
 
-  it('bản xem trước tạo trước exitTest / loadFileNow bị bỏ, stgApply không làm gì', () => {
-    F.enterTest('risk'); // kịch bản risk đã để I.A.3.1 chậm tiến độ
-    const id1 = AI.askSubmit('Đổi Tiến độ của I.A.3.1 thành Tạm dừng')!;
-    expect(getState().stages[id1].st).toBe('open');
-    F.exitTest();
-    expect(getState().stages[id1].st).toBe('dropped');
-    const rows1 = getState().allRows;
-    AI.stgApply(id1);
-    expect(getState().allRows).toBe(rows1);
-
-    const id2 = AI.askSubmit('Đổi Tiến độ của I.A.3.1 thành Chậm tiến độ')!;
-    F.loadFileNow(GOLD_FILE);
-    expect(getState().stages[id2].st).toBe('dropped');
-    const rows2 = getState().allRows;
-    AI.stgApply(id2);
-    expect(getState().allRows).toBe(rows2);
+  it('bản xem trước tạo trước khi nạp lại file bị bỏ, stgApply không làm gì', () => {
+    const id = AI.askSubmit('Đổi Tiến độ của I.A.3.1 thành Chậm tiến độ')!;
+    expect(getState().stages[id].st).toBe('open');
+    loadFixture(GOLD_FILE);
+    expect(getState().stages[id].st).toBe('dropped');
+    const rows = getState().allRows;
+    AI.stgApply(id);
+    expect(getState().allRows).toBe(rows);
   });
 
-  it('sửa trước khi vào thử còn nguyên sau exitTest; sửa trong chế độ thử bị bỏ; dấu ô đã sửa được xoá', () => {
+  it('nạp file mới xoá dấu ô đã sửa', () => {
     G.pkPick(0, 'tt', 'Tạm dừng');
-    F.enterTest('perfect');
-    expect(getState().touched).toEqual({});
-    G.pkPick(1, 'td', 'Chậm tiến độ');
-    expect(getState().touched['1|td']).toBe(1);
-    F.exitTest();
-    expect(getState().allRows[0].ovr.tt).toBe('Tạm dừng');
-    expect(getState().allRows[1].ovr.td).toBeUndefined();
+    expect(getState().touched['0|tt']).toBe(1);
+    loadFixture(GOLD_FILE);
     expect(getState().touched).toEqual({});
   });
 

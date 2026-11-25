@@ -1,22 +1,28 @@
+import json
 import os
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
-from pydantic import BaseModel
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from server.app.core.config import settings
 from server.app.core.database import get_db
 from server.app.core.errors import api_error, from_service_error
+from server.app.models.file import UploadedFile
 from server.app.models.session import IngestSession
-from server.app.modules.ingestion.cycles import weeks_for_cycle
+from server.app.modules.ingestion.cycles import active_cycle, current_week, weeks_for_cycle, week_name
 from server.app.modules.ingestion.file_handler import save_and_fingerprint
-from server.app.modules.ingestion.service import DEMO_USER, latest_session, run_pipeline, save_session
+from server.app.modules.ingestion.service import latest_session, run_pipeline, save_session
 from server.app.modules.mapping.csv_cleaner import InvalidSchemaError
 from server.app.modules.mapping.service import mapping_or_default
-from server.app.schemas.ingest import IngestResponse, WarningIssue
+from server.app.modules.mapping.tabular_reader import CSV_EXT, XLSX_EXT, UnsupportedFormatError
+from server.app.schemas.cycle import ActiveCycle
+from server.app.schemas.ingest import ImportFileMeta, IngestResponse, WarningIssue
 
 router = APIRouter(prefix="/api/v1/ingest", tags=["ingest"])
-ALLOWED_EXT = {".csv", ".tsv", ".txt"}  # shortcut: .xlsx/.xls parsing is not built yet (spec §4.1)
+cycles_router = APIRouter(prefix="/api/v1/cycles", tags=["cycles"])
+ALLOWED_EXT = CSV_EXT | XLSX_EXT
+HISTORY_LIMIT = 10
 
 
 _err = api_error
@@ -36,11 +42,13 @@ def _mapping(db: Session, mapping_id: str | None):
         raise from_service_error(e, 404)
 
 
-def _process(content: bytes, cycle_id: str, previous: IngestSession | None, mapping=None):
+def _process(content: bytes, filename: str, cycle_id: str, baseline: IngestSession | None, mapping=None):
     try:
-        return run_pipeline(content, cycle_id, previous, mapping)
+        return run_pipeline(content, filename, cycle_id, baseline, mapping)
+    except UnsupportedFormatError as e:
+        raise from_service_error(e, 422)
     except InvalidSchemaError as e:
-        raise _err(422, "E_FILE_INVALID_SCHEMA", str(e))
+        raise _err(422, "E_FILE_INVALID_SCHEMA", str(e).removeprefix("E_FILE_INVALID_SCHEMA: "))
 
 
 @router.post("/upload", response_model=IngestResponse)
@@ -52,7 +60,7 @@ async def upload(
     db: Session = Depends(get_db),
 ):
     if os.path.splitext(file.filename or "")[1].lower() not in ALLOWED_EXT:
-        raise _err(422, "E_FILE_UNSUPPORTED_FORMAT", "Chỉ hỗ trợ .csv, .tsv, .txt")
+        raise _err(422, "E_FILE_UNSUPPORTED_FORMAT", "Chỉ hỗ trợ .csv, .tsv, .txt, .xlsx, .xlsm (hãy lưu .xls sang .xlsx)")
     _check_cycle(cycle_id)
     mapping = _mapping(db, mapping_id)
     content = await file.read(settings.MAX_UPLOAD_MB * 1024 * 1024 + 1)
@@ -62,36 +70,46 @@ async def upload(
     record, is_duplicate = save_and_fingerprint(content, file.filename, cycle_id, db, force_reload)
     if is_duplicate:
         cached = db.query(IngestSession).filter_by(file_id=record.id).order_by(IngestSession.created_at.desc()).first()
-        if cached is not None:
-            cached_resp = IngestResponse.model_validate_json(cached.response_json)
+        try:
+            cached_resp = IngestResponse.model_validate_json(cached.response_json) if cached else None
+        except ValidationError:  # stored before the response contract changed: reprocess instead of failing
+            cached_resp = None
+        if cached_resp is not None:
             note = WarningIssue(
                 code="W_DUPLICATE_FILE", key=record.original_name,
                 message=f"File này đã được nạp trước đó vào lúc {record.uploaded_at:%H:%M %d/%m} bởi {record.uploaded_by}",
             )
             return cached_resp.model_copy(update={"is_duplicate_file": True, "warnings": [*cached_resp.warnings, note]})
 
-    response, source_rows, headers = _process(content, cycle_id, latest_session(db, cycle_id), mapping)
-    save_session(db, cycle_id, record.id, response, source_rows, headers)
+    baseline = latest_session(db, cycle_id)
+    response, source_rows, headers = _process(content, file.filename, cycle_id, baseline, mapping)
+    save_session(db, cycle_id, record.id, response, source_rows, headers, baseline.id if baseline else None)
     record.row_count, record.col_count, record.status = response.file_stats.total_rows, len(headers), "parsed"
     db.commit()
     return response
 
 
-class DemoRequest(BaseModel):
-    cycle_id: str = settings.DEFAULT_CYCLE_ID
-    mapping_id: str | None = None
+@router.get("/history", response_model=list[ImportFileMeta])
+def history(db: Session = Depends(get_db)):
+    """Newest uploads first; sessions stored under an older response contract are skipped."""
+    out = []
+    q = (db.query(IngestSession, UploadedFile).join(UploadedFile, UploadedFile.id == IngestSession.file_id)
+         .order_by(IngestSession.created_at.desc()).limit(HISTORY_LIMIT * 3))
+    for sess, f in q:
+        try:
+            stats = json.loads(sess.response_json)["file_stats"]
+            cols = stats["total_cols"]
+        except (KeyError, ValueError):
+            continue
+        weeks = weeks_for_cycle(sess.cycle_id)
+        wk = next(w for w in weeks if w["week"] == current_week(sess.cycle_id))
+        out.append(ImportFileMeta(
+            session_id=sess.id, name=f.original_name, wk=week_name(sess.cycle_id, wk), at=f"{sess.created_at:%d/%m %H:%M}",
+            by=f.uploaded_by, issues=stats["total_rows"], cols=cols, prj=stats["matched_projects"],
+        ))
+    return out[:HISTORY_LIMIT]
 
 
-@router.post("/demo", response_model=IngestResponse)
-def demo(req: DemoRequest, db: Session = Depends(get_db)):
-    """Golden dataset as a stored session (so it can be recalculated/drafted); never the baseline of a real upload's diff."""
-    _check_cycle(req.cycle_id)
-    mapping = _mapping(db, req.mapping_id)
-    with open(os.path.join(settings.FIXTURES_DIR, "golden_dataset.csv"), "rb") as f:
-        content = f.read()
-    record, _ = save_and_fingerprint(content, "golden_dataset.csv", f"demo_{req.cycle_id}", db, True)
-    if record.uploaded_by != DEMO_USER:
-        record.uploaded_by = DEMO_USER
-    response, source_rows, headers = _process(content, req.cycle_id, None, mapping)
-    save_session(db, req.cycle_id, record.id, response, source_rows, headers)
-    return response
+@cycles_router.get("/active", response_model=ActiveCycle)
+def active():
+    return active_cycle(settings.DEFAULT_CYCLE_ID)

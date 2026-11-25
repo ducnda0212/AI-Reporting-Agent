@@ -58,7 +58,7 @@ def test_upload_with_mapping_id_and_draft_endpoints():
         "/api/v1/ingest/upload", data={"cycle_id": "2026_09_w1", "mapping_id": custom},
         files={"file": ("g.csv", golden_csv(), "text/csv")},
     ).json()
-    assert any(r["trang_thai"] == "Đang làm gấp" for r in up["rows"])
+    assert any(r["tt"] == "Đang làm gấp" for r in up["rows"])
     bad = client.post("/api/v1/ingest/demo", json={"cycle_id": "2026_11_w3", "mapping_id": "nope"})
     assert bad.status_code == 404
 
@@ -70,4 +70,4 @@ def test_upload_with_mapping_id_and_draft_endpoints():
     saved = client.put(f"/api/v1/sessions/{sid}/draft", json=body)
     assert saved.status_code == 200 and saved.json()["success"] is True
     got = client.get(f"/api/v1/sessions/{sid}/draft").json()
-    assert got["overrides"] == {"I.C.1.2": {"pic": "A"}} and got["rows"][0]["ma_da"] == up["rows"][0]["ma_da"]
+    assert got["overrides"] == {"I.C.1.2": {"pic": "A"}} and got["rows"][0]["ma"] == up["rows"][0]["ma"]

@@ -65,4 +65,7 @@ def set_default(mapping_id: str, db: Session = Depends(get_db)):
 
 @router.post("/mapping/recalculate", response_model=IngestResponse)
 def recalculate(req: RecalculateRequest, db: Session = Depends(get_db)):
-    return _call(recalculate_session, req.session_id, req.mapping_id, req.orphan_assignments, req.overrides, db, status=422)
+    return _call(
+        recalculate_session, req.session_id, req.mapping_id, req.orphan_assignments, req.overrides, db,
+        req.src_overrides, req.value_mappings, status=422,
+    )

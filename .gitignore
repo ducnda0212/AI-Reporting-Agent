@@ -9,3 +9,4 @@ server/storage/exports/*
 server/.env
 !server/storage/uploads/.gitkeep
 !server/storage/exports/.gitkeep
+docs/superpowers

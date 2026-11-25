@@ -3131,3 +3131,19 @@ body.vchg .gridwrap,body.vchg .vlm,body.vchg .lxwrap>*,body.vchg main.imp,body.v
 .pkdiv{height:1px;background:var(--line2);margin:4px 2px}
 .pkclr{color:var(--mut)}
 select.cellsel{cursor:pointer}
+
+/* ---------- Sửa giao diện Giai đoạn 1 (nhập file & mapping) ---------- */
+/* Cuộn: React gắn vào #root nhưng CSS prototype chỉ xếp cột (flex) cho #app, nên ở màn nhập file `main` không bị giới hạn chiều cao
+   và body{overflow:hidden} cắt mất phần dưới. Chỉ áp cho màn nhập file (body.onimp) để các màn khác giữ nguyên. */
+body.onimp #root{display:flex;flex-direction:column;min-height:0}
+body.onimp #root>main{flex:1 1 auto;min-height:0}
+/* Ô chọn cột Jira: nằm gọn trong cột "Nguồn", không đẩy sang cột "Cột trong báo cáo" */
+.isfrom{min-width:0}
+.isfrom select.issel{flex:1 1 0;min-width:0;width:100%;text-overflow:ellipsis}
+/* Tên file ở "Lần nhập gần nhất": tối đa 2 dòng, ngắt ở ký tự bất kỳ, tên đầy đủ ở title */
+.aimp .aright,.aimp .alast>div,.aimp .anx>span:first-child{min-width:0}
+.aimp .alast b,.aimp .anx>span:first-child{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;white-space:normal;overflow-wrap:anywhere;word-break:normal;text-overflow:clip;max-width:none}
+/* Lỗi nhập file trong ô xem trước */
+.pvstaged .pverr[role="alert"]{max-width:none;width:100%;padding:8px 10px;border:1px solid var(--err);border-radius:8px;text-align:left;line-height:1.45}
+/* "Giữ file đang dùng: tên file": cho xuống dòng thay vì tràn ra ngoài cột */
+.alink.back{max-width:100%;white-space:normal;overflow-wrap:anywhere}

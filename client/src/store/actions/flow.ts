@@ -1,331 +1,211 @@
-/* Luồng 3 bước (Nhập file → Điền & duyệt → Chốt & xuất), nạp dữ liệu GOLD, chế độ dữ liệu thử, chuyển màn.
-   Port từ prototype v4: buildRow, seedCatalog/orgInfo, loadFileNow, enterTest/exitTest, pfApply (lớp cuối), goStep, navGo. */
+/* Luồng 3 bước (Nhập file → Điền & duyệt → Chốt & xuất): nạp file thật qua máy chủ, cấu hình mapping, chuyển màn.
+   Dữ liệu bảng chỉ đến từ POST /ingest/upload, GET /sessions/{id} và POST /mapping/recalculate (xem services/api.ts). */
 import { castDraft, type Draft } from 'immer';
-import demoData from '@/data/demo.json';
-import { AI_IDS, FIELDS, PHASE_BUCKET, PROG_MAP, SCEN, STATUS_MAP } from '@/data/constants';
-import { aiDrafts } from '@/lib/ai';
-import { cellValue, mapNorm, type CellCtx } from '@/lib/cell';
-import { cleanComment, cleanKpi, cleanText } from '@/lib/clean';
+import { FIELDS, setCycle } from '@/data/constants';
+import { cellValue } from '@/lib/cell';
+import { foundFromResponse } from '@/lib/importSteps';
 import { toggleTheme, type Theme } from '@/lib/theme';
 import { pvParse } from '@/lib/xlsx';
-import type { AiFieldId, AppState, ModalType, PanelType, PreviewFile, Row, TestScenario, ViewType, WeekReport } from '@/types';
+import { api, ApiError } from '@/services/api';
+import type {
+  AiFieldId, AppState, IngestResponse, MappingColumnDef, MappingConfigOut, ModalType, PanelType, PreviewFile, ValueMappings, ViewType
+} from '@/types';
 import { dropRowSession, getState, inBrowser, log, lsGet, lsSet, LS, mutate, rowsOf, toast } from '@/store';
 import { startTour } from './help';
 
-/* ---------- dữ liệu nguồn: DEMO gộp GOLD như prototype L3235-3238 ---------- */
-const GOLD = demoData.gold, DEMO = demoData.demo;
-type Gold = (typeof GOLD.rows)[number];
-export const GOLD_FILE = GOLD.file;
-export const FILE_STATS = { ...DEMO.fileStats, ...GOLD.stats };
-const MANG: Record<string, string> = { ...GOLD.mang, ...DEMO.mang };
-/* phase "chưa xếp bước" có trong file (GOLD không có) */
-export const PHASE_UNSORTED: string[] = ['TBD', '99. Chờ bổ sung'].filter((v) => GOLD.rows.some((r) => r.rawPhase === v));
-export const IMPORT_STEPS: readonly string[] = ['Đọc file và nhận diện 277 cột', 'Gộp 14 nhóm cột trùng tên', 'Tách mã dự án, ghép vào 49 cột mẫu', 'So với tuần trước và cấu hình đã lưu'];
-
-/* dữ liệu bản chốt tuần trước (giả lập) cho các cột nhập tay */
-const NAMES2 = ['Trần Minh', 'Phan Ngọc', 'Lý Phương', 'Đặng Quân', 'Hồ Ruby', 'Tạ Sơn', 'Lâm Thảo', 'Vũ Hải'];
-const DOM2: Record<string, string> = { 'I.A': 'Food', 'I.C': 'Ride', 'II.A': 'Driver', 'II.B': 'Fleet', 'II.D': 'Platform', 'II.E': 'Platform', 'II.I': 'Platform' };
-const PHONG_OF: Record<string, string> = { 'I.A': 'P. AI Food & Express', 'I.C': 'P. AI Ride', 'II.A': 'P. AI Tài xế', 'II.B': 'P. AI Phương tiện', 'II.D': 'P. Nền tảng & Quản trị', 'II.E': 'P. MLOps', 'II.I': 'P. Công cụ MOC' };
-const CTX0: CellCtx = { phaseBucket: PHASE_BUCKET };
-
-type Text = Record<string, string | undefined>;
-const txt = (r: Row): Text => r as unknown as Text;
-
-function buildRow(d: Gold, i: number): Row {
-  const step = PHASE_BUCKET[d.rawPhase] || parseInt(d.rawPhase, 10) || 2;
-  const x = d as Gold & { isNew?: boolean; assigneeIdOnly?: boolean };
-  const r: Row = {
-    i, ma: d.ma, viec: d.viec, key: d.key, g: d.g, real: d.real, dup: d.dup, isNew: !!x.isNew, tplRow: d.row,
-    rawStatus: d.rawStatus, rawProgress: d.rawProgress, rawPhase: d.rawPhase, labels: d.labels,
-    jira: { pic: d.assignees[0] || '', po: d.assignees[1] || '', gdk: d.real ? d.teamName || '' : d.g.indexOf('II') === 0 ? 'QLTT Khối 2' : 'QLTT Khối 1' },
-    pic: d.assignees[0] || '', po: d.assignees[1] || '', tl: d.assignees[2] || d.tl || '', poField: d.po || '', idOnly: !!x.assigneeIdOnly,
-    kpi: d.kpi, muctieu: d.muctieu, milestone: d.milestone, start: d.start, end: d.end, gdk: d.teamName, phong: '',
-    pr: d.pr as WeekReport[], prw: d.prw as Row['prw'], comment: d.comment, updated: d.updated, tags: [],
-    done: step, total: 12, reasons: {}, ai: {}, ovr: {},
-    stages: Array.from({ length: 12 }, (_x, k) => (k < step - 2 ? 'done' : k < step ? 'doing' : 'todo'))
-  };
-  const w = r.prw, t = (d.tpl || {}) as Text, prev = !r.isNew, j = i, top = r.g.split('.').slice(0, 2).join('.');
-  Object.assign(r, {
-    w1ht: w.w1 ? w.w1.done : '', w1kh: w.w1 ? w.w1.plan : '', w2ht: w.w2 ? w.w2.done : '', w2kh: w.w2 ? w.w2.plan : '',
-    ht: w.w3 ? w.w3.done : w.w2 ? 'Tiếp tục theo kế hoạch tuần trước: ' + (w.w2.plan || w.w2.done || '').split('\n')[0] : 'Chưa có Progress Report trong tuần này',
-    giatri: t.AB || (prev ? ['Trung bình', 'Cao', 'Thấp'][j % 3] : 'Trung bình'),
-    action: t.AD || (prev ? (r.rawStatus === 'DONE' ? 'Đã đóng' : r.rawStatus === 'PENDING' ? 'Tạm dừng' : 'Đi tiếp') : ''),
-    nextstep: t.AE || (prev && j % 3 === 1 ? 'Mở rộng Quy mô (Scale)' : ''),
-    loai: t.AF || (prev ? 'KHHĐ 2026' : ''),
-    market: prev ? ['VN', 'VN', 'Indo', 'VN', 'Malay', 'VN', 'Toàn khu vực'][j % 7] : '',
-    domain: prev ? DOM2[top] || 'Platform' : '',
-    link: prev ? 'confluence/pmo/' + r.ma : '',
-    bo: prev ? NAMES2[(j + 1) % 8] : '', tp: prev ? 'TP ' + NAMES2[j % 8] : '', aieng: prev ? NAMES2[(j + 2) % 8] : '',
-    airs: prev && j % 3 === 1 ? NAMES2[(j + 5) % 8] : '', mlops: prev ? NAMES2[(j + 6) % 8] : '',
-    swe: prev && j % 4 !== 3 ? NAMES2[(j + 1) % 8] + ' (BE)' : '',
-    caitien: prev ? (j % 3 === 0 ? 'Cải tiến' : 'Xây mới') : '', prio: prev ? 'P' + (1 + (j % 3)) : '',
-    uoctinh: prev && j % 6 === 0 ? 'Tiết kiệm ~1,2 tỷ/năm (ước tính)' : '', output: '',
-    w1vd: prev ? (j % 4 === 0 ? 'Thiếu dữ liệu nhãn, đề xuất bổ sung' : 'Không có') : t.AN || '',
-    w2vd: prev ? (r.rawProgress === 'Off-track' ? 'Chậm tiến độ, đề xuất chốt lại mốc' : 'Không có') : ''
-  });
-  if (t.AL) r.w1ht = t.AL;
-  if (t.AM) r.w1kh = t.AM;
-  if (t.AN) r.w1vd = t.AN;
-  if (t.C && !d.real) r.viec = t.C;
-  if (t.D && !d.real) r.muctieu = t.D;
-  if (t.F && !d.real) r.pic = t.F;
-  return r;
-}
-
-/* ---------- cột hệ thống (cfg): danh mục dự án/đơn vị dựng từ dòng (seedCatalog), vá theo file thật (pfApply realOnly),
-   ô còn trống lấy giá trị dòng khác; ghi thẳng lên dòng vì lib/cell đọc `r[f.id]` ---------- */
-const UNIT_IDS: readonly string[] = ['gdk', 'phong', 'tp'];
-const CFG_IDS = FIELDS.filter((f) => f.kind === 'cfg').map((f) => f.id);
-
-function applyCatalogue(rows: Row[]): void {
-  const units: Record<string, Text> = {}, projects: Record<string, Text> = {};
-  let nu = 0;
-  rows.forEach((r, j) => {
-    if (r.isNew) return;
-    const top = r.g.split('.').slice(0, 2).join('.');
-    if (!units[r.g]) units[r.g] = { name: MANG[r.g] || r.g, gdk: r.jira.gdk || (top.indexOf('II') === 0 ? 'QLTT Khối 2' : 'QLTT Khối 1'), phong: PHONG_OF[top] || '', tp: NAMES2[(nu++ * 3) % 8] };
-    if (projects[r.ma]) return;
-    projects[r.ma] = {
-      g: r.g, viec: r.viec, muctieu: r.muctieu || '', kpi: r.kpi || '', pic: r.jira.pic || NAMES2[(j + 3) % 8], start: r.start || '', end: r.end || '',
-      bo: r.bo || NAMES2[(j + 1) % 8], po: r.jira.po || NAMES2[(j + 4) % 8], aieng: r.aieng || '', airs: r.airs || '', mlops: r.mlops || '', swe: (r.swe || '').replace(' (BE)', '')
-    };
-  });
-  Object.keys(units).forEach((g) => {
-    const cnt: Record<string, number> = {};
-    rows.forEach((r) => { if (r.g === g && r.jira.gdk) cnt[r.jira.gdk] = (cnt[r.jira.gdk] || 0) + 1; });
-    const best = Object.keys(cnt).sort((x, y) => cnt[y] - cnt[x])[0];
-    if (best) units[g].gdk = best;
-  });
-  const real = rows.filter((r) => r.real);
-  real.forEach((r) => {
-    const P = (projects[r.ma] ||= { g: r.g });
-    P.viec = r.viec;
-    if (r.muctieu) P.muctieu = r.muctieu;
-    if (r.kpi) P.kpi = r.kpi;
-    if (r.start) P.start = r.start;
-    if (r.end) P.end = r.end;
-    if (r.po) P.po = r.po.replace(/\s*\(.*\)\s*$/, '');
-  });
-  const val = (r: Row, id: string): string | null => {
-    const p = projects[r.ma], u = units[p ? p.g! : r.g];
-    if (!p) {
-      if (id === 'viec') return r.viec || null;
-      if (id === 'mang' && u) return u.name || null;
-      return (UNIT_IDS.includes(id) && u && u[id]) || null;
-    }
-    return (id === 'mang' ? (u ? u.name : p.g) : UNIT_IDS.includes(id) ? u && u[id] : p[id]) || null;
-  };
-  real.forEach((r) => CFG_IDS.forEach((id) => {
-    if (val(r, id) !== null) return;
-    const donor = rows.find((x) => x !== r && val(x, id) !== null);
-    if (!donor) return;
-    const dv = val(donor, id)!;
-    if (UNIT_IDS.includes(id)) { const u = (units[r.g] ||= { name: r.g }); u[id] ||= dv; }
-    else { const p = (projects[r.ma] ||= { g: r.g, viec: r.viec }); p[id] ||= dv; }
-  }));
-  rows.forEach((r) => CFG_IDS.forEach((id) => {
-    const v = val(r, id);
-    if (id === 'viec' || id === 'pic' || id === 'po') txt(r)[id] = v || '';
-    else if (v === null) delete txt(r)[id];
-    else txt(r)[id] = v;
-  }));
-}
-
-/** Dòng như lúc vừa đọc file (chưa có nháp AI) — gốc của mọi kịch bản. */
-export function baseRows(): Row[] {
-  const rows = GOLD.rows.map(buildRow);
-  rows.forEach((r) => { if (r.ma === 'I.A.4.1') { r.stages[7] = 'miss'; r.stages[9] = 'miss'; } });
-  applyCatalogue(rows);
-  return rows;
-}
-
-function addDrafts(all: Row[], vis: Row[], ctx: CellCtx): void {
-  aiDrafts(vis, ctx).forEach((x) => { all[x.i].ai[x.f] = x.d; });
-}
-
-/** Bảng sau khi nhập file thật: mỗi dòng có nháp AI ở AC/AS/AT, tất cả chờ duyệt. */
-function loadedRows(): Row[] {
-  const rows = baseRows();
-  addDrafts(rows, rows.filter((r) => r.real), CTX0);
-  return rows;
-}
-
-/* ---------- Bước 1 · nhập file ---------- */
-export function loadFileNow(name: string): void {
-  mutate((d) => {
-    d.allRows = castDraft(loadedRows());
-    d.realOnly = true; d.test = null; d.testOrig = null;
-    d.newCodes = 'added'; d.dupMerged = true; d.phaseBucket = { ...PHASE_BUCKET }; d.unsorted = [...PHASE_UNSORTED];
-    dropRowSession(d); d.fileName = name; d.loaded = true; d.view = 'import'; d.modal = null; d.importing = null; d.replaceFile = false;
-    const S = FILE_STATS;
-    log(d, 'Nhập file Jira', name, S.cols + ' cột · gộp ' + S.dupGroups + ' nhóm cột trùng tên · ' + S.epics + ' epic dự án · ' + S.tasks + ' task con không đưa vào báo cáo', 'Cảnh báo');
-  }, { resetUndo: true });
-}
-
-/** Bước tour cần bảng mà chưa có file: nạp file mẫu rồi ở lại màn Bảng (prep goGrid của prototype). */
-export function loadSampleForTour(): void { loadFileNow(GOLD_FILE); mutate((d) => { d.view = 'grid'; }); }
-
+export const IMPORT_STEPS: readonly string[] = ['Đọc file và nhận diện cột', 'Gộp các cột trùng tên', 'Tách mã dự án, ghép vào 49 cột mẫu', 'So với tuần trước và cấu hình đã lưu'];
+/** Màn Đang đọc hiện từng bước (IMPORT_STEP_MS) rồi dừng IMPORT_END_MS: tổng 3 giây để người dùng kịp đọc số liệu thật. */
+export const IMPORT_STEP_MS = 650;
+export const IMPORT_END_MS = 400;
+let endHold: (() => void) | null = null;
+let skipRequested = false;
 const reducedMotion = (): boolean => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+const holdFor = (ms: number): Promise<void> => new Promise((resolve) => {
+  const t = setTimeout(() => { endHold = null; resolve(); }, ms);
+  endHold = () => { clearTimeout(t); endHold = null; resolve(); };
+});
+/** "Xem tóm tắt ngay": bỏ qua phần chờ. */
+export function skipImportWait(): void { skipRequested = true; endHold?.(); }
 
-/** Nhập file có màn "Đang đọc" (từng bước 200ms) trên trình duyệt; `silent`/node/giảm chuyển động thì nạp ngay. */
-export function loadFile(name: string, silent = false): void {
-  if (silent || !inBrowser() || reducedMotion()) return loadFileNow(name);
-  mutate((d) => { d.importing = { name, step: 0 }; d.view = 'import'; d.modal = null; });
-  const tick = (): void => {
-    const im = getState().importing;
-    if (!im) return;
-    if (im.step + 1 >= IMPORT_STEPS.length) return loadFileNow(name);
-    mutate((d) => { if (d.importing) d.importing.step++; });
-    setTimeout(tick, 200);
-  };
-  setTimeout(tick, 240);
+/** Giá trị của ô chọn nguồn mapQuick nghĩa là "dùng nguồn của cấu hình" (bỏ phần đã đổi). */
+export const SRC_DEFAULT = '__default__';
+
+const errMsg = (e: unknown): string => (e instanceof ApiError ? e.message : 'Có lỗi không mong đợi, thử lại sau.');
+const ERROR_TOAST_MS = 6000; // lỗi dài hơn thông báo thường để kịp đọc
+const failUpload = (e: unknown): void => mutate((d) => { d.importErr = errMsg(e); d.importing = null; d.busy = false; });
+const failToast = (e: unknown): void => mutate((d) => { toast(d, errMsg(e), ERROR_TOAST_MS); d.importing = null; d.busy = false; });
+
+/* ---------- dữ liệu nền từ máy chủ ---------- */
+/** Kỳ báo cáo, lịch sử nhập file, cấu hình mapping đã lưu: gọi một lần khi mở trang. */
+export async function initStage1Bootstrap(): Promise<void> {
+  const [cyc, hist, maps] = await Promise.allSettled([api.getActiveCycle(), api.getIngestHistory(), api.listMappings()]);
+  if (cyc.status === 'fulfilled') setCycle(cyc.value.today, cyc.value.weeks);
+  mutate((d) => {
+    if (cyc.status === 'fulfilled') { d.cycleId = cyc.value.cycle_id; d.weeks = cyc.value.weeks; d.activeToday = cyc.value.today; }
+    if (hist.status === 'fulfilled') d.impHist = hist.value;
+    if (maps.status === 'fulfilled') d.mappings = castDraft(maps.value);
+    const bad = [cyc, hist, maps].find((r) => r.status === 'rejected');
+    if (bad && bad.status === 'rejected') toast(d, errMsg(bad.reason));
+  }, { track: false });
 }
 
-/* ---------- chế độ dữ liệu thử ---------- */
-function rng(seed: number): () => number {
-  let x = seed % 2147483647;
-  if (x <= 0) x += 2147483646;
-  return () => { x = (x * 16807) % 2147483647; return (x - 1) / 2147483646; };
-}
-function dirtify(text: string, rnd: () => number): string {
-  if (!text) return text;
-  const bul = ['* ', '- ', '•', '*  ', '+ '];
-  let out = String(text).split('\n').map((l) => {
-    let t = l;
-    if (/^•\s/.test(t)) t = bul[Math.floor(rnd() * bul.length)] + t.replace(/^•\s*/, '');
-    else if (/:\s*$/.test(t) && rnd() < 0.7) t = (rnd() < 0.3 ? "'" : '') + '*' + t.trim() + '*';
-    t = t.replace(/ → /g, rnd() < 0.5 ? ' -> ' : '->').replace(/ – /g, ' - ');
-    if (rnd() < 0.35) t = t.replace(/ /, '  ');
-    if (rnd() < 0.3) t += '   ';
-    if (rnd() < 0.22 && /^•\s/.test(l)) t += ' - [LADP-' + (300 + Math.floor(rnd() * 200)) + '|https://xanhsm.atlassian.net/browse/LADP-' + (300 + Math.floor(rnd() * 200)) + ']';
-    if (rnd() < 0.15) t = t.replace(/(\d+)\s?%/, '$1 %');
-    return t;
-  }).join('\r\n');
-  if (rnd() < 0.4) out = out.replace('\r\n', '\r\n\r\n');
-  return out;
-}
-const RISKS = ['Thiếu SA dedicate, chậm review thiết kế 1 tuần', 'Chờ phê duyệt ANBM từ khối Bảo mật, có nguy cơ trễ go-live', 'Dữ liệu nguồn từ 360 bị lỗi schema, chưa có phương án fallback',
-  'Phụ thuộc team Platform release API mới, đang blocked', 'Vendor GPU giao trễ, không kịp huấn luyện lại trước 30/11', 'Thiếu nhãn dữ liệu cho tập test, kết quả đánh giá chưa đạt'];
-const PROPS = ['Đề xuất BGĐ hỗ trợ ưu tiên nguồn lực SA', 'Đề xuất họp 3 bên chốt lại mốc trong tuần', 'Đề xuất dùng dữ liệu tháng 9 tạm thời', 'Đề xuất escalate lên GĐK QLTT'];
-const CLEAN_NAME = 'Dữ liệu chuẩn';
+const refreshHistory = (): Promise<void> => api.getIngestHistory().then((h) => mutate((d) => { d.impHist = h; }, { track: false }), () => undefined);
+const refreshMappings = async (): Promise<MappingConfigOut[]> => {
+  const list = await api.listMappings();
+  mutate((d) => { d.mappings = castDraft(list); }, { track: false });
+  return list;
+};
 
-function dirtyRows(rows: Row[], seed: number): void {
-  const rnd = rng(seed * 977);
-  const ST = ['in progress', 'In_Progress', 'IN  PROGRESS ', 'In-Progress'], PG = ['on track', 'ON-TRACK', 'On_track ', 'on-Track'];
-  rows.forEach((r, j) => {
-    const raw: Record<string, string> = (r.raw = {});
-    (['ht', 'w1ht', 'w1kh', 'w2ht', 'w2kh'] as const).forEach((k) => { const v = r[k]; if (v) { const dv = dirtify(v, rnd); raw[k] = dv; r[k] = cleanText(dv); } });
-    if (r.kpi) {
-      const kr = '||*STT*||*KPI*||*Chỉ số chính*||*Kết quả thực tế*||\r\n' + r.kpi.split('\n').map((x, k) => '|' + (k + 1) + '|' + x.replace(/^\d+\.\s*/, '') + ' | | |').join('\r\n') + '\r\n| | | | |';
-      raw.kpi = kr; r.kpi = cleanKpi(kr);
-    }
-    if (r.comment) {
-      const cr = (6 + (j % 20)) + '/Nov/26 ' + (9 + (j % 8)) + ':0' + (j % 6) + ' AM;712020:c8bea68a-' + (1000 + j) + ';{{2026-11-' + String(10 + (j % 9)).padStart(2, '0') + '}} \r\n\r\n' + dirtify(r.comment, rnd);
-      raw.comment = cr; r.comment = cleanComment(cr);
-    }
-    if (r.rawStatus === 'IN PROGRESS' && rnd() < 0.5) raw.rawStatus = r.rawStatus = ST[j % ST.length];
-    if (r.rawProgress === 'On-track' && rnd() < 0.5) raw.rawProgress = r.rawProgress = PG[j % PG.length];
-  });
-}
-
-function riskRows(rows: Row[]): void {
-  rows.forEach((r, j) => {
-    if (r.isNew) return;
-    if (j % 3 === 0) {
-      const rk = RISKS[j % RISKS.length], pp = PROPS[j % PROPS.length];
-      r.comment = 'Risk: ' + rk + '\n→ ' + pp;
-      r.ai.vd = { text: 'Rủi ro: ' + rk + '.\n→ ' + pp + '.', why: 'Comment ' + (10 + (j % 9)) + '/11 có ghi Risk', src: r.comment, ok: j % 2 === 0 };
-      r.ai.rui = { text: j % 2 ? 'Cao' : 'Trung bình', why: 'Comment có ghi risk', src: r.comment, ok: j % 2 === 0 };
-      if (j % 6 === 0) r.rawProgress = 'Off-track';
-    } else if (j % 3 === 1) {
-      r.ai.vd = { text: 'Không có vấn đề phát sinh trong tuần.', why: 'Progress Report', src: '', ok: true };
-      r.ai.rui = { text: 'Thấp', why: 'đúng tiến độ', src: '', ok: true };
-    }
-  });
-}
-
-/* "Nhiều dự án (giả lập)": pfApply đầy đủ — mọi giá trị có luật, đủ ô bắt buộc, nháp AI đã duyệt */
-function fillAll(rows: Row[], vis: Row[], ctx: CellCtx): void {
-  const okPhase = Object.keys(ctx.phaseBucket).filter((k) => ctx.phaseBucket[k]);
-  const okSt = Object.keys(STATUS_MAP).find((k) => STATUS_MAP[k] === 'Đang thực hiện') || 'IN PROGRESS';
-  const okPg = Object.keys(PROG_MAP).find((k) => PROG_MAP[k] === 'Đúng tiến độ') || 'On-track';
-  vis.forEach((r, j) => {
-    if (!ctx.phaseBucket[r.rawPhase]) r.rawPhase = okPhase[j % okPhase.length];
-    if (!mapNorm(STATUS_MAP, r.rawStatus)) r.rawStatus = okSt;
-    if (!mapNorm({ PENDING: '1' }, r.rawStatus) && !mapNorm(PROG_MAP, r.rawProgress)) r.rawProgress = okPg;
-    if (r.labels && r.labels.indexOf(r.g + '.') !== 0) r.labels = r.g + '.1';
-    if (!r.milestone) r.milestone = '30/11: Hoàn tất ' + (j % 2 ? 'UAT' : 'pilot') + '\n31/12: Đánh giá kết quả';
-    if (!r.output) r.output = 'Tài liệu ' + (j % 3 ? 'thiết kế giải pháp' : 'đánh giá mô hình') + ' v' + (1 + (j % 3));
-    if (!r.pic) r.pic = ['Trần Minh', 'Phan Ngọc', 'Mai Linh', 'Đặng Quân'][j % 4];
-  });
-  addDrafts(rows, vis, ctx);
-  vis.forEach((r) => { r.stages = r.stages.map((st) => (st === 'miss' ? 'todo' : st)); });
-  vis.forEach((r) => {
-    AI_IDS.forEach((k) => {
-      const a = r.ai[k];
-      if (!a) r.ai[k] = { text: k === 'rui' ? 'Thấp' : 'Không có vấn đề phát sinh trong tuần.', why: 'Progress Report', src: '', ok: true };
-      else a.ok = true;
-    });
-    FIELDS.forEach((f) => {
-      if (['none', 'ai', 'future'].includes(f.kind) || f.id === 'note' || ['w1', 'w2', 'w4'].includes(f.grp) || cellValue(r, f, ctx) !== null) return;
-      const donor = vis.find((x) => x !== r && cellValue(x, f, ctx) !== null);
-      const dv = donor ? cellValue(donor, f, ctx)! : '—';
-      txt(r)[f.id] = dv;
-      if (cellValue(r, f, ctx) === null) r.ovr[f.id] = dv;
-    });
-  });
-}
-
-/** Dựng dữ liệu của một kịch bản từ dòng gốc (prototype: pfReset + enterTest + pfApply theo từng kịch bản). */
-function applyScenario(d: Draft<AppState>, sc: Exclude<TestScenario, null>): void {
-  const rows = baseRows(), ctx: CellCtx = { phaseBucket: { ...PHASE_BUCKET } };
-  d.realOnly = sc === 'perfect';
-  d.newCodes = 'pending'; d.dupMerged = false; d.unsorted = [...PHASE_UNSORTED]; d.phaseBucket = ctx.phaseBucket;
-  const vis = (): Row[] => rowsOf({ allRows: rows, newCodes: d.newCodes, dupMerged: d.dupMerged, realOnly: d.realOnly });
-  if (sc === 'dirty') dirtyRows(rows, d.testSeed);
-  else if (sc === 'risk') riskRows(rows);
-  else if (sc === 'errors') addDrafts(rows, vis(), ctx);
-  else {
-    d.newCodes = 'added'; d.dupMerged = true;
-    if (sc === 'perfect') addDrafts(rows, vis(), ctx);
-    else { d.unsorted = []; fillAll(rows, vis(), ctx); }
-  }
-  d.allRows = castDraft(rows);
+/* ---------- Bước 1 · nạp / mở lại / tính lại ---------- */
+function commit(d: Draft<AppState>, res: IngestResponse, mappings: MappingConfigOut[]): void {
+  d.allRows = castDraft(res.rows);
+  d.realOnly = true; d.newCodes = 'added'; d.dupMerged = true; d.unsorted = [];
+  d.sessionId = res.session_id; d.fileName = res.file_name; d.fileCols = res.file_cols; d.fileStats = res.file_stats;
+  d.groups = res.groups; d.applied = res.applied_mapping.id ? res.applied_mapping : null;
+  d.orphans = res.orphans; d.blockers = res.blockers; d.warnings = res.warnings;
+  d.mpUsed = res.applied_mapping.id || null;
+  d.phaseBucket = mappings.find((m) => m.id === d.mpUsed)?.value_mappings.phase_bucket || {};
   dropRowSession(d);
-  d.test = sc; d.menu = null;
-  const nm = sc === 'dirty' || sc === 'risk' ? SCEN[sc].name : CLEAN_NAME;
-  log(d, 'Chế độ test', nm, 'Dữ liệu giả — không ảnh hưởng dữ liệu thật');
-  if (sc === 'dirty' || sc === 'risk') toast(d, 'Chế độ test · ' + nm);
-  else {
-    d.view = 'import'; d.panel = null; d.modal = null;
-    toast(d, sc === 'many' ? 'Dữ liệu thử · ' + SCEN.many.name : 'Chế độ test · ' + SCEN[sc].name);
-  }
+  d.loaded = true; d.modal = null; d.importing = null; d.replaceFile = false; d.busy = false;
 }
 
-/** Vào (hoặc đổi) kịch bản thử; chỉ lần vào đầu tiên mới ghi lại dữ liệu thật để thoát ra khôi phục. */
-export function enterTest(sc: Exclude<TestScenario, null>): void {
-  const s = getState();
+/** Tải lại bảng từ một phản hồi của máy chủ (mở lại phiên cũ, chọn cấu hình khác, đổi nguồn cột). */
+export function applyIngest(res: IngestResponse, opts: { dirty?: boolean; src?: Record<string, string> } = {}): void {
   mutate((d) => {
-    if (s.test === null) d.testOrig = castDraft({ allRows: s.allRows, realOnly: s.realOnly, phaseBucket: s.phaseBucket, unsorted: s.unsorted, newCodes: s.newCodes, dupMerged: s.dupMerged });
-    applyScenario(d, sc);
+    commit(d, res, getState().mappings);
+    d.mpSrc = opts.src || {}; d.mpDirty = !!opts.dirty; d.mpSave = false;
   }, { resetUndo: true });
 }
 
-/** "↻ Sinh lại": đổi hạt ngẫu nhiên rồi dựng lại kịch bản đang chạy. */
-export function testReseed(): void {
-  mutate((d) => { if (!d.test) return; d.testSeed = (d.testSeed || 7) + 1; applyScenario(d, d.test); }, { resetUndo: true });
+/** "Đọc file này": gửi file thật lên máy chủ. Màn "Đang đọc" chạy từng bước trong lúc chờ, bước cuối giữ tới khi có kết quả. */
+export async function uploadFile(file: File, mappingId?: string | null, forceReload = false): Promise<void> {
+  if (getState().busy) return;
+  mutate((d) => { d.busy = true; d.importErr = null; d.importing = { name: file.name, step: 0 }; d.view = 'import'; d.modal = null; });
+  skipRequested = false;
+  try {
+    const res = await api.ingestUpload(file, getState().cycleId, mappingId ?? getState().mpUsed, forceReload);
+    const cancelled = (): boolean => { if (getState().importing) return false; mutate((d) => { d.busy = false; }, { track: false }); return true; };
+    if (cancelled()) return;
+    mutate((d) => { if (d.importing) d.importing.found = foundFromResponse(res); }, { track: false });
+    if (inBrowser() && !reducedMotion()) {
+      for (let k = 1; k <= IMPORT_STEPS.length && !skipRequested; k++) {
+        await holdFor(IMPORT_STEP_MS);
+        if (cancelled()) return;
+        if (!skipRequested) mutate((d) => { if (d.importing) d.importing.step = k; }, { track: false });
+      }
+      if (!skipRequested) await holdFor(IMPORT_END_MS);
+    }
+    if (cancelled()) return;
+    mutate((d) => {
+      commit(d, res, getState().mappings); d.mpSrc = {}; d.mpDirty = false; d.mpSave = false;
+      if (d.pv) d.pv.done = true;
+      const st = res.file_stats;
+      if (res.is_duplicate_file) toast(d, 'File này đã nhập trước đó, đang mở lại kết quả cũ');
+      log(d, 'Nhập file Jira', res.file_name, st.total_cols + ' cột · gộp ' + st.dup_groups + ' nhóm cột trùng tên · ' + st.matched_projects + ' dự án ghép được · ' + res.orphans.length + ' issue chưa ghép', res.orphans.length ? 'Cảnh báo' : 'Thành công');
+    }, { resetUndo: true });
+    void refreshHistory();
+  } catch (e) { failUpload(e); }
 }
 
-export function exitTest(): void {
-  mutate((d) => {
-    if (!d.test) return;
-    const o = d.testOrig;
-    if (o) { d.allRows = o.allRows; d.realOnly = o.realOnly; d.phaseBucket = o.phaseBucket; d.unsorted = o.unsorted; d.newCodes = o.newCodes; d.dupMerged = o.dupMerged; }
-    dropRowSession(d);
-    d.test = null; d.testOrig = null; d.menu = null;
-    log(d, 'Thoát chế độ test', '', 'Khôi phục dữ liệu demo');
-    toast(d, 'Đã thoát chế độ test');
-  }, { resetUndo: true });
+/** "Nhập lại file này" / chọn file cũ hơn: nạp lại phiên đã lưu. */
+export async function reopenSession(sessionId: string): Promise<void> {
+  if (getState().busy) return;
+  mutate((d) => { d.busy = true; });
+  try {
+    const res = await api.getSession(sessionId);
+    applyIngest(res);
+    mutate((d) => { log(d, 'Mở lại lần nhập', res.file_name, res.file_stats.matched_projects + ' dự án'); });
+  } catch (e) { failToast(e); }
+}
+
+/** Tính lại bảng với cấu hình `mappingId` và các nguồn cột đang đổi tạm (chưa lưu). */
+async function recalc(mappingId: string | null, src: Record<string, string>, dirty: boolean): Promise<boolean> {
+  const sid = getState().sessionId;
+  if (!sid || getState().busy) return false;
+  mutate((d) => { d.busy = true; });
+  try {
+    const res = await api.recalculate({ session_id: sid, mapping_id: mappingId, src_overrides: src });
+    applyIngest(res, { dirty, src });
+    return true;
+  } catch (e) { failToast(e); return false; }
+}
+
+/* ---------- Bước 1 · cấu hình mapping (mpBar + mapQuick) ---------- */
+export const mpCurrent = (s: Pick<AppState, 'mappings' | 'mpUsed'>): MappingConfigOut | undefined => s.mappings.find((m) => m.id === s.mpUsed);
+
+/** Chọn cấu hình khác ở ô chọn của mpBar; '' = quay lại cấu hình mặc định của hệ thống. */
+export async function mpPick(id: string): Promise<void> {
+  const ok = await recalc(id || null, {}, false);
+  if (ok) mutate((d) => { const m = mpCurrent(d); log(d, 'Dùng cấu hình mapping', m?.name || 'mặc định', 'khớp ' + (d.applied?.matched_cols ?? 0) + '/' + (d.applied?.total_cols ?? 49) + ' cột'); toast(d, 'Đang dùng mapping “' + (m?.name || 'mặc định') + '”'); });
+}
+
+/** Đổi nguồn một cột Jira (mapQuick): xem trước ngay từ file gốc, chưa lưu cấu hình. */
+export async function mpQuickChange(fid: string, col: string): Promise<void> {
+  const s = getState(), src = { ...s.mpSrc };
+  if (col === SRC_DEFAULT) delete src[fid]; else src[fid] = col;
+  await recalc(s.mpUsed, src, Object.keys(src).length > 0);
+}
+
+/** Cột của cấu hình đang dùng, đã gộp các nguồn đang đổi tạm. */
+function mergedColumns(s: AppState, base: MappingConfigOut): MappingColumnDef[] {
+  return base.columns.map((c) => (s.mpSrc[c.field_id] !== undefined
+    ? { ...c, source_type: 'jira', source_field: s.mpSrc[c.field_id], fallbacks: [] } : c));
+}
+const valuesOf = (m: MappingConfigOut | undefined): ValueMappings => m?.value_mappings || { status_map: {}, progress_map: {}, phase_map: {}, phase_bucket: {} };
+
+export function mpSaveOpen(on: boolean): void { mutate((d) => { d.mpSave = on; }, { track: false }); }
+
+/** "Lưu thành cấu hình mới". */
+export async function mpSaveNew(name: string): Promise<void> {
+  const s = getState(), base = mpCurrent(s) || s.mappings.find((m) => m.is_default) || s.mappings[0];
+  if (!name.trim()) return mutate((d) => toast(d, 'Đặt tên cho cấu hình trước'));
+  if (!base) return mutate((d) => toast(d, 'Chưa có cấu hình mẫu để lưu'));
+  try {
+    const m = await api.createMapping({ name: name.trim(), description: null, columns: mergedColumns(s, base), value_mappings: valuesOf(base) });
+    await refreshMappings();
+    if (await recalc(m.id, {}, false)) mutate((d) => { log(d, 'Lưu cấu hình mapping', m.name, 'dùng lại cho lần nhập sau'); toast(d, 'Đã lưu cấu hình mapping “' + m.name + '”'); });
+  } catch (e) { failToast(e); }
+}
+
+/** "Cập nhật “tên”": ghi các nguồn đã đổi vào cấu hình đang dùng. */
+export async function mpUpdateProfile(): Promise<void> {
+  const s = getState(), base = mpCurrent(s);
+  if (!base) return;
+  try {
+    await api.updateMapping(base.id, { columns: mergedColumns(s, base) });
+    await refreshMappings();
+    if (await recalc(base.id, {}, false)) mutate((d) => { log(d, 'Cập nhật cấu hình mapping', base.name, ''); toast(d, 'Đã cập nhật “' + base.name + '”'); });
+  } catch (e) { failToast(e); }
+}
+
+export async function mpCloneProfile(): Promise<void> {
+  const s = getState(), base = mpCurrent(s) || s.mappings.find((m) => m.is_default);
+  if (!base) return;
+  try {
+    const m = await api.cloneMapping(base.id);
+    await refreshMappings();
+    if (await recalc(m.id, {}, false)) mutate((d) => { log(d, 'Nhân bản cấu hình mapping', m.name, 'từ “' + base.name + '”'); toast(d, 'Đã nhân bản thành “' + m.name + '”'); });
+  } catch (e) { failToast(e); }
+}
+
+export async function mpSetDefault(): Promise<void> {
+  const s = getState(), base = mpCurrent(s);
+  if (!base) return;
+  try {
+    await api.setDefaultMapping(base.id);
+    await refreshMappings();
+    mutate((d) => toast(d, '“' + base.name + '” là cấu hình mặc định, lần nhập sau tự dùng'));
+  } catch (e) { failToast(e); }
+}
+
+export async function mpDeleteProfile(): Promise<void> {
+  const s = getState(), base = mpCurrent(s);
+  if (!base) return;
+  try {
+    await api.deleteMapping(base.id);
+    await refreshMappings();
+    if (await recalc(null, {}, false)) mutate((d) => toast(d, 'Đã xoá cấu hình “' + base.name + '”'));
+  } catch (e) { failToast(e); }
 }
 
 /* ---------- 3 bước & chuyển màn ---------- */
@@ -421,12 +301,16 @@ const PV_EXT: readonly string[] = ['csv', 'tsv', 'txt', 'xlsx', 'xlsm', 'xls'];
 let pvToken = 0;
 
 /** Chọn / thả file: kiểm đuôi và dung lượng, rồi đọc nội dung để xem trước (chỉ gọi từ sự kiện trình duyệt). */
+let stagedFile: File | null = null;
+
 export function pvStage(file: { name: string; size: number; arrayBuffer(): Promise<ArrayBuffer> } | undefined): Promise<void> {
   if (!file) { mutate((d) => toast(d, 'Không thấy file nào được thả vào')); return Promise.resolve(); }
   const ext = (file.name.split('.').pop() || '').toLowerCase();
   if (!PV_EXT.includes(ext)) { mutate((d) => toast(d, 'Chỉ nhận file CSV hoặc Excel (.csv, .xlsx, .xls)')); return Promise.resolve(); }
+  stagedFile = file as File;
   const tk = ++pvToken, big = file.size > 60 * 1048576;
   mutate((d) => {
+    d.importErr = null;
     d.pv = { name: file.name, size: file.size, ext, loading: !big, done: false };
     if (big) d.pv.err = 'File lớn hơn 60 MB, không xem trước được.';
     d.pvSheet = 0; d.pvFs = false;
@@ -435,12 +319,11 @@ export function pvStage(file: { name: string; size: number; arrayBuffer(): Promi
   const done = (patch: Partial<PreviewFile>): void => { if (tk === pvToken) mutate((d) => { if (d.pv) Object.assign(d.pv, castDraft(patch), { loading: false }); }); };
   return file.arrayBuffer().then(pvParse).then(done, (e: unknown) => done({ err: (e instanceof Error && e.message) || 'Không đọc được file này.' }));
 }
-/** "Đọc file này": nạp file đã xem trước. */
-export function pvGo(): void {
+/** "Đọc file này": gửi file đã xem trước lên máy chủ. */
+export function pvGo(): Promise<void> {
   const f = getState().pv;
-  if (!f || !f.sheets) return;
-  mutate((d) => { if (d.pv) d.pv.done = true; });
-  loadFile(f.name);
+  if (!f || !f.sheets || !stagedFile || getState().busy) return Promise.resolve();
+  return uploadFile(stagedFile);
 }
 export function pvSetSheet(k: number): void { mutate((d) => { d.pvSheet = k; }); }
 export function pvSetFs(open: boolean): void { mutate((d) => { d.pvFs = open && !!d.pv?.sheets; }); }
@@ -448,7 +331,7 @@ export function pvSetFs(open: boolean): void { mutate((d) => { d.pvFs = open && 
 /** "Thay file khác" (bỏ file đang xem trước) / "Giữ file đang dùng". */
 export function setReplaceFile(on: boolean): void {
   if (on) pvToken++;
-  mutate((d) => { d.replaceFile = on; if (on) { d.pv = null; d.pvSheet = 0; d.pvFs = false; } });
+  mutate((d) => { d.replaceFile = on; d.importErr = null; if (on) { d.pv = null; d.pvSheet = 0; d.pvFs = false; } });
 }
 /** "Huỷ, chọn file khác" ở màn Đang đọc. */
 export function impCancel(): void {

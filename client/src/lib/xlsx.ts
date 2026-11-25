@@ -1,6 +1,6 @@
 /* Đọc file CSV/XLSX/XLS (xem trước khi nhập) và xuất báo cáo .xlsx 49 cột (OOXML thuần JS). Port từ prototype v4.
    API trình duyệt (DecompressionStream, DOMParser, document) chỉ dùng bên trong hàm, không chạy lúc import. */
-import { FIELDS, GROUPS, GRP } from '@/data/constants';
+import { FIELDS, GRP } from '@/data/constants';
 import type { AppState, Field, PreviewSheet, Row } from '@/types';
 import { displayText, type CellCtx } from './cell';
 import { sortRows, visibleFields } from './grid';
@@ -287,10 +287,10 @@ const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.s
 const HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
 
 /** File Excel: hàng 1 tên nhóm cột, hàng 2 tên cột (đậm, nền xám, viền, xuống dòng), dữ liệu theo nhóm dự án; cố định 2 cột/2 hàng đầu, có lọc. */
-export function exXlsx(rows: Row[], cols: Field[], ctx: CellCtx & Pick<AppState, 'sort'>): Blob {
+export function exXlsx(rows: Row[], cols: Field[], ctx: CellCtx & Pick<AppState, 'sort' | 'groups'>): Blob {
   const X = (t: unknown): string => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
   const cl = (n: number): string => { let s = ''; n++; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
-  const list = GROUPS.flatMap((g) => sortRows(rows.filter((r) => r.g === g.k), ctx.sort, ctx));
+  const list = ctx.groups.flatMap((g) => sortRows(rows.filter((r) => r.g === g.k), ctx.sort, ctx));
   const c = (ci: number, ri: number, t: unknown, s: number): string => '<c r="' + cl(ci) + ri + '" t="inlineStr" s="' + s + '"><is><t xml:space="preserve">' + X(t) + '</t></is></c>';
   const sd = '<row r="1">' + cols.map((f, i) => c(i, 1, !i || cols[i - 1].grp !== f.grp ? GRP[f.grp] || f.grp : '', 1)).join('') + '</row>'
     + '<row r="2">' + cols.map((f, i) => c(i, 2, f.name, 1)).join('') + '</row>'

@@ -1,13 +1,12 @@
-/* Khung ứng dụng (prototype render L5617): thanh trên, banner test, `.shell` = Rail + `.scol`, các lớp nổi.
+/* Khung ứng dụng (prototype render L5617): thanh trên, `.shell` = Rail + `.scol`, các lớp nổi.
    Màn nhập file không có Rail. Các lớp nổi của bảng nằm ngoài `.gridwrap` (CSS zoom/transform làm hỏng position:fixed). */
 import { useEffect } from 'react';
 import { getState, useAppState } from '@/store';
-import { curStep } from '@/store/actions/flow';
+import { curStep, initStage1Bootstrap } from '@/store/actions/flow';
 import { setMenu } from '@/store/actions/grid';
 import { useKeyboard } from '@/hooks/useKeyboard';
 import { useGridResize } from '@/hooks/useGridResize';
 import { TopBar } from '@/components/layout/TopBar';
-import { TestBanner } from '@/components/layout/TestBanner';
 import { Rail } from '@/components/layout/Rail';
 import { StatusBar } from '@/components/layout/StatusBar';
 import { Toast } from '@/components/layout/Toast';
@@ -46,6 +45,8 @@ export function App(): JSX.Element {
   useKeyboard();
   useGridResize();
 
+  /* kỳ báo cáo, lịch sử nhập file, cấu hình mapping: lấy từ máy chủ một lần khi mở trang */
+  useEffect(() => { void initStage1Bootstrap(); }, []);
   useEffect(() => { document.addEventListener('click', onOutsideClick, true); return () => document.removeEventListener('click', onOutsideClick, true); }, []);
   useEffect(() => { document.body.classList.toggle('onimp', onImp); }, [onImp]);
   useEffect(() => { if (getState().menu) setMenu(null); }, [s.view]);
@@ -67,7 +68,6 @@ export function App(): JSX.Element {
   return (
     <>
       <TopBar />
-      <TestBanner />
       {onImp ? main : (
         <div className="shell">
           <Rail />

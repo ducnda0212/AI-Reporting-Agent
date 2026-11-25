@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import { getState, mutate, resetStore, rowsOf } from '@/store';
-import { loadFileNow } from '@/store/actions/flow';
-import { loadSampleForTour, pnSetWidth, pnToggleBig, pnToggleSec, setModal, setPanel, setView } from '@/store/actions/flow';
+import { loadFixture, seedVersions } from './fixtures';
+import { pnSetWidth, pnToggleBig, pnToggleSec, setModal, setPanel, setView } from '@/store/actions/flow';
 import { askSubmit, startReview, trOpen } from '@/store/actions/ai';
 import { poOpen, poSetFontSize, poSetSideW, poToggleExp, poToggleGroup } from '@/store/actions/popout';
 import { helpOpenPanel, helpSetQuery, helpTourStart, tourAutoStart, tourExit, tourGo } from '@/store/actions/help';
@@ -25,7 +25,7 @@ import { VersionsView } from '@/views/Versions/VersionsView';
 import { LogView } from '@/views/Log/LogView';
 
 const FILE = '20261125_DAN_Jira-Export-Clean-Dataset_64DA.csv';
-const fresh = (): void => { resetStore(); loadFileNow(FILE); };
+const fresh = (): void => { resetStore(); loadFixture(FILE); };
 const store = (): Record<string, string> => ({});
 const stubLs = (): Record<string, string> => {
   const m = store();
@@ -236,9 +236,7 @@ describe('HelpDrawer, Spotlight, tour', () => {
     tourGo(3); // grid-head
     expect(getState().view).toBe('grid');
     expect(getState().loaded).toBe(false);
-    loadSampleForTour();
-    expect(getState().loaded).toBe(true);
-    expect(getState().view).toBe('grid');
+    expect(getState().allRows).toEqual([]); // không tự nạp dữ liệu mẫu nữa
   });
 
   it('tour: ghi nhớ đã xem (pmo-tour-v1), chỉ tự chạy lần đầu', () => {
@@ -277,7 +275,7 @@ describe('HelpDrawer, Spotlight, tour', () => {
     }
     resetStore();
     expect(renderToString(<ImportView />)).toContain(other['#dropzone']);
-    fresh();
+    fresh(); seedVersions();
     expect(renderToString(<VersionsView />)).toContain('class="vb"');
     expect(renderToString(<VersionsView />)).toContain('class="vlt"');
     const lg = renderToString(<LogView />);

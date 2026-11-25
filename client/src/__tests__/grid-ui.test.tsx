@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import { getState, mutate, resetStore } from '@/store';
-import { enterTest, exitTest, loadFileNow } from '@/store/actions/flow';
+import { loadFixture } from './fixtures';
 import { startReview } from '@/store/actions/ai';
 import {
   applyEdit, approveRows, arrow, autofitCol, clearRowSel, edgeJump, fillTo, findSet, fixGo, gridOrder, grpSel, peSave, pkClose, pkOpen, pkPick,
@@ -24,7 +24,7 @@ import type { FieldId } from '@/types';
 
 const rowOf = (ma: string) => getState().allRows.find((r) => r.ma === ma)!;
 const count = (h: string, s: string) => h.split(s).length - 1;
-const load = () => { resetStore(); loadFileNow('x.csv'); mutate((d) => { d.view = 'grid'; }); };
+const load = () => { resetStore(); loadFixture('x.csv'); mutate((d) => { d.view = 'grid'; }); };
 const key = (k: string, o: Partial<KeyboardEvent> = {}) =>
   onGridKey({ key: k, target: null, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, preventDefault() {}, stopImmediatePropagation() {}, ...o } as unknown as KeyboardEvent);
 
@@ -35,7 +35,7 @@ afterEach(() => { expect(errs).not.toHaveBeenCalled(); errs.mockRestore(); vi.un
 describe('Spreadsheet Grid UI SSR', () => {
   it('FormatBar có chip Trợ lý AI ngang, Dòng cần sửa, và không có nút Rổ gom', () => {
     resetStore();
-    loadFileNow('x.csv');
+    loadFixture('x.csv');
     mutate((d) => { d.menu = 'cols'; });
     const fb = renderToString(<FormatBar />);
     expect(fb).toContain('aichip');
@@ -55,7 +55,7 @@ describe('Spreadsheet Grid UI SSR', () => {
 
   it('Grid render đầy đủ 49 cột, link Mã DA popout và placeholder ô bắt buộc', () => {
     resetStore();
-    loadFileNow('x.csv');
+    loadFixture('x.csv');
     const g = renderToString(<Grid />);
     expect(g).toContain('Mã DA');
     expect(g).toContain('I.A.3.1');
@@ -249,9 +249,7 @@ describe('Store writers của bảng (Task 7)', () => {
       expect([s.svflash, s.rowSel]).toEqual([[], {}]);
     };
     load(); open();
-    enterTest('many'); closed();
-    open();
-    exitTest(); closed();
+    loadFixture('y.csv'); closed();
   });
 
   it('kéo tay nắm điền xuống / lên, chép giá trị và chọn cả vùng đã điền', () => {

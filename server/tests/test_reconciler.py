@@ -14,12 +14,12 @@ def test_reconciler_choice_a_and_orphans():
     ]
     rows, orphans = reconcile_issues(records, CATALOG, WEEKS)
     assert len(rows) == 1
-    assert rows[0].ma_da == "I.C.1.2"
+    assert rows[0].ma == "I.C.1.2"
     assert len(rows[0].subtasks) == 1
     assert rows[0].subtasks[0].key == "SUB-1"
     assert rows[0].subtasks[0].status == "Done"
     # Choice A: child status never changes the main ticket
-    assert rows[0].trang_thai == "Đang thực hiện"
+    assert rows[0].tt == "Đang thực hiện"
 
     assert len(orphans) == 1
     assert orphans[0].key == "ORPHAN-1"
@@ -40,7 +40,7 @@ def test_code_children_grandchildren_and_unknown_codes():
         {"Issue key": "J", "Summary": "I.C.1.2 Trùng mã", "Issue Type": "Epic", "Status": "To Do"},
     ]
     rows, orphans = reconcile_issues(records, CATALOG, WEEKS)
-    by = {r.ma_da: r for r in rows}
+    by = {r.ma: r for r in rows}
     assert set(by) == {"I.C.1.2", "I.A.4.1", "I.A.4.2"}
     assert [s.key for s in by["I.C.1.2"].subtasks] == ["B", "C", "D"]
     assert by["I.A.4.2"].subtasks == [] and by["I.A.4.1"].subtasks == []  # coded task is its own row
@@ -48,4 +48,4 @@ def test_code_children_grandchildren_and_unknown_codes():
     assert reasons == {
         "E": "CODE_NOT_IN_CATALOG", "F": "NO_DA_CODE", "G": "NO_DA_CODE", "J": "DUPLICATE_DA_CODE",
     }
-    assert [r.stt for r in rows] == [1, 2, 3]
+    assert [r.i for r in rows] == [0, 1, 2]

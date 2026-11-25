@@ -6,7 +6,6 @@ import { MAN3, TOURS } from '@/data/constants';
 import { fieldById } from '@/lib/cell';
 import { useAppState } from '@/store';
 import { reviewApprove, reviewDrop, reviewExit, reviewMove, reviewTrace } from '@/store/actions/ai';
-import { loadSampleForTour } from '@/store/actions/flow';
 import { tourAutoStart, tourExit, tourGo } from '@/store/actions/help';
 import type { AiFieldId } from '@/types';
 
@@ -103,8 +102,6 @@ export function Spotlight(): JSX.Element | null {
   const key = rv ? 'rv' + rv.list[rv.pos].i + '|' + rv.list[rv.pos].f : s.tour !== null ? 'tour' + s.tourKey + s.tour : '';
   /* mở app lần đầu: tự chạy tour tổng quan */
   useEffect(() => { tourAutoStart(); }, []);
-  /* bước cần bảng mà chưa nạp file: nạp dữ liệu mẫu như prototype (prep của bước Kiểm tra) */
-  useEffect(() => { if (st && st.view === 'grid' && !s.loaded) loadSampleForTour(); }, [st, s.loaded]);
   /* tìm phần tử đích, cuộn tới nếu ngoài màn hình, rồi đặt khung sáng và thẻ */
   useEffect(() => {
     if (!key) { setPos(null); seen.current = null; return; }

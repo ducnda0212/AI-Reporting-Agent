@@ -3,7 +3,6 @@
 export type ViewType = 'import' | 'grid' | 'ver' | 'log';
 export type PanelType = 'ai' | 'aitrace' | 'tvcfg' | null;
 export type ModalType = 'export' | 'aiDone' | null;
-export type TestScenario = 'dirty' | 'risk' | 'perfect' | 'errors' | 'many' | null;
 
 /* ---------- cột ---------- */
 export type FieldId =
@@ -42,8 +41,8 @@ export type StageState = 'done' | 'doing' | 'todo' | 'miss';
 export interface WeekReport { date: string; done: string; plan: string }
 export type WeekKey = 'w1' | 'w2' | 'w3';
 
-/** Các cột có giá trị chữ nằm thẳng trên dòng (trừ `ma`, `viec`, `tt`, `td`... tính từ rawStatus/rawProgress). */
-type RowTextId = Exclude<FieldId, 'ma' | 'viec' | 'tt' | 'td' | 'tt1' | 'buocso' | 'buoc' | 'x'>;
+/** Các cột có giá trị chữ nằm thẳng trên dòng (BE đã chuẩn hóa `tt`, `td`, `tt1`, `buoc`, `buocso`, `kh`, `vd`). */
+type RowTextId = Exclude<FieldId, 'ma' | 'viec' | 'x'>;
 
 export interface Row extends Partial<Record<RowTextId, string>> {
   i: number;
@@ -76,13 +75,13 @@ export interface Row extends Partial<Record<RowTextId, string>> {
   ai: Partial<Record<AiFieldId, AiCell>>;
   ovr: Partial<Record<FieldId, string>>;
   stages: StageState[];
-  /** Chỉ có ở kịch bản test `dirty`: bản gốc chưa làm sạch của từng ô. */
+  /** Bản gốc chưa làm sạch của từng ô (nếu có) để so với bản đã làm sạch. */
   raw?: Record<string, string>;
-  kpiRes?: string;
-  prd?: string;
   nChild?: number;
-  dirty?: boolean;
   priority?: string;
+  /** Việc con gắn vào dự án (kiểm tra) và cờ "nguồn Jira đổi sau khi sửa tay". */
+  subtasks?: { key: string; summary: string; status: string; assignee: string }[];
+  needs_review?: boolean;
 }
 
 /* ---------- chọn ô, định dạng, lọc, tìm ---------- */
@@ -178,6 +177,7 @@ export type LogResult = 'Thành công' | 'Cảnh báo' | 'Lỗi';
 export interface LogEntry { t: string; a: string; o: string; d: string; r: LogResult; seq?: number; day?: string }
 
 export interface ImportFileMeta {
+  session_id: string;
   name: string;
   wk: string;
   at: string;
@@ -200,6 +200,53 @@ export interface PreviewFile {
   enc?: string;
   delim?: string;
   sheets?: PreviewSheet[];
+}
+
+/* ---------- hợp đồng API (server/app/schemas) ---------- */
+/** Số liệu thật máy chủ vừa đọc được, hiện ở màn Đang đọc trước khi chuyển sang tóm tắt. */
+export interface ImportFound { issues: number; cols: number; dupGroups: number; projects: number; orphans: number; newCodes: number | null }
+export interface FileStats {
+  total_rows: number; total_cols: number; skipped_empty_rows: number; matched_projects: number;
+  dup_groups: number; dup_cols: number; used_cols: number;
+}
+export interface GroupInfo { k: string; name: string }
+export interface AppliedMapping { id: string; name: string; matched_cols: number; total_cols: number }
+export interface DiffSummary {
+  has_previous_session: boolean; added_projects: string[]; removed_projects: string[]; modified_count: number; schema_changes: string[];
+}
+export interface OrphanIssue { key: string; summary: string; issue_type: string; status: string; reason: string }
+export interface IssueNote { code: string; message: string; key: string; field: string }
+export interface IngestResponse {
+  success: boolean;
+  session_id: string;
+  file_name: string;
+  is_duplicate_file: boolean;
+  file_stats: FileStats;
+  file_cols: string[];
+  groups: GroupInfo[];
+  applied_mapping: AppliedMapping;
+  diff_summary: DiffSummary;
+  rows: Row[];
+  orphans: OrphanIssue[];
+  blockers: IssueNote[];
+  warnings: IssueNote[];
+}
+export interface ActiveWeek { k: string; name: string; range: string; cur: boolean; future: boolean; start: string; end: string }
+export interface ActiveCycle { cycle_id: string; current_wk: string; today: string; weeks: ActiveWeek[] }
+export interface MappingColumnDef {
+  field_id: string; col_letter: string; name: string; source_type: 'jira' | 'derived' | 'constant' | 'manual';
+  source_field: string; fallbacks: string[]; required: boolean;
+}
+export interface ValueMappings {
+  status_map: Record<string, string>; progress_map: Record<string, string>; phase_map: Record<string, string>; phase_bucket: Record<string, number>;
+}
+export interface MappingConfigOut {
+  id: string; name: string; description?: string | null; is_default: boolean; status: string; version: number;
+  columns: MappingColumnDef[]; value_mappings: ValueMappings; created_at?: string; updated_at?: string; created_by?: string;
+}
+export interface MappingConfigIn { name: string; description?: string | null; columns: MappingColumnDef[]; value_mappings: ValueMappings }
+export interface RecalculateIn {
+  session_id: string; mapping_id?: string | null; src_overrides?: Record<string, string>; value_mappings?: ValueMappings | null;
 }
 
 /* ---------- lịch sử điều hướng / hoàn tác ---------- */
@@ -235,16 +282,36 @@ export interface AppState {
   view: ViewType;
   panel: PanelType;
   modal: ModalType;
-  test: TestScenario;
-  testSeed: number;
   loaded: boolean;
-  importing: { name: string; step: number } | null;
+  importing: { name: string; step: number; found?: ImportFound } | null;
   fileName: string;
   realOnly: boolean;
   newCodes: 'pending' | 'added' | 'ignored';
   dupMerged: boolean;
   phaseBucket: Record<string, number>;
   unsorted: string[];
+  /** Dữ liệu thật từ máy chủ: kỳ báo cáo, tuần, phiên nhập, cột file, nhóm mảng việc, cấu hình mapping đang dùng. */
+  cycleId: string;
+  weeks: ActiveWeek[];
+  activeToday: string;
+  sessionId: string | null;
+  fileCols: string[];
+  fileStats: FileStats | null;
+  groups: GroupInfo[];
+  applied: AppliedMapping | null;
+  orphans: OrphanIssue[];
+  blockers: IssueNote[];
+  warnings: IssueNote[];
+  mappings: MappingConfigOut[];
+  mpUsed: string | null;
+  /** Nguồn cột Jira đã đổi (mapQuick) nhưng chưa lưu thành cấu hình. */
+  mpSrc: Record<string, string>;
+  mpDirty: boolean;
+  mpSave: boolean;
+  /** Đang gọi máy chủ (nạp file / tính lại mapping): khoá nút để khỏi bấm đúp. */
+  busy: boolean;
+  /** Lỗi của lần nhập file gần nhất, hiện trong ô xem trước cho tới khi chọn file khác. */
+  importErr: string | null;
 
   allRows: Row[];
   sel: CellRef | null;
@@ -346,8 +413,6 @@ export interface AppState {
   logSeq: number;
   lockSeq: number;
   stgSeq: number;
-  /** Dữ liệu trước khi vào chế độ thử, để thoát ra khôi phục nguyên trạng. */
-  testOrig: Pick<AppState, 'allRows' | 'realOnly' | 'phaseBucket' | 'unsorted' | 'newCodes' | 'dupMerged'> | null;
 }
 
 export type TourKey = 'all' | 'imp' | 'grid' | 'ai' | 'exp' | 'ver' | 'log';

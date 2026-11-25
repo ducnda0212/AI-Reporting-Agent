@@ -23,7 +23,7 @@ def db():
 def _session(db, extra=None, cycle=CYCLE):
     content = golden_csv(extra)
     record, _ = save_and_fingerprint(content, "golden.csv", f"rc_{cycle}", db, True)
-    resp, source_rows, headers = run_pipeline(content, cycle, None)
+    resp, source_rows, headers = run_pipeline(content, "golden.csv", cycle, None)
     save_session(db, cycle, record.id, resp, source_rows, headers)
     return resp
 
@@ -41,13 +41,13 @@ def test_recalculate_clears_orphan_blocker_and_keeps_overrides(db):
     assert new_resp.session_id == resp.session_id
     assert not any(b.code == "E_NO_CODE" and b.key == "PKD-202" for b in new_resp.blockers)
     assert not any(o.key == "PKD-202" for o in new_resp.orphans)
-    row = next(r for r in new_resp.rows if r.ma_da == "I.C.1.2")
-    assert row.pic == "PIC Đã Sửa Tay" and row.overrides == {"pic": "PIC Đã Sửa Tay"}
+    row = next(r for r in new_resp.rows if r.ma == "I.C.1.2")
+    assert row.pic == "PIC Đã Sửa Tay" and row.ovr == {"pic": "PIC Đã Sửa Tay"}
     assert any(s.key == "PKD-202" for s in row.subtasks)
 
     # overrides survive a later recalculate that does not resend them
     again = recalculate_session(resp.session_id, None, [], {}, db)
-    assert next(r for r in again.rows if r.ma_da == "I.C.1.2").pic == "PIC Đã Sửa Tay"
+    assert next(r for r in again.rows if r.ma == "I.C.1.2").pic == "PIC Đã Sửa Tay"
 
 
 def test_recalculate_default_mapping_matches_ingest_and_custom_mapping_applies(db):
@@ -61,7 +61,7 @@ def test_recalculate_default_mapping_matches_ingest_and_custom_mapping_applies(d
     clone = clone_mapping(db, "map_default_pmo_49col")
     update_mapping(db, clone.id, MappingConfigUpdate(value_mappings=ValueMappings(status_map={"In Progress": "Đang làm gấp"})))
     custom = recalculate_session(resp.session_id, clone.id, [], {}, db)
-    assert any(r.trang_thai == "Đang làm gấp" for r in custom.rows)
+    assert any(r.tt == "Đang làm gấp" for r in custom.rows)
 
 
 def test_recalculate_rejects_bad_input(db):

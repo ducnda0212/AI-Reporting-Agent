@@ -21,6 +21,7 @@ class ValueMappings(ApiModel):
     status_map: dict[str, str] = Field(default_factory=dict)
     progress_map: dict[str, str] = Field(default_factory=dict)
     phase_map: dict[str, str] = Field(default_factory=dict)
+    phase_bucket: dict[str, int] = Field(default_factory=dict)  # raw Jira phase -> AI lifecycle step 1..12
 
 
 class MappingConfigCreate(ApiModel):
@@ -65,7 +66,9 @@ class RecalculateRequest(ApiModel):
     session_id: str
     mapping_id: str | None = None  # None = system default mapping
     orphan_assignments: list[OrphanAssignment] = Field(default_factory=list)
-    overrides: dict[str, dict[str, str]] = Field(default_factory=dict)  # {ma_da: {field: value}}
+    overrides: dict[str, dict[str, str]] = Field(default_factory=dict)  # {ma: {field: value}}
+    src_overrides: dict[str, str] = Field(default_factory=dict)  # {field_id: Jira column} unsaved preview
+    value_mappings: ValueMappings | None = None  # unsaved inline status/progress/phase maps
 
 
 class AuditLogEntry(ApiModel):

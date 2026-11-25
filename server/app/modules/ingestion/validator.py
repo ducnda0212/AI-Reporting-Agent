@@ -6,7 +6,7 @@ from server.app.modules.ingestion.cross_validator import (
 from server.app.schemas.ingest import BlockerIssue, OrphanIssue, WarningIssue
 from server.app.schemas.row import ReportRow
 
-REQUIRED_FIELDS = ("pic", "bat_dau", "ket_thuc")
+REQUIRED_FIELDS = ("pic", "start", "end")
 
 
 def validate_rows(
@@ -20,8 +20,8 @@ def validate_rows(
         if not is_active(r):
             continue
         blockers += [
-            BlockerIssue(code="E_REQUIRED", key=r.issue_key or r.ma_da, field=f,
-                         message=f"{r.ma_da}: thiếu trường bắt buộc '{f}'")
+            BlockerIssue(code="E_REQUIRED", key=r.key or r.ma, field=f,
+                         message=f"{r.ma}: thiếu trường bắt buộc '{f}'")
             for f in REQUIRED_FIELDS if not getattr(r, f)
         ]
     return blockers, unmapped_values(rows) + unmapped_subtask_statuses(rows) + progress_conflicts(rows, ref_date)

@@ -1,7 +1,7 @@
 /* Bảng 49 cột: chọn ô, sửa ô (một đường ghi chung), picker 1 chạm, định dạng, cột, lọc/sắp xếp/tìm, menu chuột phải,
    "N ô cần sửa", hoàn tác/làm lại. Port từ prototype v4 (applyEdit, pkOpen R10, setFmt, colPreset, handleXl, fixGo, Ctrl+Z). */
 import { castDraft, type Draft } from 'immer';
-import { AI_IDS, FIELDS, GROUPS, GRP } from '@/data/constants';
+import { AI_IDS, FIELDS, GRP } from '@/data/constants';
 import { cellValue, ck, displayText, fieldById, locked, optsFor, refOf, sourceValue } from '@/lib/cell';
 import { cleanText } from '@/lib/clean';
 import { autofitWidth, filterKey, findMatches, hitCell, needsFix, passColFilters, selKeys, sortRows, visibleFields } from '@/lib/grid';
@@ -24,7 +24,7 @@ export function gridRows(s: AppState): Row[] {
 /** Thứ tự dòng trên bảng (theo nhóm dự án, đã sắp xếp; nhóm đang gập không có dòng). */
 export function gridOrder(s: AppState): number[] {
   const list = gridRows(s), out: number[] = [];
-  GROUPS.forEach((g) => { if (!s.collapsed[g.k]) sortRows(list.filter((r) => r.g === g.k), s.sort, s).forEach((r) => out.push(r.i)); });
+  s.groups.forEach((g) => { if (!s.collapsed[g.k]) sortRows(list.filter((r) => r.g === g.k), s.sort, s).forEach((r) => out.push(r.i)); });
   return out;
 }
 const navFields = (s: AppState): FieldId[] => visibleFields(s.hidden).map((f) => f.id);

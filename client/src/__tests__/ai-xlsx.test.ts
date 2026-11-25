@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import demoData from '@/data/demo.json';
 import { aiDrafts, agExamples, askAnswer, trDraft, trInputs, trText, type AskCtx } from '@/lib/ai';
 import { exFields, exXlsx, pvParse, pvParseCsv, pvReadCsv, pvUnzip } from '@/lib/xlsx';
-import { FIELDS, GRP, PHASE_BUCKET } from '@/data/constants';
+import { FIELDS, GRP } from '@/data/constants';
 import type { Row } from '@/types';
+import fx from './fixtures/jira-rows.json';
+import { PHASE_BUCKET } from './fixtures';
 
 /* Dòng tối thiểu dựng từ GOLD (buildRow thuộc Task 5): đủ trường mà lib/ai và lib/xlsx đọc. */
-type Gold = (typeof demoData.gold.rows)[number];
+type Gold = (typeof fx.rows)[number];
 function toRow(d: Gold, i: number): Row {
   const w = (d.prw || {}) as Row['prw'];
   const step = PHASE_BUCKET[d.rawPhase] || parseInt(d.rawPhase, 10) || 2;
@@ -20,7 +21,7 @@ function toRow(d: Gold, i: number): Row {
     ht: w.w3 ? w.w3.done : 'Chưa có Progress Report trong tuần này', loai: 'KHHĐ 2026', market: 'VN'
   };
 }
-const goldRows = (): Row[] => demoData.gold.rows.map(toRow);
+const goldRows = (): Row[] => fx.rows.map(toRow);
 const ctxOf = (rows: Row[]): AskCtx => ({ rows, allRows: rows, sel: null, phaseBucket: PHASE_BUCKET });
 const ctx0 = { phaseBucket: PHASE_BUCKET };
 
@@ -124,7 +125,8 @@ describe('Đọc file CSV/XLSX và xuất .xlsx', () => {
   });
 
   it('pvReadCsv đọc GOLD CSV (UTF-8, dấu phẩy)', () => {
-    const buf = new TextEncoder().encode(demoData.goldCsv).buffer as ArrayBuffer;
+    const csv = ['Summary,Issue key,Status', ...Array.from({ length: 12 }, (_x, k) => 'I.A.3.' + k + ' Việc ' + k + ',PMO-' + k + ',Done')].join('\n');
+    const buf = new TextEncoder().encode(csv).buffer as ArrayBuffer;
     const parsed = pvReadCsv(buf);
     expect(parsed).toMatchObject({ kind: 'csv', enc: 'UTF-8', delim: 'dấu phẩy' });
     expect(parsed.sheets[0].rows.length).toBeGreaterThan(10);
@@ -141,7 +143,7 @@ describe('Đọc file CSV/XLSX và xuất .xlsx', () => {
     const rows = goldRows();
     const cols = exFields('all', { kpi: true });
     expect(cols.length).toBe(49);
-    const blob = exXlsx(rows, cols, { phaseBucket: PHASE_BUCKET, sort: null });
+    const blob = exXlsx(rows, cols, { phaseBucket: PHASE_BUCKET, sort: null, groups: [...new Set(rows.map((r) => r.g))].map((k) => ({ k, name: k })) });
     const buf = await blob.arrayBuffer();
     const head = new Uint8Array(buf.slice(0, 2));
     expect([head[0], head[1]]).toEqual([0x50, 0x4b]);

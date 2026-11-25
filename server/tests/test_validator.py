@@ -8,18 +8,18 @@ REF = date(2026, 11, 19)
 
 
 def _row(**kw) -> ReportRow:
-    base = dict(stt=1, issue_key="K-1", ma_da="I.C.1.2", cong_viec="T", trang_thai="Đang thực hiện",
-                tien_do="Đúng tiến độ", pic="A", bat_dau=date(2026, 10, 1), ket_thuc=date(2026, 12, 31))
+    base = dict(i=0, key="K-1", ma="I.C.1.2", viec="T", tt="Đang thực hiện",
+                td="Đúng tiến độ", pic="A", start="01/10/2026", end="31/12/2026")
     return ReportRow(**{**base, **kw})
 
 
 def test_validator_detects_blockers_and_progress_conflicts():
     row_conflict = ReportRow(
-        stt=1, ma_da="I.C.1.2", cong_viec="Test",
-        trang_thai="Đang thực hiện", tien_do="Đúng tiến độ",
-        ket_thuc=date(2026, 11, 10),
-        van_de_w2="Cần phê duyệt từ Ban Giám đốc do bị chậm",
-        pic="Nguyen Van A", bat_dau=date(2026, 10, 1),
+        i=0, ma="I.C.1.2", viec="Test",
+        tt="Đang thực hiện", td="Đúng tiến độ",
+        end="10/11/2026",
+        w2vd="Cần phê duyệt từ Ban Giám đốc do bị chậm",
+        pic="Nguyen Van A", start="01/10/2026",
     )
     orphan = OrphanIssue(key="PKD-202", summary="Không có mã", issue_type="Task", status="Open", reason="NO_DA_CODE")
 
@@ -34,34 +34,34 @@ def test_clean_row_has_no_findings():
 
 
 def test_overdue_alone_conflicts_but_finished_projects_do_not():
-    _, w = validate_rows([_row(ket_thuc=date(2026, 11, 1))], [], REF)
+    _, w = validate_rows([_row(end="01/11/2026")], [], REF)
     assert [x.code for x in w] == ["W_PROGRESS_CONFLICT"] and w[0].key == "K-1"
-    done = _row(trang_thai="Đã hoàn thành", ket_thuc=date(2026, 8, 30), van_de_w1="từng bị chậm")
+    done = _row(tt="Đã hoàn thành", end="30/08/2026", w1vd="từng bị chậm")
     assert validate_rows([done], [], REF) == ([], [])
 
 
 def test_keyword_in_completed_text_and_blocker_text_trigger_conflict():
-    for kw in ({"hoan_thanh_w1": "Đã lùi lịch go-live"}, {"van_de_w3": "Lệch tải Kafka"}):
+    for kw in ({"w1ht": "Đã lùi lịch go-live"}, {"vd": "Lệch tải Kafka"}):
         _, w = validate_rows([_row(**kw)], [], REF)
         assert any(x.code == "W_PROGRESS_CONFLICT" for x in w), kw
 
 
 def test_late_progress_with_blockers_is_not_a_conflict():
-    _, w = validate_rows([_row(tien_do="Chậm tiến độ", van_de_w1="chậm vì Kafka")], [], REF)
+    _, w = validate_rows([_row(td="Chậm tiến độ", w1vd="chậm vì Kafka")], [], REF)
     assert w == []
 
 
 def test_required_fields_missing_on_active_project():
-    b, _ = validate_rows([_row(pic="", ket_thuc=None)], [], REF)
-    assert {(x.code, x.field) for x in b} == {("E_REQUIRED", "pic"), ("E_REQUIRED", "ket_thuc")}
-    b, _ = validate_rows([_row(pic="", trang_thai="Hủy", tien_do="Tạm dừng")], [], REF)
+    b, _ = validate_rows([_row(pic="", end="")], [], REF)
+    assert {(x.code, x.field) for x in b} == {("E_REQUIRED", "pic"), ("E_REQUIRED", "end")}
+    b, _ = validate_rows([_row(pic="", tt="Hủy", td="Tạm dừng")], [], REF)
     assert b == []
 
 
 def test_unmapped_status_and_progress_warn_and_catalog_orphans_do_not_block():
-    _, w = validate_rows([_row(trang_thai="Monitoring", tien_do="Late")], [], REF)
+    _, w = validate_rows([_row(tt="Monitoring", td="Late")], [], REF)
     fields = {(x.code, x.field) for x in w}
-    assert fields == {("W_UNMAPPED_VALUE", "trang_thai"), ("W_UNMAPPED_VALUE", "tien_do")}
+    assert fields == {("W_UNMAPPED_VALUE", "tt"), ("W_UNMAPPED_VALUE", "td")}
     orphan = OrphanIssue(key="X", summary="IV.Z.99.99", reason="CODE_NOT_IN_CATALOG")
     assert validate_rows([], [orphan], REF)[0] == []
 
@@ -73,4 +73,4 @@ def test_unmapped_subtask_status_warns_by_subtask_key_without_touching_parent():
     _, w = validate_rows([row], [], REF)
     assert {(x.code, x.key, x.field) for x in w} == {
         ("W_UNMAPPED_VALUE", "S-1", "subtasks.status"), ("W_UNMAPPED_VALUE", "S-3", "subtasks.status")}
-    assert row.trang_thai == "Đang thực hiện"
+    assert row.tt == "Đang thực hiện"

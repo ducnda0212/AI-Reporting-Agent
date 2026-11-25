@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import demoData from '@/data/demo.json';
-import { FIELDS, AI_IDS, WEEKS, SEED_VERSIONS, HELP, TOURS } from '@/data/constants';
+import * as constants from '@/data/constants';
+import { FIELDS, AI_IDS, WEEKS, HELP, TOURS, STATUS_MAP, PROG_VALUES } from '@/data/constants';
 
 describe('Types & Core Data Dictionary', () => {
   it('đủ 49 cột báo cáo và 3 cột AI theo mẫu DAN PMO', () => {
@@ -10,13 +10,11 @@ describe('Types & Core Data Dictionary', () => {
     expect(AI_IDS).toEqual(['rui', 'kh', 'vd']);
   });
 
-  it('chứa bộ GOLD Clean 64DA (56 dòng dự án có mã) và GOLD_CSV cùng bộ DEMO giả lập', () => {
-    expect(demoData.gold.rows.length).toBe(56);
-    expect(demoData.gold.stats.epics).toBe(64);
-    expect(demoData.gold.file).toBe('20261125_DAN_Jira-Export-Clean-Dataset_64DA.csv');
-    expect(demoData.goldCsv.length).toBeGreaterThan(1000);
-    expect(WEEKS.length).toBe(3);
-    expect(SEED_VERSIONS.length).toBe(3);
+  it('không còn dữ liệu mẫu / chế độ thử trong mã chạy thật; tuần do máy chủ cấp', () => {
+    for (const k of ['SCEN', 'IMPORTS', 'SEED_VERSIONS', 'GROUPS', 'PHASE_BUCKET', 'NO_JIRA']) expect(k in constants).toBe(false);
+    expect(WEEKS.length).toBe(0);
+    expect(PROG_VALUES).toContain('Có rủi ro');
+    expect(STATUS_MAP.MONITORING).toBe('Đang thực hiện');
   });
 
   it('Help & Tours phản ánh đúng luồng 3 bước gọn, không trỏ tới CheckView', () => {

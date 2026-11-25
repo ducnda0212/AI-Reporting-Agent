@@ -27,14 +27,14 @@ def test_file_fingerprint_and_diff_override_preservation(db):
     file2, is_dup2 = save_and_fingerprint(content, "test.csv", "cycle_2026_11", db, force_reload=False)
     assert is_dup2
 
-    prev_row = ReportRow(stt=1, ma_da="I.C.1.2", cong_viec="Old Name", pic="Manual PIC")
-    new_row = ReportRow(stt=1, ma_da="I.C.1.2", cong_viec="New Name from Jira", pic="Jira PIC")
+    prev_row = ReportRow(i=0, ma="I.C.1.2", viec="Old Name", pic="Manual PIC")
+    new_row = ReportRow(i=0, ma="I.C.1.2", viec="New Name from Jira", pic="Jira PIC")
     overrides = {"I.C.1.2": {"pic": "Manual PIC"}}
 
     diff_summary, merged_rows = compute_diff([prev_row], [new_row], overrides)
     assert diff_summary.modified_count == 1
     assert merged_rows[0].pic == "Manual PIC"  # preserved override
-    assert merged_rows[0].cong_viec == "New Name from Jira"
+    assert merged_rows[0].viec == "New Name from Jira"
     assert merged_rows[0].needs_review is True
 
 
@@ -65,20 +65,20 @@ def test_cycle_id_and_filename_cannot_escape_uploads_dir(db):
 
 
 def test_unchanged_source_keeps_override_without_review_flag():
-    prev = ReportRow(stt=1, ma_da="A.1.1", cong_viec="x", pic="Jira PIC")
-    new = ReportRow(stt=1, ma_da="A.1.1", cong_viec="x", pic="Jira PIC")
+    prev = ReportRow(i=0, ma="A.1.1", viec="x", pic="Jira PIC")
+    new = ReportRow(i=0, ma="A.1.1", viec="x", pic="Jira PIC")
     diff, rows = compute_diff([prev], [new], {"A.1.1": {"pic": "Manual", "nonexistent": "?"}})
     assert diff.modified_count == 0
     assert rows[0].pic == "Manual" and rows[0].needs_review is False
-    assert rows[0].overrides == {"pic": "Manual"}  # unknown fields are dropped
+    assert rows[0].ovr == {"pic": "Manual"}  # unknown fields are dropped
 
 
 def test_added_removed_and_first_session():
-    a = ReportRow(stt=1, ma_da="A.1.1", cong_viec="a")
-    b = ReportRow(stt=2, ma_da="B.1.1", cong_viec="b")
+    a = ReportRow(i=0, ma="A.1.1", viec="a")
+    b = ReportRow(i=1, ma="B.1.1", viec="b")
     diff, rows = compute_diff([a], [a, b], {})
     assert diff.has_previous_session and diff.added_projects == ["B.1.1"] and diff.removed_projects == []
     diff, _ = compute_diff([a, b], [a], {})
     assert diff.removed_projects == ["B.1.1"]
     diff, rows = compute_diff(None, [a], {})
-    assert not diff.has_previous_session and diff.added_projects == [] and rows[0].ma_da == "A.1.1"
+    assert not diff.has_previous_session and diff.added_projects == [] and rows[0].ma == "A.1.1"

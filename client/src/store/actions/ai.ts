@@ -1,7 +1,7 @@
 /* Trợ lý AI: hỏi đáp + Agent sửa bảng qua BẢN XEM TRƯỚC (chỉ áp dụng khi duyệt), khung "AI soạn nháp", Gọi AI soạn ô trống,
    con trỏ ✦ Agent. Port từ prototype v4 (askSend R8f, stgAdd/stgHtml R8, panelTrace/trSet, aiStart, agWalk). */
 import type { Draft } from 'immer';
-import { AI_IDS, GROUPS } from '@/data/constants';
+import { AI_IDS } from '@/data/constants';
 import { aiDrafts, askAnswer, trDraft, trInputs, trText, type TrVariant } from '@/lib/ai';
 import { ck, fieldById } from '@/lib/cell';
 import type { AgStageItem, AiFieldId, AppState, FieldId, TraceTarget } from '@/types';
@@ -120,7 +120,7 @@ const trTarget = (s: AppState): TraceTarget | null =>
 /** Các ô nháp AI chờ duyệt (`i|f`) theo thứ tự nhóm → dòng → cột. */
 export function pendingList(s: AppState): string[] {
   const out: string[] = [], rows = rowsOf(s);
-  GROUPS.forEach((g) => rows.forEach((r) => {
+  s.groups.forEach((g) => rows.forEach((r) => {
     if (r.g === g.k) AI_IDS.forEach((fid) => { const a = r.ai[fid]; if (a && !a.ok) out.push(ck(r.i, fid)); });
   }));
   return out;

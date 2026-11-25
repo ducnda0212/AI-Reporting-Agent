@@ -16,6 +16,7 @@ class IngestSession(Base):
     headers_json: Mapped[str] = mapped_column(Text)
     source_rows_json: Mapped[str] = mapped_column(Text)
     response_json: Mapped[str] = mapped_column(Text)
+    baseline_session_id: Mapped[str | None] = mapped_column(String, nullable=True)  # previous upload of the cycle: the diff base
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
 
@@ -27,6 +28,6 @@ class SessionDraft(Base):
     cycle_id: Mapped[str] = mapped_column(String, index=True)
     mapping_id: Mapped[str | None] = mapped_column(String, nullable=True)
     rows_json: Mapped[str] = mapped_column(Text)
-    overrides_json: Mapped[str] = mapped_column(Text)  # {ma_da: {field: value}}
-    audit_logs_json: Mapped[str] = mapped_column(Text)  # [{at, ma_da, field, old_val, new_val, by}]
+    overrides_json: Mapped[str] = mapped_column(Text)  # {ma: {field: value}}
+    audit_logs_json: Mapped[str] = mapped_column(Text)  # [{at, ma, field, old_val, new_val, by}]
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)

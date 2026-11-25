@@ -2,6 +2,8 @@ import calendar
 import re
 from datetime import date
 
+from server.app.schemas.cycle import ActiveCycle, ActiveWeek
+
 _CYCLE = re.compile(r"(\d{4})_(0[1-9]|1[0-2])(?:_w([1-4]))?")
 
 # PMO-approved boundaries (sheet 3_Quy_doi_gia_tri): November starts on 31/10 and W4 ends 30/11.
@@ -34,3 +36,25 @@ def reference_date(cycle_id: str) -> date:
     weeks = weeks_for_cycle(cycle_id)
     n = _parse(cycle_id)[2] or len(weeks)
     return weeks[n - 1]["end"]
+
+
+def _range(w: dict) -> str:
+    s, e = w["start"], w["end"]
+    return f"{s:%d}–{e:%d/%m}" if s.month == e.month else f"{s:%d/%m}–{e:%d/%m}"
+
+
+def week_name(cycle_id: str, week: dict) -> str:
+    return f"Tuần {week['week']:02d}/{_parse(cycle_id)[1]:02d} · {_range(week)}"
+
+
+def current_week(cycle_id: str) -> int:
+    return _parse(cycle_id)[2] or len(weeks_for_cycle(cycle_id))
+
+
+def active_cycle(cycle_id: str) -> ActiveCycle:
+    cur = current_week(cycle_id)
+    return ActiveCycle(
+        cycle_id=cycle_id, current_wk=f"w{cur}", today=reference_date(cycle_id),
+        weeks=[ActiveWeek(k=f"w{w['week']}", name=week_name(cycle_id, w), range=_range(w), cur=w["week"] == cur,
+                          future=w["week"] > cur, start=w["start"], end=w["end"]) for w in weeks_for_cycle(cycle_id)],
+    )

@@ -1,13 +1,27 @@
 from fastapi import APIRouter, Depends
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from server.app.core.database import get_db
 from server.app.core.errors import api_error
 from server.app.models.session import IngestSession
 from server.app.modules.session.service import draft_out, get_session_draft, save_session_draft
+from server.app.schemas.ingest import IngestResponse
 from server.app.schemas.mapping import SessionDraftOut, SessionDraftSaveRequest
 
 router = APIRouter(prefix="/api/v1/sessions", tags=["session"])
+
+
+@router.get("/{session_id}", response_model=IngestResponse)
+def get_session(session_id: str, db: Session = Depends(get_db)):
+    """Reopen a previous import exactly as it was last processed."""
+    session = db.get(IngestSession, session_id)
+    if session is None:
+        raise api_error(404, "E_SESSION_NOT_FOUND")
+    try:
+        return IngestResponse.model_validate_json(session.response_json)
+    except ValidationError:
+        raise api_error(409, "E_SESSION_STALE", "Phiên này được lưu theo định dạng cũ, hãy nhập lại file")
 
 
 @router.put("/{session_id}/draft")
