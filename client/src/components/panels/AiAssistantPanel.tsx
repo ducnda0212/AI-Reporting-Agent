@@ -4,7 +4,7 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { ASKQ } from '@/data/constants';
 import { agExamples } from '@/lib/ai';
-import { displayText, fieldById } from '@/lib/cell';
+import { activeWkOf, displayText, fieldById } from '@/lib/cell';
 import { now, rowsOf, useAppState } from '@/store';
 import { chatDelete, chatHistory, chatNew, chatOpen, chatSearch, askSend, exGo, pendingList, stgApply, stgDrop, stgGo, stgMore, stgShow, stgToggle } from '@/store/actions/ai';
 import { groupChats, previewOf, whenLabel } from '@/lib/chatHistory';
