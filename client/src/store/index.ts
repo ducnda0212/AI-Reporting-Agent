@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { castDraft, produce, type Draft } from 'immer';
 import { FIELDS } from '@/data/constants';
 import { api } from '@/services/api';
+import { parseChats } from '@/lib/chatHistory';
 import type { AppState, FieldId, LogResult, NavSnap, Row, SessionDraftIn, SessionDraftOut, UndoSnap, VersionItem, ViewType } from '@/types';
 
 /* ---------- trình duyệt & localStorage ---------- */
@@ -23,7 +24,7 @@ export function lsJson<T>(key: string): Partial<T> {
 export const LS = {
   store: 'pmo-proto-store-v1', grid: 'pmo-proto-grid-v1', poSideW: 'pmo-po-sidew', poFz: 'pmo-po-fz',
   panel: 'pmo-proto-panel-v1', tourVer: 'pmo-tour-ver', tourMain: 'pmo-tour-v1', cols: 'pmo-proto-cols-v4',
-  activeSession: 'pmo-active-session-v1'
+  activeSession: 'pmo-active-session-v1', chats: 'pmo-ai-chats-v1'
 } as const;
 
 /* ---------- đồng hồ (thay được trong test) ---------- */
@@ -68,7 +69,7 @@ export function initialState(): AppState {
     scrollSel: false, navScroll: false, findScroll: false,
     gx: { zoom: gx.zoom || 100, rowH: gx.rowH || {}, colW: gx.colW || {} },
     pn: { w: pn.w || {}, col: pn.col || {}, big: pn.big || null },
-    askLog: [], stages: {}, trace: null, trEdit: null, trVar: {}, trBusy: null, trReq: false, walk: null, aiRun: null, review: null,
+    askLog: [], chats: parseChats(lsGet(LS.chats)), chatId: '', chatView: 'chat', chatQ: '', stages: {}, trace: null, trEdit: null, trVar: {}, trBusy: null, trReq: false, walk: null, aiRun: null, review: null,
     po: {
       open: false, i: null, fz: Number(lsGet(LS.poFz)) || 14, col: {}, q: '', hits: [], cur: -1, wkDesc: true,
       colW: {}, rowH: {}, sideW: Number(lsGet(LS.poSideW)) || 300, exp: {}, wkOpen: { w3: true }
@@ -245,5 +246,6 @@ if (inBrowser()) {
   useAppState.subscribe((next, prev) => {
     if (next.loaded && next.sessionId && (next.sessionId !== prev.sessionId || next.view !== prev.view || !prev.loaded)) setActiveSessionStorage(next.sessionId, next.view);
     if (DRAFT_KEYS.some((k) => next[k] !== prev[k])) scheduleDraftSync(next);
+    if (next.chats !== prev.chats) lsSet(LS.chats, JSON.stringify(next.chats));
   });
 }

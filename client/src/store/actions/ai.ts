@@ -2,16 +2,50 @@
    con trỏ ✦ Agent. Port từ prototype v4 (askSend R8f, stgAdd/stgHtml R8, panelTrace/trSet, aiStart, agWalk). */
 import type { Draft } from 'immer';
 import { AI_IDS } from '@/data/constants';
-import { aiDrafts, askAnswer, trDraft, trInputs, trText, type TrVariant } from '@/lib/ai';
-import { ck, fieldById } from '@/lib/cell';
-import type { AgStageItem, AiFieldId, AppState, FieldId, TraceTarget } from '@/types';
-import { getState, inBrowser, log, mutate, rowsOf, toast } from '@/store';
+import { aiDrafts, askAnswer, exTT, trDraft, trInputs, trText, type TrVariant } from '@/lib/ai';
+import { agentAsk, aiStatus, type AgentRow, type AiStatus } from '@/lib/api';
+import { fromRec, toRec, upsert } from '@/lib/chatHistory';
+import { REMOTE_MAX_QUESTION, REMOTE_MAX_ROWS, agentHtml, keepLocal } from '@/lib/agentRemote';
+import { ck, displayText, fieldById } from '@/lib/cell';
+import type { AgStageItem, AiFieldId, AppState, ChatRec, FieldId, Row, TraceTarget } from '@/types';
+import { getState, inBrowser, log, mutate, now, rowsOf, toast } from '@/store';
 import { editCell } from './grid';
 
 /* ---------- con trỏ ✦ Agent: UI đọc `walk` (đổi `seq` mỗi lần) để cuộn bảng và nháy ô ---------- */
 function walk(d: Draft<AppState>, items: Pick<AgStageItem, 'i' | 'f' | 'off'>[], cls: 'aiflash' | 'aiwalk', n: number): void {
   d.walk = { list: items.filter((x) => !x.off).map((x) => [x.i, x.f]), cls, n, seq: (d.walk ? d.walk.seq : 0) + 1 };
 }
+
+/* ---------- lịch sử trò chuyện ---------- */
+/** Lưu cuộc trò chuyện đang mở vào lịch sử (tạo mới nếu chưa có). Gọi sau mỗi câu trả lời. */
+function syncChat(d: Draft<AppState>): void {
+  if (!d.chatId) d.chatId = 'c' + now().getTime().toString(36) + d.chats.length;
+  const rec = toRec(d.chatId, now().getTime(), d.askLog);
+  if (rec) d.chats = upsert(d.chats, rec);
+}
+const answering = (): boolean => { const L = getState().askLog; return !!L.length && !!L[L.length - 1].busy; };
+
+/** Chat mới: cuộc đang mở đã nằm sẵn trong lịch sử, chỉ cần mở trang trống. Không đổi khi Agent đang trả lời. */
+export function chatNew(): void {
+  if (answering()) return;
+  mutate((d) => { d.askLog = []; d.chatId = ''; d.chatView = 'chat'; d.chatQ = ''; }, { track: false });
+}
+/** Mở lại một cuộc trong lịch sử để xem và hỏi tiếp. */
+export function chatOpen(id: string): void {
+  if (answering()) return;
+  mutate((d) => {
+    const c = d.chats.find((x: ChatRec) => x.id === id); if (!c) return;
+    d.askLog = fromRec(c); d.chatId = c.id; d.chatView = 'chat'; d.chatQ = '';
+  }, { track: false });
+}
+/** Xoá một cuộc khỏi lịch sử; nếu là cuộc đang mở thì về trang trống. */
+export function chatDelete(id: string): void {
+  if (answering()) return;
+  mutate((d) => { d.chats = d.chats.filter((x: ChatRec) => x.id !== id); if (d.chatId === id) { d.askLog = []; d.chatId = ''; } }, { track: false });
+}
+/** Bật/tắt màn lịch sử trong khung Trợ lý AI. */
+export function chatHistory(on: boolean): void { mutate((d) => { d.chatView = on ? 'history' : 'chat'; if (!on) d.chatQ = ''; }, { track: false }); }
+export function chatSearch(q: string): void { mutate((d) => { d.chatQ = q; }, { track: false }); }
 
 /* ---------- hỏi đáp / Agent ---------- */
 function answer(q: string, replaceBusy: boolean): string | null {
@@ -29,6 +63,7 @@ function answer(q: string, replaceBusy: boolean): string | null {
     if (res.hide) { if (res.hide.on) d.hidden[res.hide.f] = true; else delete d.hidden[res.hide.f]; }
     if (res.onlyFix !== undefined) d.onlyFix = res.onlyFix;
     d.askLog.push(id ? { q, a, stage: id } : { q, a });
+    syncChat(d);
     if (res.log) log(d, ...res.log);
     log(d, 'Hỏi AI', q, '');
   });
@@ -47,7 +82,53 @@ export function askSend(q: string): void {
   if (!t || (L.length && L[L.length - 1].busy)) return;
   if (!inBrowser()) { answer(t, false); return; }
   mutate((d) => { d.askLog.push({ q: t, a: { html: '', act: [] }, busy: true }); });
-  setTimeout(() => { answer(t, true); }, 650 + Math.min(t.length * 8, 450));
+  void respond(t);
+}
+
+/* ---------- hỏi đáp qua backend (/api/agent/ask) ---------- */
+/** Backend có sẵn sàng trả lời bằng V-LLM không (nhớ kết quả 30 giây để không gọi lại mỗi câu). */
+let backend: { at: number; st: AiStatus | null } | null = null;
+async function backendReady(): Promise<boolean> {
+  if (!backend || Date.now() - backend.at > 30000) backend = { at: Date.now(), st: await aiStatus() };
+  const st = backend.st;
+  return !!st && st.mode === 'vllm' && st.problems.length === 0;
+}
+
+/** Một dòng bảng theo đúng giá trị đang hiển thị; "Tiến độ" dùng cùng quy tắc với câu trả lời tại chỗ. */
+function agentRow(r: Row, s: AppState): AgentRow {
+  const show = (id: string): string => displayText(r, fieldById(id)!, s) || '';
+  return {
+    code: r.ma, name: r.viec, group: show('mang'), status: show('tt'), progress: exTT(r, s), risk: r.ai.rui?.text || show('rui'),
+    pic: show('pic'), start: show('start'), end: show('end'), pending: (['rui', 'kh', 'vd'] as const).some((k) => !!r.ai[k] && !r.ai[k]!.ok),
+  };
+}
+
+/** HTML câu trả lời từ backend, hoặc `null` để dùng câu trả lời tại chỗ (lệnh sửa bảng, backend tắt/lỗi, bảng quá lớn). */
+async function remoteAnswer(q: string): Promise<string | null> {
+  const s = getState(), rows = rowsOf(s);
+  if (keepLocal(q) || q.length > REMOTE_MAX_QUESTION || !rows.length || rows.length > REMOTE_MAX_ROWS) return null;
+  const loc = askAnswer(q, { rows, allRows: s.allRows, sel: s.sel, phaseBucket: s.phaseBucket });
+  if (loc.stagedItems.length || loc.hide || loc.onlyFix !== undefined) return null; // câu này là lệnh, giữ ở giao diện
+  if (!(await backendReady())) return null;
+  try {
+    const res = await agentAsk(q, rows.map((r) => agentRow(r, s)));
+    return res.intent === 'edit' ? null : agentHtml(res, rows);
+  } catch { return null; }
+}
+
+/** Hiện câu trả lời sau tối thiểu 650ms + 8ms/ký tự (như hiệu ứng gõ cũ); backend lỗi thì rơi về câu trả lời tại chỗ. */
+async function respond(q: string): Promise<void> {
+  const t0 = Date.now(), min = 650 + Math.min(q.length * 8, 450);
+  const html = await remoteAnswer(q);
+  const wait = min - (Date.now() - t0);
+  if (wait > 0) await new Promise((res) => setTimeout(res, wait));
+  if (html === null) { answer(q, true); return; }
+  mutate((d) => {
+    if (d.askLog.length && d.askLog[d.askLog.length - 1].busy) d.askLog.pop();
+    d.askLog.push({ q, a: { html, act: [] } });
+    syncChat(d);
+    log(d, 'Hỏi AI', q, 'V-LLM qua backend');
+  });
 }
 
 /* ---------- bản xem trước ---------- */

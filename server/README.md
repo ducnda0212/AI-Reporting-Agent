@@ -40,3 +40,7 @@ the cached session with `is_duplicate_file: true` and a `W_DUPLICATE_FILE` warni
 - Manual cell overrides are read from the stored session (`rows[].overrides`); there is no edit endpoint yet.
 - Columns M, N, T–V, Y, AB–AE, AH, AK are manual/AI and stay empty; Market is fixed to `VN`.
 - Weekly placeholders ("Không có cập nhật trong tuần") are an export-time concern; stored cells stay empty.
+
+## AI
+
+Phần AI (nháp, chấm rủi ro, Agent) nằm ở `app/ai`, route gắn vào cùng app này; xem `app/ai/README.md` (cấu hình V-LLM, API, kiểm thử, đánh giá).
