@@ -203,6 +203,9 @@ describe('Hành động mới cho bước 1, chọn tuần, nhật ký, giao di�
     expect(fs).toContain('id="pvaddr"');
     expect(fs).toContain('id="pvval"');
     expect(fs).toContain('id="pvq"');
+    expect(fs).toContain('pvf-close');
+    expect(fs).not.toContain('pvf-back');
+    expect(fs).not.toContain('Quay lại');
     pvSetFs(false);
     expect(renderToString(<FilePreviewModal />)).toBe('');
     const up = vi.spyOn(api, 'ingestUpload').mockResolvedValue(fixtureResponse('jira.csv'));

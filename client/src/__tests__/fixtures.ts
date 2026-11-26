@@ -145,7 +145,7 @@ export function baseRows(): Row[] {
 }
 
 export const MAPPING: MappingConfigOut = {
-  id: 'map_default_pmo_49col', name: 'Mẫu 49 cột chuẩn PMO', is_default: true, status: 'active', version: 1, columns: [],
+  id: 'map_default_pmo_49col', name: 'Hệ thống', is_default: true, status: 'active', version: 1, columns: [],
   value_mappings: { status_map: {}, progress_map: {}, phase_map: {}, phase_bucket: PHASE_BUCKET }
 };
 

@@ -3140,6 +3140,7 @@ select.cellsel{cursor:pointer}
 /* Ô chọn cột Jira: nằm gọn trong cột "Nguồn", không đẩy sang cột "Cột trong báo cáo" */
 .isfrom{min-width:0}
 .isfrom select.issel{flex:1 1 0;min-width:0;width:100%;text-overflow:ellipsis}
+.isfrom{flex-wrap:wrap}.isnote{flex:1 0 100%;font-size:11px;color:var(--mut)}
 /* Tên file ở "Lần nhập gần nhất": tối đa 2 dòng, ngắt ở ký tự bất kỳ, tên đầy đủ ở title */
 .aimp .aright,.aimp .alast>div,.aimp .anx>span:first-child{min-width:0}
 .aimp .alast b,.aimp .anx>span:first-child{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;white-space:normal;overflow-wrap:anywhere;word-break:normal;text-overflow:clip;max-width:none}
