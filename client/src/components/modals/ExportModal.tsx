@@ -11,11 +11,10 @@ import { startReview, pendingList } from '@/store/actions/ai';
 import { goStep, setModal, setView } from '@/store/actions/flow';
 import { fixGo } from '@/store/actions/grid';
 import { doExport, doLock, setExCols, wkName } from '@/store/actions/versions';
-import type { AppState, FieldId, WeekKey } from '@/types';
+import type { AppState, FieldId } from '@/types';
 
 const fileDefault = (s: AppState): string => (s.activeToday || '2026-11-21').replace(/-/g, '') + '_DAN_Bao-cao-PMO.xlsx';
 /** Ba cột của khối tuần trong file mẫu. */
-const WK_COLS: Record<WeekKey, string> = { w1: 'AL–AN', w2: 'AO–AQ', w3: 'AR–AT', w4: 'AU–AW' };
 const KIND_IC = { err: '✕', wrn: '!', ai: 'AI', ok: '✓' } as const;
 
 function Row({ kind, title, desc, children }: { kind: keyof typeof KIND_IC; title: string; desc: string; children?: React.ReactNode }): JSX.Element {
