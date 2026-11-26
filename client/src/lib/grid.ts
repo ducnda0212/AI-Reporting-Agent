@@ -1,6 +1,6 @@
 /* Cột hiển thị, lọc cột, tìm kiếm, vùng chọn, độ rộng cột. Port từ prototype v4; mọi hàm nhận state tường minh. */
 import { AI_IDS, FIELDS } from '@/data/constants';
-import type { AppState, CellRef, Field, FieldId, FilterMap, FindState, Row, SelectionRange } from '@/types';
+import type { AppState, CellRef, Field, FieldId, FilterMap, FindState, GroupInfo, Row, SelectionRange } from '@/types';
 import { activeWkOf, cellValue, ck, colNum, displayText, effectiveKind, fieldById, optsFor, phName, type CellCtx, type WeeksCtx } from './cell';
 
 export const visibleFields = (hidden: AppState['hidden']): Field[] => FIELDS.filter((f) => f.key || !hidden[f.id]);
@@ -34,6 +34,14 @@ export const scopeHas = (f: Field, F: Pick<FindState, 'scope'>, selF?: FieldId, 
 export const hitCell = (r: Row, f: Field, F: FindState, ctx: CellCtx, selF?: FieldId): boolean =>
   scopeHas(f, F, selF, ctx) && hitText(displayText(r, f, ctx), F);
 
+/** Dòng theo nhóm: đúng thứ tự `groups`, nhóm rỗng bị bỏ; nhóm có trong `rows` mà thiếu ở `groups` (phiên cũ, mã mới) nối ở cuối để không rơi dòng. */
+export function groupedRows(groups: GroupInfo[], rows: Row[]): { g: GroupInfo; gr: Row[] }[] {
+  const by = new Map<string, Row[]>();
+  rows.forEach((r) => by.set(r.g, [...(by.get(r.g) || []), r]));
+  const all = [...groups, ...[...by.keys()].filter((k) => !groups.some((g) => g.k === k)).map((k) => ({ k, name: by.get(k)![0].mang || k }))];
+  return all.map((g) => ({ g, gr: by.get(g.k) || [] })).filter((x) => x.gr.length);
+}
+
 export interface FindMatch { i: number; f: FieldId; t: string }
 
 /** Các ô khớp, theo thứ tự nhóm dự án → dòng → cột đang hiện. */
@@ -42,15 +50,12 @@ export function findMatches(state: Pick<AppState, 'find' | 'hidden' | 'phaseBuck
   if (!F.q.trim()) return [];
   const out: FindMatch[] = [];
   const vf = visibleFields(state.hidden).filter((f) => scopeHas(f, F, state.sel?.f));
-  state.groups.forEach((g) => {
-    rows.forEach((r) => {
-      if (r.g !== g.k) return;
-      vf.forEach((f) => {
-        const t = displayText(r, f, state);
-        if (t && hitText(t, F)) out.push({ i: r.i, f: f.id, t });
-      });
+  groupedRows(state.groups, rows).forEach(({ gr }) => gr.forEach((r) => {
+    vf.forEach((f) => {
+      const t = displayText(r, f, state);
+      if (t && hitText(t, F)) out.push({ i: r.i, f: f.id, t });
     });
-  });
+  }));
   return out;
 }
 

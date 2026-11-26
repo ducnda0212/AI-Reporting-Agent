@@ -5,13 +5,14 @@ from server.app.schemas.ingest import OrphanIssue
 from server.app.schemas.row import ReportRow, SubtaskAudit
 
 
-def _catalog_ancestor(code: str, catalog: dict) -> str | None:
-    """I.C.1.2.1 -> I.C.1.2 (longest dotted prefix present in the catalog)."""
+def _ancestor(code: str, codes: set[str]) -> str | None:
+    """I.C.1.2.1.1 -> I.C.1.2 (shortest dotted prefix that is a coded project in the file)."""
     parts = code.split(".")
-    for n in range(len(parts) - 1, 1, -1):
-        if (prefix := ".".join(parts[:n])) in catalog:
-            return prefix
-    return None
+    return next((p for n in range(2, len(parts)) if (p := ".".join(parts[:n])) in codes), None)
+
+
+def _is_subtask(rec: dict) -> bool:
+    return (rec.get("Issue Type") or "").strip().casefold() in ("subtask", "sub-task")
 
 
 def reconcile_issues(
@@ -31,26 +32,27 @@ def reconcile_issues(
             issue_type=rec.get("Issue Type", ""), status=rec.get("Status", ""), reason=reason,
         )
 
-    coded_children: list[tuple[dict, str]] = []
-    uncoded: list[dict] = []
-    for rec in records:
-        code = issue_code(rec, mapping)
-        if code is None:
+    coded = [(rec, code) for rec in records if (code := issue_code(rec, mapping)) is not None]
+    uncoded = [rec for rec in records if issue_code(rec, mapping) is None]
+    non_sub = {code for rec, code in coded if not _is_subtask(rec)}
+    for rec, code in coded:  # non-subtasks first: a same-code Subtask must not take the project row
+        if _is_subtask(rec):
+            continue
+        if root := _ancestor(code, non_sub):
+            owner_of[rec["Issue key"]] = root
+        elif code in main_by_code:
+            orphan(rec, "DUPLICATE_DA_CODE")
+        else:
+            main_by_code[code] = rec
+    for rec, code in coded:
+        if not _is_subtask(rec):
+            continue
+        if code in main_by_code:
+            orphan(rec, "DUPLICATE_DA_CODE")
+        elif root := _ancestor(code, non_sub):
+            owner_of[rec["Issue key"]] = root
+        else:
             uncoded.append(rec)
-        elif code in catalog:
-            if code in main_by_code:
-                orphan(rec, "DUPLICATE_DA_CODE")
-            else:
-                main_by_code[code] = rec
-        else:
-            coded_children.append((rec, code))
-
-    for rec, code in coded_children:
-        anc = _catalog_ancestor(code, catalog)
-        if anc in main_by_code:
-            owner_of[rec["Issue key"]] = anc
-        else:
-            orphan(rec, "CODE_NOT_IN_CATALOG")
 
     main_codes_by_key = {r["Issue key"]: c for c, r in main_by_code.items()}
 
@@ -79,6 +81,7 @@ def reconcile_issues(
         code = main_codes_by_key.get(rec.get("Issue key", ""))
         if code is not None:
             row = map_jira_issue_to_row(rec, catalog.get(code), week_boundaries, i=len(rows), mapping_config=mapping, ref_date=ref_date)
+            row.isNew = code not in catalog
             rows.append(row)
             row_by_code[code] = row
     for rec in records:  # file order keeps subtask order stable
