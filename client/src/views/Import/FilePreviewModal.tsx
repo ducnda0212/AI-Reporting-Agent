@@ -65,10 +65,10 @@ function PvFs({ name, kind, size, sheets, k }: { name: string; kind: 'csv' | 'xl
     goCell(Math.max(0, Math.min(sh.rows.length - 1, r0 + dr)), Math.max(0, Math.min(C - 1, c0 + dc)), false);
   };
 
-  /* mở: khoá cuộn trang, focus nút Quay lại */
+  /* mở: khoá cuộn trang, focus nút Đóng */
   useEffect(() => {
     document.body.style.overflow = 'hidden';
-    root.current?.querySelector<HTMLElement>('.pvf-back')?.focus();
+    root.current?.querySelector<HTMLElement>('.pvf-close')?.focus();
     return () => { document.body.style.overflow = ''; clearTimeout(timer.current); };
   }, []);
   /* đổi sheet: về đầu sheet, tìm lại theo chữ đang gõ */
@@ -138,7 +138,6 @@ function PvFs({ name, kind, size, sheets, k }: { name: string; kind: 'csv' | 'xl
   return (
     <div id="pvfs" ref={root} tabIndex={-1} role="dialog" aria-modal="true" aria-label={'Xem trước file ' + name} onKeyDown={onKey}>
       <div className="pvf-top">
-        <button className="pvf-back" onClick={close} title="Quay lại bước nhập file (Esc)" aria-label="Quay lại">‹ Quay lại</button>
         <FileIcon kind={kind} />
         <div className="pvf-name"><b title={name}>{name}</b><small>{meta}</small></div>
         <div className="pvf-find">

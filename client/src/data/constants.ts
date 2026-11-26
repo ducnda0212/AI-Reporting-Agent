@@ -130,10 +130,6 @@ export const TR_RULES: Record<AiFieldId, string[]> = {
 
 export const WK_TXT: Record<WeekKey, [string, string, string]> = { w1: ['w1ht', 'w1kh', 'w1vd'], w2: ['w2ht', 'w2kh', 'w2vd'], w3: ['ht', 'kh', 'vd'], w4: ['w4ht', 'w4kh', 'w4vd'] };
 
-export const WK_TXT_N: readonly string[] = ['Công việc đã hoàn thành trong tuần', 'Kế hoạch tuần sau', 'Vấn đề, rủi ro và đề xuất'];
-
-export const CMP_F: readonly string[] = ['tt', 'td', 'tt1', 'rui', 'buoc', 'action', 'nextstep', 'giatri', 'end', 'pic'];
-
 export const RUI_LV: Record<string, number> = { 'Thấp': 1, 'Trung bình': 2, 'Cao': 3 };
 
 export const TT_RK: Record<string, number> = { 'Đúng tiến độ': 0, 'Có nguy cơ chậm': 1, 'Chậm tiến độ': 2 };
@@ -162,9 +158,6 @@ export const FAQ: readonly (readonly [string, string])[] = [
   ['Sửa báo cáo đã chốt thế nào?', 'Vào Phiên bản → chọn bản → “Mở trên bảng”. Chốt lại sẽ thành bản mới, bản cũ giữ nguyên.'],
   ['AI lấy thông tin ở đâu?', 'Từ Progress Report và comment trong file Jira bạn nhập. AI chỉ soạn nháp; bạn duyệt mới vào báo cáo.']
 ];
-
-export const JIRA_OF: Partial<Record<FieldId, string>> = { viec: 'Summary', mang: 'Labels', muctieu: 'Description', kpi: 'Custom field (KPI/Outcome)', pic: 'Custom field (Tech lead)',
-  start: 'Custom field (Start date)', end: 'Due date', gdk: 'Custom field (Team Name)', po: 'Custom field (PO)' };
 
 export const PA_LONG: readonly FieldId[] = ['muctieu', 'kpi', 'milestone'];
 

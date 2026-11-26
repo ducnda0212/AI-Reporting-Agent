@@ -124,6 +124,8 @@ footer.status{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding-bl
 .stp.now{border-color:var(--accent);background:var(--accentSoft);color:var(--accentDk);font-weight:600}
 .stp.now i{background:var(--accent);border-color:var(--accent);color:#fff}
 .stp b{font-weight:700}
+.stp:disabled{opacity:.5;cursor:not-allowed}
+.restoring{padding:48px 24px;text-align:center;color:var(--mut);font-size:13px}
 .stpsep{color:var(--mut2);font-size:11px}
 .chk{border:1px solid var(--line);border-radius:11px;background:var(--bg);padding:14px 16px}
 .chk.ok{border-color:var(--okLine)}
@@ -3032,6 +3034,7 @@ button.imrecr:hover{background:var(--row)}
 .pa-ms li.next:first-of-type i,.pa-ms li.done+li.next i{border-color:var(--accent);background:var(--accentSoft)}
 .pa-ms li b{font:600 12px var(--mono);color:var(--mut)}
 .pa-ms li.done span{color:var(--mut)}
+.pa-ms li.next:first-of-type span,.pa-ms li.done+li.next span{font-weight:700;color:var(--ink)}
 .pa-wkc{display:flex;align-items:center;gap:8px;width:100%;text-align:left;cursor:pointer;font:inherit;color:var(--ink);padding:11px 16px}
 .pa-wkc:hover{border-color:var(--mut2)}
 .pa-wkc b{font:600 13.5px var(--font);flex:none}.pa-wd{font-size:12px;color:var(--mut);flex:none}
@@ -3140,6 +3143,7 @@ select.cellsel{cursor:pointer}
 /* Ô chọn cột Jira: nằm gọn trong cột "Nguồn", không đẩy sang cột "Cột trong báo cáo" */
 .isfrom{min-width:0}
 .isfrom select.issel{flex:1 1 0;min-width:0;width:100%;text-overflow:ellipsis}
+.isfrom{flex-wrap:wrap}.isnote{flex:1 0 100%;font-size:11px;color:var(--mut)}
 /* Tên file ở "Lần nhập gần nhất": tối đa 2 dòng, ngắt ở ký tự bất kỳ, tên đầy đủ ở title */
 .aimp .aright,.aimp .alast>div,.aimp .anx>span:first-child{min-width:0}
 .aimp .alast b,.aimp .anx>span:first-child{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;white-space:normal;overflow-wrap:anywhere;word-break:normal;text-overflow:clip;max-width:none}
@@ -3175,3 +3179,4 @@ select.cellsel{cursor:pointer}
 .chhx:hover:not(:disabled){background:var(--line2);color:var(--err)}
 .chhe{margin:18px 4px;font-size:12.5px;line-height:1.5;color:var(--mut);text-align:center}
 @media (hover:none){.chhx{opacity:1}}
+.pa-goalh{font-weight:600}

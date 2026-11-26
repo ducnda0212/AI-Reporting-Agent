@@ -67,7 +67,7 @@ def test_e2e_golden_dataset_processing():
     assert "nghiệm thu kỹ thuật" in ic["ht"] and "Hội đồng Kiến trúc" in ic["kh"]
     assert ic["w4ht"] == "" and ic["w4vd"] == ""
     assert "{{" not in ic["milestone"] and "2026-12-31" in ic["milestone"]
-    assert ic["tt1"] == "Đang thực hiện Đúng tiến độ" and ic["market"] == "VN"
+    assert ic["tt1"] == "Đang thực hiện Đúng tiến độ" and ic["market"] == ""
 
     warn = {(w["code"], w["key"]) for w in data["warnings"]}
     assert ("W_PROGRESS_CONFLICT", "PMOGOLD-7") in warn  # on-track but Blockers recorded

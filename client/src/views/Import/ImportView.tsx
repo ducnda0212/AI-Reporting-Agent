@@ -8,22 +8,28 @@ import { pvBytes, pvCol, pvNum } from '@/lib/xlsx';
 import { inBrowser, now, rowsOf, useAppState } from '@/store';
 import {
   goStep, histToggle, IMPORT_STEPS, impCancel, mpCloneProfile, mpCurrent, mpDeleteProfile, mpPick, mpQuickChange, mpSaveNew, mpSaveOpen,
-  mpSetDefault, mpUpdateProfile, pvGo, pvSetFs, pvSetSheet, pvStage, reopenSession, setImpF, setReplaceFile, skipImportWait, SRC_DEFAULT
+  mpSetDefault, mpUpdateProfile, pvGo, pvSetFs, pvSetSheet, pvStage, reopenSession, setImpF, setReplaceFile, skipImportWait, srcBase
 } from '@/store/actions/flow';
 import { verOpen, wkName } from '@/store/actions/versions';
 import type { AppState, Field, FieldId, PreviewFile, PreviewSheet, Row } from '@/types';
 import { FileIcon, IcExpand, IcStroke, IcUpload } from '@/components/common/Icons';
 import { FilePreviewModal } from './FilePreviewModal';
 
+const SYSTEM_MAPPING_ID = 'map_default_pmo_49col';
 const ACCEPT = '.csv,.tsv,.txt,.xlsx,.xlsm,.xls';
 const p2 = (n: number): string => String(n).padStart(2, '0');
 const fileKind = (f: PreviewFile): 'csv' | 'xls' => (f.kind ? (f.kind === 'csv' ? 'csv' : 'xls') : /^(csv|tsv|txt)$/.test(f.ext) ? 'csv' : 'xls');
 
-/** Cột cho phép đổi nguồn Jira (mapQuick). Khoá ghép dòng, cột tính, cột nhập tay/AI và 12 cột tuần giữ nguồn cố định. */
-export const MAPPABLE: readonly FieldId[] = [
-  'viec', 'mang', 'muctieu', 'kpi', 'pic', 'start', 'end', 'tt', 'td', 'milestone', 'buocso', 'buoc', 'output',
-  'gdk', 'phong', 'tp', 'bo', 'po', 'aieng', 'airs', 'mlops', 'swe', 'loai', 'link', 'market'
-];
+/** Ghi chú nhỏ cạnh ô chọn nguồn: cột có quy tắc tách / tính riêng chỉ chạy khi giữ nguồn mặc định. */
+const FIELD_NOTE: Partial<Record<FieldId, string>> = {
+  mang: 'Tự lấy theo mã DA trong danh mục mẫu',
+  ma: 'Tách mã DA ở đầu cột, dùng ghép dòng',
+  viec: 'Tên việc sau mã DA',
+  muctieu: 'Phần trước mục MILESTONE',
+  milestone: 'Phần sau mục MILESTONE',
+  tt1: 'Tự tính từ Trạng thái, Tiến độ, Hạn',
+  ...Object.fromEntries(['w1ht', 'w1kh', 'w1vd', 'w2ht', 'w2kh', 'w2vd', 'ht', 'kh', 'vd', 'w4ht', 'w4kh', 'w4vd'].map((f) => [f, 'Tách theo tuần từ Progress Report']))
+};
 
 function onPick(e: ChangeEvent<HTMLInputElement>): void {
   const f = e.target.files?.[0];
@@ -191,30 +197,17 @@ function Loading({ s }: { s: AppState }): JSX.Element {
 /* ---------- đã nạp: tóm tắt file + bảng 49 cột (nguồn Jira đổi được ở các cột mappable) ---------- */
 const IS_SEM: Record<string, string> = { 'Đúng tiến độ': 'sg', 'Đã hoàn thành': 'sd', 'Đang thực hiện': 'sb', 'Chậm tiến độ': 'slt', 'Có rủi ro': 'slt', 'Tạm dừng': 'sa', 'Chưa thực hiện': 'sn', 'Hủy': 'sx', 'Huỷ': 'sx', '(trống)': 'sx' };
 const isc = (label: string, k: number): string => IS_SEM[label.normalize('NFC')] || 'c' + (k % 5);
-const IS_KIND: Record<string, string> = { jira: 'Jira', bucket: 'Jira', report: 'Jira', cfg: 'Jira', ai: 'AI', manual: 'Nhập tay', calc: 'Tính', past: 'Đã chốt', future: 'Tuần sau', none: 'Trống', tpl: 'Mẫu' };
-const isSrcTxt = (f: Field): string => String(f.src || '').replace(/^Hệ thống\s*(·\s*)?/, '').replace(/^\((.*)\)\s*/, '$1 ').replace(/^nhập tay\s*(·\s*)?/i, '').trim();
-
-function Source({ f }: { f: Field }): JSX.Element {
-  if (f.key) return <span title="Summary">Summary</span>;
-  if (f.kind === 'jira' || f.kind === 'bucket') return <><span className="isk jira">Jira</span><span title={f.src} className={/chưa có/.test(f.src) ? 'isn' : undefined}>{f.src}</span></>;
-  return <><span className={'isk ' + (f.kind === 'cfg' ? 'jira' : f.kind)}>{IS_KIND[f.kind] || ''}</span><span title={f.src}>{isSrcTxt(f)}</span></>;
-}
-
 /** mapQuick: chọn cột Jira làm nguồn cho một cột báo cáo; chọn xong máy chủ tính lại ngay từ file gốc. */
 function SrcPick({ f, s }: { f: Field; s: AppState }): JSX.Element {
-  const cfg = mpCurrent(s)?.columns.find((c) => c.field_id === f.id);
-  const saved = cfg && cfg.source_type === 'jira' ? cfg.source_field : '';
-  const changed = s.mpSrc[f.id];
-  const value = changed !== undefined ? changed : s.fileCols.includes(saved) ? saved : SRC_DEFAULT;
-  const defLabel = cfg?.source_field ? 'Mặc định · ' + cfg.source_field : 'Chưa chọn cột Jira';
+  const value = s.mpSrc[f.id] ?? srcBase(s, f.id), note = FIELD_NOTE[f.id];
   return (
     <>
       <span className="isk jira">Jira</span>
-      <select className="sel issel" value={value} disabled={s.busy} aria-label={'Chọn trường Jira cho cột ' + f.name} onChange={(e) => void mpQuickChange(f.id, e.target.value)}>
-        <option value={SRC_DEFAULT}>{defLabel}</option>
+      <select className="sel issel" value={value} disabled={s.busy} aria-label={'Chọn trường Jira cho cột ' + f.name} title={note} onChange={(e) => void mpQuickChange(f.id, e.target.value)}>
         <option value="">Không lấy từ Jira</option>
         {s.fileCols.map((c) => <option key={c} value={c}>{c}</option>)}
       </select>
+      {note && <small className="isnote">{note}</small>}
     </>
   );
 }
@@ -237,8 +230,8 @@ function MpBar({ s }: { s: AppState }): JSX.Element {
   const save = (): void => { if (inBrowser()) void mpSaveNew((document.getElementById('mpName') as HTMLInputElement | null)?.value || ''); };
   return (
     <div className="mpbar" data-stop="1"><span className="mpl">Cấu hình mapping</span>
-      <select className="sel mpsel" aria-label="Chọn cấu hình mapping" value={s.mpUsed || ''} disabled={s.busy} onChange={(e) => void mpPick(e.target.value)}>
-        <option value="">{L.length ? 'Mặc định của hệ thống' : 'Chưa có cấu hình đã lưu'}</option>
+      <select className="sel mpsel" aria-label="Chọn cấu hình mapping" value={s.mpUsed || L.find((m) => m.is_default)?.id || ''} disabled={s.busy} onChange={(e) => void mpPick(e.target.value)}>
+        {!L.length && <option value="">Chưa có cấu hình đã lưu</option>}
         {L.map((m) => <option key={m.id} value={m.id}>{m.name + (m.is_default ? ' · mặc định' : '')}</option>)}
       </select>
       {a && <span className={'mpst ' + (a.matched_cols === a.total_cols && !s.mpDirty ? 'ok' : 'w')}>{(a.matched_cols === a.total_cols && !s.mpDirty ? '✓ khớp ' : 'khớp ') + a.matched_cols + '/' + a.total_cols + ' cột' + (s.mpDirty ? ' · đã sửa, chưa lưu' : '')}</span>}
@@ -255,7 +248,7 @@ function MpBar({ s }: { s: AppState }): JSX.Element {
           <button className="btn sm" disabled={s.busy} onClick={() => mpSaveOpen(true)}>{cur ? 'Lưu thành cấu hình mới' : 'Lưu thành cấu hình'}</button>
           {cur && <button className="btn sm" disabled={s.busy} onClick={() => void mpCloneProfile()}>Nhân bản</button>}
           {cur && !cur.is_default && <button className="btn sm" disabled={s.busy} onClick={() => void mpSetDefault()}>Đặt mặc định</button>}
-          {cur && <button className="btn sm" disabled={s.busy} onClick={() => void mpDeleteProfile()}>Xoá</button>}
+          {cur && <button className="btn sm" disabled={s.busy || cur.is_default || cur.id === SYSTEM_MAPPING_ID} title={cur.is_default || cur.id === SYSTEM_MAPPING_ID ? 'Không xoá được cấu hình mặc định hoặc cấu hình hệ thống' : undefined} onClick={() => void mpDeleteProfile()}>Xoá</button>}
         </>
       )}
     </div>
@@ -289,7 +282,7 @@ function ImpStats({ s }: { s: AppState }): JSX.Element {
           const pct = n ? Math.round((k / n) * 100) : 0;
           return (
             <div key={f.id} className={'isr' + (!k ? ' z' : '')}>
-              <div className="isfrom"><span className="isjira"><IcStroke d="jira" size={14} /></span>{MAPPABLE.includes(f.id) ? <SrcPick f={f} s={s} /> : <Source f={f} />}</div>
+              <div className="isfrom"><span className="isjira"><IcStroke d="jira" size={14} /></span><SrcPick f={f} s={s} /></div>
               <span className="isarr"><IcStroke d="arrow" size={14} /></span>
               <div className="isto"><span className="iscl">{f.col}</span><b>{f.name}</b></div>
               <div className="issmp">{smp.length ? smp.map((v) => <span key={v} title={v}>{v}</span>) : <span className="isn">Không có giá trị nào trong file</span>}</div>

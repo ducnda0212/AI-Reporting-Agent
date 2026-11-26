@@ -1,12 +1,12 @@
 /* Chốt bản, xuất Excel 49 cột, mở bản cũ sửa tiếp, danh sách & so sánh phiên bản.
    Port từ prototype v4 (doLock L5973/L10611, doExport + exXlsx, stSaveVersions, applySnap/openVersion, vlEdit L10572, vlTable3, vbPair). */
-import type { Draft } from 'immer';
+import { castDraft, type Draft } from 'immer';
 import { AI_IDS, FIELDS, WEEKS } from '@/data/constants';
 import { activeWkOf, locked, sourceValue, type WeeksCtx } from '@/lib/cell';
 import { snapshot, verEditsNow, vKey, vSnap, type Snap } from '@/lib/versions';
 import { api, ApiError } from '@/services/api';
 import type { AppState, CellFormat, VersionItem, WeekKey } from '@/types';
-import { getState, inBrowser, log, mutate, rowsOf, sortVersions, toast, withSuppressedDraftSync } from '@/store';
+import { flushPendingDraftSave, getState, inBrowser, log, mutate, rowsOf, sortVersions, toast, withSuppressedDraftSync } from '@/store';
 import { applyIngest } from './flow';
 
 const errMsg = (e: unknown): string => (e instanceof ApiError ? e.message : 'Có lỗi không mong đợi, thử lại sau.');
@@ -132,19 +132,27 @@ function openVersion(d: Draft<AppState>, v: VersionItem, snap: Snap): void {
   log(d, 'Mở lại bản đã chốt', 'v' + v.v + ' · ' + v.at, 'Không cần nhập lại file');
 }
 
+/* bảng tuần hiện tại, giữ trong RAM khi mở bản cũ để "Về tuần này" khôi phục (chỉ dùng khi cùng sessionId) */
+let workingBackup: (Pick<AppState, 'allRows' | 'fmt' | 'wrap' | 'hidden' | 'pinViec' | 'exCols' | 'touched' | 'log' | 'logSeq' | 'lockSeq'> & { sessionId: string | null }) | null = null;
+
 /** "Mở trên bảng tính →": nạp bản cũ (bản chưa lưu ảnh dùng ảnh minh hoạ) và bật banner "Đang sửa tiếp". Không đổi danh sách bản. */
 export function vlEdit(k: string): void {
   const s = getState(), v = vFind(s, k);
   if (!v) return;
   if (!s.loaded) return mutate((d) => toast(d, 'Nhập file Jira của tuần này trước, rồi mở lại bản'));
   const snap = vSnap(v, rowsOf(s), s), ver = v;
-  mutate((d) => {
-    if (!snap) return toast(d, 'Bản này không có dữ liệu để mở lại');
+  if (!snap) return mutate((d) => toast(d, 'Bản này không có dữ liệu để mở lại'));
+  flushPendingDraftSave();
+  if (!s.editWk) workingBackup = {
+    sessionId: s.sessionId, allRows: s.allRows, fmt: s.fmt, wrap: s.wrap, hidden: s.hidden, pinViec: s.pinViec,
+    exCols: s.exCols, touched: s.touched, log: s.log, logSeq: s.logSeq, lockSeq: s.lockSeq
+  };
+  withSuppressedDraftSync(() => mutate((d) => {
     openVersion(d, ver, snap);
     d.editWk = ver.wk; d.vlView = 'lib'; d.vlOpen = null;
     const next = Math.max(...d.versions.filter((x) => x.wk === ver.wk).map((x) => x.v)) + 1;
-    toast(d, 'Đang sửa tiếp Bản ' + ver.v + ' · ' + wkName(ver.wk, true) + ' — chốt lại sẽ thành Bản ' + next + ' của tuần này');
-  });
+    toast(d, 'Đang sửa tiếp Bản ' + ver.v + ' · ' + wkName(ver.wk, true) + ' — chốt lại sẽ thành Bản ' + next + ' của ' + (ver.wk !== activeWkOf(d) ? 'tuần đó' : 'tuần này'));
+  }, { resetUndo: true }));
 }
 /** "Mở →" ở "Bản đã lưu trên hệ thống" (bước 1): mở lại bản đã chốt trên bảng, không cần nhập file. */
 export async function verOpen(k: string): Promise<void> {
@@ -162,7 +170,18 @@ export async function verOpen(k: string): Promise<void> {
   }));
 }
 /** "Về tuần này". */
-export function vlExitEdit(): void { mutate((d) => { d.editWk = null; d.openedVer = null; toast(d, 'Đã về ' + wkName(activeWkOf(d), true).toLowerCase()); }); }
+export function vlExitEdit(): void {
+  const b = workingBackup;
+  workingBackup = null;
+  withSuppressedDraftSync(() => mutate((d) => {
+    d.editWk = null; d.openedVer = null;
+    if (b && b.sessionId === d.sessionId) {
+      d.allRows = castDraft(b.allRows); d.fmt = castDraft(b.fmt); d.wrap = b.wrap; d.hidden = b.hidden; d.pinViec = b.pinViec;
+      d.exCols = b.exCols; d.touched = b.touched; d.log = castDraft(b.log); d.logSeq = b.logSeq; d.lockSeq = b.lockSeq;
+    }
+    toast(d, 'Đã về ' + wkName(activeWkOf(d), true).toLowerCase());
+  }, { resetUndo: true }));
+}
 
 /* ---------- màn Phiên bản ---------- */
 /** Bấm một dòng bản đã chốt: xổ / thu bảng 5 chỉ số. */
@@ -183,14 +202,15 @@ export async function reExport(k: string): Promise<void> {
 }
 
 /* ---------- chọn tuần trên thanh trên ---------- */
-/** Bấm một tuần: tuần đã chốt mở ở màn Phiên bản (chỉ xem); tuần này chỉ đóng menu. */
+/** Bấm một tuần: tuần đã chốt mở ở màn Phiên bản (chỉ xem, xổ bản mới nhất); tuần chưa chốt chỉ báo; tuần này chỉ đóng menu. */
 export function wkOpen(k: WeekKey): void {
   mutate((d) => {
     d.menu = null;
     if (k === activeWkOf(d)) return;
     const vv = d.versions.find((v) => v.wk === k);
-    d.view = 'ver'; d.verSel = vv ? vKey(vv) : null;
-    toast(d, 'Tuần đã chốt chỉ xem, không sửa — đang mở bản v' + (vv ? vv.v : 1));
+    if (!vv) return toast(d, wkName(k, true) + ' chưa có bản chốt nào');
+    d.view = 'ver'; d.verSel = vKey(vv); d.vlOpen = vKey(vv);
+    toast(d, 'Tuần đã chốt chỉ xem, không sửa — đang mở bản v' + vv.v);
   });
 }
 /** "Lịch sử phiên bản" trong menu tuần. */

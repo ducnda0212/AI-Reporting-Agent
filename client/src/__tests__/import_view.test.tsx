@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import { castDraft } from 'immer';
-import { ImportView, MAPPABLE } from '@/views/Import/ImportView';
+import { ImportView } from '@/views/Import/ImportView';
 import { FIELDS } from '@/data/constants';
 import { mutate, resetStore } from '@/store';
 import { loadFixture, MAPPING } from './fixtures';
@@ -36,10 +36,13 @@ describe('ImportView (máy chủ thật + thanh mapping)', () => {
     mutate((d) => { d.fileCols = ['Summary', 'Assignee', 'Custom field (Department)']; d.mpSrc = { phong: 'Assignee' }; d.mpDirty = true; });
     const html = renderToString(<ImportView />);
     expect(html).toContain('class="mpbar"');
-    for (const t of ['Nhân bản', 'Lưu thành cấu hình mới', '49 cột', 'khớp 42/49 cột · đã sửa, chưa lưu', 'Cập nhật “Mẫu 49 cột chuẩn PMO”']) expect(html).toContain(t);
+    for (const t of ['Nhân bản', 'Lưu thành cấu hình mới', '49 cột', 'khớp 42/49 cột · đã sửa, chưa lưu', 'Cập nhật “Hệ thống”']) expect(html).toContain(t);
     expect(html).not.toContain('Đặt mặc định'); // đã là mặc định
-    expect(html.match(/class="sel issel"/g)).toHaveLength(MAPPABLE.length);
+    expect(html.match(/class="sel issel"/g)).toHaveLength(49); // mọi cột đều đổi được nguồn
     expect(FIELDS.length).toBe(49);
+    for (const t of ['Chưa chọn cột Jira', 'Mặc định ·', 'Mặc định của hệ thống']) expect(html).not.toContain(t);
+    for (const t of ['Tách mã DA ở đầu cột', 'Phần trước mục MILESTONE', 'Tự tính từ Trạng thái']) expect(html).toContain(t);
+    expect(html).toContain('<option value="">Không lấy từ Jira</option>');
     expect(html).toContain('<option value="Custom field (Department)">');
     expect(html).toContain('<option value="Assignee" selected="">Assignee</option>');
   });
@@ -51,5 +54,13 @@ describe('ImportView (máy chủ thật + thanh mapping)', () => {
     expect(html).toContain('Đặt mặc định');
     expect(html).toContain('>Xoá<');
     expect(html).toMatch(/<button class="btn sm" disabled="">Nhân bản/);
+  });
+
+  it('cấu hình hệ thống không bao giờ xoá được, kể cả khi không còn là mặc định', () => {
+    loadFixture();
+    mutate((d) => { d.mappings = castDraft([{ ...MAPPING, is_default: false }]); });
+    expect(renderToString(<ImportView />)).toMatch(/<button class="btn sm" disabled=""[^>]*>Xoá</);
+    mutate((d) => { d.mappings = castDraft([{ ...MAPPING, id: 'map_x', name: 'Mới', is_default: false }]); d.mpUsed = 'map_x'; });
+    expect(renderToString(<ImportView />)).toMatch(/<button class="btn sm"( title="[^"]*")?>Xoá</);
   });
 });

@@ -32,7 +32,7 @@ type Wk = { k: WeekKey; t: string; r: string; cur?: boolean; future?: boolean };
 const wkList = (s: AppState): Wk[] => s.weeks.map((w) => ({ k: w.k as WeekKey, t: 'Tuần ' + w.k.slice(1), r: w.range, cur: w.cur, future: w.future }));
 function wkSt(s: AppState, w: Wk): [string, string] {
   const vs = s.versions.filter((v) => v.wk === w.k);
-  return w.future ? ['fut', 'Chưa mở'] : w.cur ? (vs.length ? ['ok', 'Đã chốt Bản ' + vs[0].v] : ['cur', 'Đang làm']) : ['ok', 'Đã chốt Bản ' + (vs.length ? vs[0].v : 1)];
+  return w.future ? ['fut', 'Chưa mở'] : w.cur ? (vs.length ? ['ok', 'Đã chốt Bản ' + vs[0].v] : ['cur', 'Đang làm']) : vs.length ? ['ok', 'Đã chốt Bản ' + vs[0].v] : ['fut', 'Chưa chốt'];
 }
 function WeekPicker({ s }: { s: AppState }): JSX.Element | null {
   const L = wkList(s), cur = L.find((w) => w.cur);
@@ -41,7 +41,7 @@ function WeekPicker({ s }: { s: AppState }): JSX.Element | null {
   const [yy, mm] = s.cycleId.split('_'); // theo kỳ: ngày 31 có thể thuộc Tuần 1 tháng sau
   return (
     <div className="wkp">
-      <button className="wkn" onClick={() => prev && wkOpen(prev.k)} disabled={!prev} title={prev ? 'Tuần trước (' + prev.t + ', đã chốt)' : 'Chưa có tuần trước'} aria-label="Tuần trước"><IcWkChev d={-1} /></button>
+      <button className="wkn" onClick={() => prev && wkOpen(prev.k)} disabled={!prev} title={prev ? 'Tuần trước (' + prev.t + (s.versions.some((v) => v.wk === prev.k) ? ', đã chốt)' : ', chưa chốt)') : 'Chưa có tuần trước'} aria-label="Tuần trước"><IcWkChev d={-1} /></button>
       <span className="mwrap">
         <button className="wkb" onClick={() => setMenu('week')} aria-haspopup="true" aria-expanded={open} aria-label={'Kỳ báo cáo: ' + cur.t + ' tháng ' + +mm + ', ' + cur.r}>
           <IcCal /><span className="wkt"><b>{cur.t + ' · Th' + +mm}</b><small>{cur.r}</small></span><span className={'wkst ' + st[0]}>{st[1]}</span><IcChevDown />
@@ -88,11 +88,15 @@ export function TopBar(): JSX.Element {
   const d1 = L, d3 = L && c3 === 0, d4 = !!(lc && lc.exported && chg && !chg.length);
   const now: Step = !d1 ? 1 : !d3 ? 3 : 4, cs = curStep(s);
   const onImp = !L || s.view === 'import' || !!s.importing;
-  const stp = (n: Step, label: string, done: boolean, cnt: number): JSX.Element => (
-    <button className={'stp' + (done ? ' done' : now === n ? ' now' : '') + (cs === n ? ' cur' : '')} onClick={() => goStep(n)} aria-current={cs === n ? 'step' : undefined}>
+  const stp = (n: Step, label: string, done: boolean, cnt: number): JSX.Element => {
+    const off = n > 1 && !L && !s.impHist.length; // chưa có file nào để mở: khoá bước 2, 3
+    return (
+    <button className={'stp' + (done ? ' done' : now === n ? ' now' : '') + (cs === n ? ' cur' : '')} onClick={() => goStep(n)} aria-current={cs === n ? 'step' : undefined}
+      disabled={off} title={off ? 'Nhập file ở Bước 1 trước' : undefined}>
       <i>{done ? '✓' : n > 2 ? n - 1 : n}</i><span className="lb">{label}</span>{cnt ? <b>{cnt}</b> : null}
     </button>
-  );
+    );
+  };
   const lnk = (done: boolean): JSX.Element => <span className={'ln' + (done ? ' done' : '')} aria-hidden="true" />;
   return (
     <header className="top gut">

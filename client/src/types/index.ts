@@ -314,6 +314,8 @@ export interface AppState {
   panel: PanelType;
   modal: ModalType;
   loaded: boolean;
+  /** F5 đang khôi phục phiên đã mở: giữ nguyên màn cũ (không nháy sang Nhập file) tới khi tải xong. */
+  restoringSession: boolean;
   importing: { name: string; step: number; found?: ImportFound } | null;
   fileName: string;
   realOnly: boolean;

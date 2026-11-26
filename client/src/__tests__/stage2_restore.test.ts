@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { createElement } from 'react';
+import { renderToString } from 'react-dom/server';
+import { App } from '@/App';
 import { getState, mutate, resetStore, setActiveSessionStorage, getActiveSessionStorage } from '@/store';
 import { initStage1Bootstrap, reopenSession, applyIngest, uploadFile } from '@/store/actions/flow';
 import { api, ApiError } from '@/services/api';
@@ -78,6 +81,38 @@ describe('Stage 2 Draft Restoration (F5, Reopen, Duplicate & Recalculate)', () =
       await initStage1Bootstrap();
       expect(getActiveSessionStorage()).toBeNull();
       expect(getState().loaded).toBe(false);
+    });
+
+    describe('không nháy sang Nhập file khi F5', () => {
+      beforeEach(() => { vi.stubGlobal('window', {}); vi.stubGlobal('document', {}); });
+
+      it('giữ màn cũ và cờ restoringSession tới khi tải xong; lỗi 404 mới về Nhập file', async () => {
+        setActiveSessionStorage('s1', 'grid');
+        resetStore();
+        expect([getState().view, getState().restoringSession, getState().loaded]).toEqual(['grid', true, false]);
+        vi.stubGlobal('window', undefined); vi.stubGlobal('document', undefined); // App SSR như phía máy chủ
+        expect(renderToString(createElement(App))).toContain('Đang khôi phục phiên làm việc');
+        expect(renderToString(createElement(App))).not.toContain('Chọn file CSV / Excel');
+        vi.stubGlobal('window', {}); vi.stubGlobal('document', {});
+
+        vi.spyOn(api, 'getSession').mockResolvedValue(fixtureResponse());
+        vi.spyOn(api, 'getDraft').mockResolvedValue(null);
+        await initStage1Bootstrap();
+        expect([getState().view, getState().restoringSession, getState().loaded]).toEqual(['grid', false, true]);
+
+        setActiveSessionStorage('gone', 'ver');
+        resetStore();
+        expect(getState().view).toBe('ver');
+        vi.spyOn(api, 'getSession').mockRejectedValue(new ApiError('E_SESSION_NOT_FOUND', 'x', 404));
+        await initStage1Bootstrap();
+        expect([getState().view, getState().restoringSession]).toEqual(['import', false]);
+      });
+
+      it('mở ở màn Nhập file thì không bật cờ khôi phục', () => {
+        setActiveSessionStorage('s1', 'import');
+        resetStore();
+        expect(getState().restoringSession).toBe(false);
+      });
     });
   });
 
