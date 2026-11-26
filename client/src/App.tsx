@@ -1,115 +1,87 @@
+/* Khung ứng dụng (prototype render L5617): thanh trên, `.shell` = Rail + `.scol`, các lớp nổi.
+   Màn nhập file không có Rail. Các lớp nổi của bảng nằm ngoài `.gridwrap` (CSS zoom/transform làm hỏng position:fixed). */
 import { useEffect } from 'react';
-import { useAppState } from '@/hooks/useDerived';
-import { useGridKeyboard } from '@/hooks/useGridKeyboard';
-import { closeMenu } from '@/store/actions/flow';
-import { rerunReport, setCatTab } from '@/store/actions/catalog';
+import { getState, useAppState } from '@/store';
+import { curStep, initStage1Bootstrap } from '@/store/actions/flow';
+import { setMenu } from '@/store/actions/grid';
+import { useKeyboard } from '@/hooks/useKeyboard';
+import { useGridResize } from '@/hooks/useGridResize';
 import { TopBar } from '@/components/layout/TopBar';
 import { Rail } from '@/components/layout/Rail';
 import { StatusBar } from '@/components/layout/StatusBar';
-import { TestBanner } from '@/components/layout/TestBanner';
-import { AiRunBar, Toast } from '@/components/layout/Toast';
-import { FormatBar, SelBar } from '@/components/grid/FormatBar';
+import { Toast } from '@/components/layout/Toast';
+import { EditBanner } from '@/components/layout/EditBanner';
+import { FormatBar } from '@/components/grid/FormatBar';
+import { SelBar } from '@/components/grid/SelBar';
 import { Grid } from '@/components/grid/Grid';
+import { PickerPop } from '@/components/grid/PickerPop';
 import { FillHandle } from '@/components/grid/FillHandle';
-import { HubPanel } from '@/components/panels/HubPanel';
-import { ProjectPanel } from '@/components/panels/ProjectPanel';
-import { AiDoneModal } from '@/components/modals/AiDoneModal';
-import { BucketsModal } from '@/components/modals/BucketsModal';
-import { ExportModal } from '@/components/modals/ExportModal';
-import { MappingPop } from '@/components/modals/MappingPop';
-import { ReqModal } from '@/components/modals/ReqModal';
-import { ContextMenu } from '@/components/layers/ContextMenu';
-import { FilterPopup } from '@/components/layers/FilterPopup';
+import { AgentCursor } from '@/components/grid/AgentCursor';
 import { FindCard } from '@/components/layers/FindCard';
 import { PECard } from '@/components/layers/PECard';
+import { FilterPopup } from '@/components/layers/FilterPopup';
+import { ContextMenu } from '@/components/layers/ContextMenu';
 import { Spotlight } from '@/components/layers/Spotlight';
-import { CatalogView } from '@/views/Catalog/CatalogView';
-import { CheckView } from '@/views/Check/CheckView';
-import { ExecView } from '@/views/Exec/ExecView';
+import { ExportModal } from '@/components/modals/ExportModal';
+import { AiDoneModal } from '@/components/modals/AiDoneModal';
+import { ProjectPopout } from '@/components/modals/ProjectPopout';
+import { HelpDrawer } from '@/components/modals/HelpDrawer';
+import { AiAssistantPanel } from '@/components/panels/AiAssistantPanel';
+import { AiTracePanel } from '@/components/panels/AiTracePanel';
+import { TplConfigPanel } from '@/components/panels/TplConfigPanel';
 import { ImportView } from '@/views/Import/ImportView';
-import { LogView } from '@/views/Log/LogView';
-import { RiskView } from '@/views/Risk/RiskView';
-import { TemplateLibView } from '@/views/TemplateLib/TemplateLibView';
-import { TemplateView } from '@/views/Template/TemplateView';
 import { VersionsView } from '@/views/Versions/VersionsView';
+import { LogView } from '@/views/Log/LogView';
 
-function MainView() {
-  const view = useAppState().view;
-  switch (view) {
-    case 'import': return <ImportView />;
-    case 'check': return <CheckView />;
-    case 'exec': return <ExecView />;
-    case 'cat': return <CatalogView />;
-    case 'log': return <LogView />;
-    case 'tpl': return <TemplateView />;
-    case 'tlib': return <TemplateLibView />;
-    case 'ver': return <VersionsView />;
-    case 'rid': return <RiskView />;
-    default: return <Grid />;
-  }
+/** Bấm ra ngoài menu thì đóng menu (prototype L5966); nút mở menu tự bật/tắt nên bỏ qua. */
+export function onOutsideClick(ev: MouseEvent): void {
+  const t = ev.target as HTMLElement | null;
+  if (getState().menu && t && !t.closest('.menu, [aria-haspopup], [data-act="menu"]')) setMenu(null);
 }
 
-/** Thanh báo "hệ thống đã cập nhật" — nhắc chạy lại báo cáo. */
-function RerunBar() {
-  const s = useAppState();
-  return (
-    <div className="selbar gut" style={{ background: '#eef4fd', borderBottomColor: '#bcd2f3' }}>
-      <span style={{ fontWeight: 600, color: '#2a5db0' }}>Hệ thống đã cập nhật {s.catPend} thông tin</span>
-      <span style={{ color: 'var(--mut)' }}>Báo cáo đang dùng dữ liệu lần chạy {s.catRunAt || ''}. Chạy lại để lấy thông tin mới.</span>
-      <div style={{ flex: '1 1 10px' }} />
-      <button className="btn sm" onClick={() => setCatTab('req')}>Xem thay đổi</button>
-      <button className="btn sm pri" onClick={rerunReport}>Chạy lại báo cáo</button>
-    </div>
-  );
-}
+export function App(): JSX.Element {
+  const s = useAppState((x) => x);
+  const onImp = !s.loaded || s.view === 'import' || !!s.importing, step = curStep(s);
+  useKeyboard();
+  useGridResize();
 
-export function App() {
-  const s = useAppState();
-  useGridKeyboard();
-
-  /* bấm ra ngoài thì đóng menu nổi */
+  /* kỳ báo cáo, lịch sử nhập file, cấu hình mapping: lấy từ máy chủ một lần khi mở trang */
+  useEffect(() => { void initStage1Bootstrap(); }, []);
+  useEffect(() => { document.addEventListener('click', onOutsideClick, true); return () => document.removeEventListener('click', onOutsideClick, true); }, []);
+  useEffect(() => { document.body.classList.toggle('onimp', onImp); }, [onImp]);
+  useEffect(() => { if (getState().menu) setMenu(null); }, [s.view]);
+  /* hiệu ứng vào màn khi đổi màn / bước, tắt sau 400ms (prototype L12496) */
   useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      const t = e.target as HTMLElement;
-      if (!t.closest('.menu') && !t.closest('.mwrap')) closeMenu();
-    };
-    document.addEventListener('click', onClick);
-    return () => document.removeEventListener('click', onClick);
-  }, []);
+    document.body.classList.add('vchg');
+    const t = setTimeout(() => document.body.classList.remove('vchg'), 400);
+    return () => clearTimeout(t);
+  }, [s.view, step]);
 
-  const flow = s.view === 'import' || s.view === 'check';
   const grid = s.view === 'grid' && s.loaded;
-  const panel = s.panel === 'issues' || s.panel === 'ai' || s.panel === 'rev' || s.panel === 'ask' || s.panel === 'note' ? <HubPanel /> : s.panel === 'project' ? <ProjectPanel /> : null;
-  const inner = (
+  const panel = s.panel === 'ai' ? <AiAssistantPanel /> : s.panel === 'aitrace' ? <AiTracePanel /> : s.panel === 'tvcfg' ? <TplConfigPanel /> : null;
+  const main = (
+    <main>
+      {onImp ? <ImportView /> : s.view === 'ver' ? <VersionsView /> : s.view === 'log' ? <LogView /> : <Grid />}
+      {panel}
+    </main>
+  );
+  return (
     <>
-      {s.loaded && s.catPend > 0 && (s.view === 'grid' || s.view === 'check') && <RerunBar />}
-      {grid && <><FormatBar /><SelBar /></>}
-      <main><MainView />{panel}</main>
-      {grid && <StatusBar />}
+      <TopBar />
+      {onImp ? main : (
+        <div className="shell">
+          <Rail />
+          <div className="scol">
+            <EditBanner />
+            {grid && <><FormatBar /><SelBar /></>}
+            {main}
+            <StatusBar />
+          </div>
+        </div>
+      )}
+      <ExportModal /><AiDoneModal /><ProjectPopout /><HelpDrawer />
+      <PickerPop /><FilterPopup /><ContextMenu /><FindCard /><PECard /><FillHandle /><AgentCursor />
+      <Toast /><Spotlight />
     </>
   );
-
-  return (
-    <div id="app">
-      <TopBar />
-      <TestBanner />
-      {flow ? inner : <div className="shell"><Rail /><div className="scol">{inner}</div></div>}
-
-      {/* lớp nổi */}
-      {s.modal === 'buckets' && <BucketsModal />}
-      {s.modal === 'export' && <ExportModal />}
-      {s.modal === 'aiDone' && <AiDoneModal />}
-      {s.modal === 'req' && s.reqForm && <ReqModal />}
-      {s.pop && <MappingPop />}
-      <AiRunBar />
-      <FindCard />
-      <PECard />
-      <FilterPopup />
-      <ContextMenu />
-      <FillHandle />
-      <Toast />
-      <Spotlight />
-    </div>
-  );
 }
-

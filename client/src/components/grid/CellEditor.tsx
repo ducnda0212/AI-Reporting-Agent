@@ -1,53 +1,31 @@
-import { useEffect, useRef, type CSSProperties, type KeyboardEvent } from 'react';
-import type { Field, Row } from '@/types';
-import type { AppState } from '@/store/types';
-import { cellValue, isSrc, optsFor } from '@/lib/cell';
+/* Ô sửa nhanh trong thanh công thức .fxval (prototype editorHtml L3947 với data-act="fxEdit"):
+   ô chữ là <input class="inp"> (lưu khi Enter / rời ô, Esc huỷ); cột có danh sách là <select class="sel"> như prototype
+   — riêng ô trên bảng thì luôn mở dropdown 1 chạm #pkPop, không dùng <select>. */
+import { cellValue, ck, isSrc, optsFor, sourceValue, type CellCtx } from '@/lib/cell';
+import { applyEdit } from '@/store/actions/grid';
+import type { AiFieldId, Field, Row } from '@/types';
 
-interface Props {
-  s: AppState;
-  r: Row;
-  f: Field;
-  className: string;
-  style?: CSSProperties;
-  autoFocus?: boolean;
-  onCommit: (value: string) => void;
-  onCancel?: () => void;
-  onTab?: (back: boolean) => void;
-}
-
-/** Ô sửa dùng chung cho sửa-tại-ô và thanh công thức: danh sách chọn hoặc ô nhập. */
-export function CellEditor({ s, r, f, className, style, autoFocus, onCommit, onCancel, onTab }: Props) {
-  const opts = optsFor(f);
-  const cur = f.kind === 'ai' ? (r.ai[f.id] ? r.ai[f.id]!.text : '') : cellValue(s, r, f) || '';
-  const ref = useRef<HTMLInputElement & HTMLSelectElement>(null);
-  const done = useRef(false);
-  useEffect(() => { done.current = false; if (autoFocus && ref.current) { ref.current.focus(); (ref.current as HTMLInputElement).select?.(); } }, [autoFocus, r.i, f.id]);
-
-  const commit = (v: string) => { if (done.current) return; done.current = true; onCommit(v); };
-  const aria = 'Sửa ô ' + f.name;
-
+export function CellEditor({ r, f, ctx }: { r: Row; f: Field; ctx: CellCtx }): JSX.Element {
+  const opts = optsFor(f), cur = f.kind === 'ai' ? r.ai[f.id as AiFieldId]?.text || '' : cellValue(r, f, ctx) || '';
+  const label = 'Sửa ô ' + f.name;
   if (opts) {
-    const src = isSrc(f);
-    const srcVal = cellValue(s, r, f, true);
+    const src = isSrc(f) ? sourceValue(r, f, ctx) : null, extra = !!cur && !opts.includes(cur);
+    const val = extra ? cur : isSrc(f) && !r.ovr[f.id] ? '' : cur;
     return (
-      <select ref={ref} className={className} style={style} aria-label={aria} value={cur && (!src || r.ovr[f.id]) ? cur : ''}
-        onChange={(e) => commit(e.target.value)}
-        onBlur={() => { if (onCancel && !done.current) onCancel(); }}
-        onKeyDown={(e) => { if (e.key === 'Escape') { done.current = true; onCancel?.(); } }}>
-        <option value="">{src ? 'Theo nguồn' + (srcVal ? ' → ' + srcVal : ' (đang trống)') : '— trống —'}</option>
-        {cur && !opts.includes(cur) && <option value={cur}>{cur}</option>}
-        {opts.map((o) => <option key={o} value={o}>{o}</option>)}
+      <select className="sel" data-act="fxEdit" data-i={r.i} data-f={f.id} aria-label={label} value={val} onChange={(e) => applyEdit(r.i, f.id, e.target.value)}>
+        <option value="">{isSrc(f) ? 'Theo nguồn' + (src ? ' → ' + src : ' (đang trống)') : '— trống —'}</option>
+        {extra && <option>{cur}</option>}
+        {opts.map((o) => <option key={o}>{o}</option>)}
       </select>
     );
   }
-  const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
-    const v = e.currentTarget.value;
-    if (e.key === 'Enter') { e.preventDefault(); commit(v); }
-    else if (e.key === 'Escape') { done.current = true; onCancel?.(); }
-    else if (e.key === 'Tab' && onTab) { e.preventDefault(); commit(v); onTab(e.shiftKey); }
-  };
   return (
-    <input ref={ref} className={className} style={style} aria-label={aria} defaultValue={cur} placeholder="(trống)" key={r.i + f.id + cur}
-      onKeyDown={onKey} onBlur={(e) => commit(e.target.value)} />
+    <input key={ck(r.i, f.id) + '|' + cur} className="inp" data-act="fxEdit" data-i={r.i} data-f={f.id} aria-label={label} defaultValue={cur} placeholder="(trống)"
+      style={{ flex: '1 1 auto', minWidth: 80 }}
+      onBlur={(e) => { if (e.target.value !== cur) applyEdit(r.i, f.id, e.target.value); }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') e.currentTarget.blur();
+        else if (e.key === 'Escape') { e.currentTarget.value = cur; e.currentTarget.blur(); }
+      }} />
   );
 }
