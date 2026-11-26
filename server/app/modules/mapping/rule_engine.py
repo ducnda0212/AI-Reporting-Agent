@@ -57,27 +57,30 @@ def _fmt(d: date | None) -> str:
 
 
 def _kpi(text: str) -> str:
-    """KPI wiki table `|STT|KPI|...|` -> one "STT. KPI" line per row; plain text is just cleaned."""
+    """KPI wiki table `|STT|KPI|Chỉ số chính|...|` -> one "STT. KPI: Chỉ số chính" line per row; plain text is just cleaned."""
     if not text.lstrip().startswith("||"):
         return sanitize_jira_markup(text)
     lines = []
-    for line in text.split("\n"):
+    for line in text.split(chr(10)):
         if line.startswith("||") or not line.startswith("|"):
             continue
         c = [sanitize_jira_markup(x) for x in line.strip().strip("|").split("|")]
         if len(c) >= 2 and c[1]:
-            lines.append(f"{c[0]}. {c[1]}")
-    return "\n".join(lines)
+            lines.append(f"{c[0]}. {c[1]}" + (f": {c[2]}" if len(c) >= 3 and c[2] else ""))
+    return chr(10).join(lines)
+
+
+def _paragraphs(text: str) -> str:
+    """Keep the line breaks of a cleaned goal text, "- item" lines become "• item", blank lines go."""
+    return chr(10).join(re.sub(r"^[-*][ 	]+", "• ", ln) for ln in (x.strip() for x in text.splitlines()) if ln)
 
 
 def _goal(issue: dict) -> str:
-    """Rule D: Description before MILESTONES? (lines joined by spaces) -> Goals -> Business Goal."""
+    """Rule D: Description before MILESTONES? (line breaks and bullets kept) -> Goals -> Business Goal."""
     desc = issue.get("Description") or ""
-    if re.search(r"MILESTONES?", desc, re.I):
-        goal = " ".join(line.strip() for line in parse_milestones(desc)[0].splitlines() if line.strip())
-        if goal:
-            return goal
-    return _get(issue, "Custom field (Goals)", "Custom field (Business Goal)")
+    if re.search(r"MILESTONES?", desc, re.I) and (goal := _paragraphs(parse_milestones(desc)[0])):
+        return goal
+    return _paragraphs(sanitize_jira_markup(_get(issue, "Custom field (Goals)", "Custom field (Business Goal)")))
 
 
 def _developers(issue: dict) -> str:

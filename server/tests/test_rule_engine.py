@@ -68,7 +68,7 @@ def test_pic_fallback_kpi_table_goal_fallback_and_default_workstream():
     assert row.i == 6
     assert row.pic == "Lê Ngọc Anh" and row.po == "Lê Ngọc Anh"
     assert row.muctieu == "Mục tiêu từ Goals"
-    assert row.kpi == "1. Pickup ETA\n2. Hủy cuốc"  # rule E: "STT. KPI" per line
+    assert row.kpi == "1. Pickup ETA: <= 5.0 phút\n2. Hủy cuốc: <= 8%"  # rule E: "STT. KPI: Chỉ số chính" per line
     assert row.mang == "I.A.9"  # no catalog entry -> workstream prefix
     assert row.tt == "Monitoring"  # unmapped kept raw for W_UNMAPPED_VALUE
     assert row.buocso == ""
@@ -94,11 +94,11 @@ def test_weekly_blocks_from_progress_report_and_risk_notes():
     assert row.w1ht.startswith("[2026-10-31]")
 
 
-def test_goal_rule_joins_lines_and_has_no_whole_description_fallback():
+def test_goal_rule_keeps_lines_and_has_no_whole_description_fallback():
     base = {"Summary": "I.C.1.2 X"}
     desc = "*Giảm thời gian chờ*\nTăng tỉ lệ nhận cuốc\n\n4. MILESTONES:\n{{2026-12-31}} (PROD) Go-live\n+ chi tiết"
     row = map_jira_issue_to_row({**base, "Description": desc}, None, WEEKS, 1)
-    assert row.muctieu == "Giảm thời gian chờ Tăng tỉ lệ nhận cuốc"
+    assert row.muctieu == "Giảm thời gian chờ\nTăng tỉ lệ nhận cuốc"
     assert row.milestone.splitlines() == ["2026-12-31 (PROD) Go-live", "+ chi tiết"]
     no_header = {**base, "Description": "mô tả dài không có tiêu đề mốc"}
     assert map_jira_issue_to_row(no_header, None, WEEKS, 1).muctieu == ""
@@ -132,3 +132,14 @@ def test_org_fields_priority_link_and_status_category_fallback():
     assert row.prio == "High"
     assert row.link == "https://wiki.example/prd/1"
     assert map_jira_issue_to_row({"Summary": "I.C.1.2 X"}, None, WEEKS, 1).link == ""
+
+
+def test_goal_preserves_lines_and_bullets_and_kpi_includes_metric():
+    from server.app.modules.mapping.rule_engine import _goal, _kpi
+
+    desc = "1. BÀI TOÁN\nNgắn gọn.\n2. MỤC TIÊU\n- Giảm trễ\n- Tăng tỉ lệ\nMILESTONE:\n|2026-05-01|Khởi động|"
+    g = _goal({"Description": desc})
+    assert "\n" in g and "• Giảm trễ" in g and "1. BÀI TOÁN" in g and "MILESTONE" not in g
+
+    kpi = "||*STT*||*KPI*||*Chỉ số chính*||\n|1|Tỉ lệ chuyển đổi|Tăng >= 12%|\n|2|Độ ổn định|"
+    assert _kpi(kpi) == "1. Tỉ lệ chuyển đổi: Tăng >= 12%\n2. Độ ổn định"
