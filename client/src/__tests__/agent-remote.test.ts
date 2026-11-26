@@ -1,0 +1,179 @@
+import { describe, expect, it } from 'vitest';
+import { REMOTE_MAX_TEXT, agentHtml, historyOf, keepLocal, textColumns } from '@/lib/agentRemote';
+import type { AgentAnswer, AgentFacts } from '@/lib/api';
+
+const rows = [{ i: 3, ma: 'I.A.1.1' }, { i: 7, ma: 'II.B.2.4' }];
+const ans = (o: Partial<AgentAnswer>): AgentAnswer => ({ intent: 'filter', answer: '', codes: [], by: 'v-llm-v1-medium', grounded: true, warnings: [], mode: 'vllm', model: 'v-llm-v1-medium', ...o });
+
+describe('Agent hỏi đáp qua backend', () => {
+  it('lệnh sửa bảng và câu về ô đang chọn giữ ở giao diện, câu hỏi số liệu đi qua backend', () => {
+    ['Đổi tiến độ của I.A.1.1 thành Chậm tiến độ', 'nhờ điền Mức độ rủi ro', 'Duyệt hết nháp của I.A.1.1', 'Ẩn cột PIC', 'Tóm tắt dự án đang chọn', 'dự án này thế nào']
+      .forEach((q) => expect(keepLocal(q), q).toBe(true));
+    ['Tóm tắt tuần này', 'Dự án nào có nguy cơ trễ?', 'Nháp nào đang chờ duyệt?', 'Có bao nhiêu dự án rủi ro cao?', 'I.A.1.1 đang thế nào']
+      .forEach((q) => expect(keepLocal(q), q).toBe(false));
+  });
+
+  it('mã dự án trong câu trả lời thành nút bấm tới đúng dòng, mã lạ để nguyên chữ', () => {
+    const h = agentHtml(ans({ answer: 'Có 2 dự án chậm: I.A.1.1 và II.B.2.4, ngoài ra IX.Z.9.9.' }), rows);
+    expect(h).toContain('<button class="cd" data-act="exGo" data-i="3">I.A.1.1</button>');
+    expect(h).toContain('<button class="cd" data-act="exGo" data-i="7">II.B.2.4</button>');
+    expect(h).toContain('ngoài ra IX.Z.9.9.');
+    expect(h).not.toContain('data-i="undefined"');
+  });
+
+  it('chặn chèn HTML từ câu trả lời và ghi rõ ai viết lời văn', () => {
+    const h = agentHtml(ans({ answer: '<img src=x onerror=alert(1)> Có 1 dự án.' }), rows);
+    expect(h).not.toContain('<img');
+    expect(h).toContain('&lt;img');
+    expect(h).toContain('lời văn do v-llm-v1-medium');
+  });
+
+  it('câu trả lời mẫu: nói rõ khi AI lệch số liệu', () => {
+    const rule = agentHtml(ans({ by: 'rule', grounded: true, answer: 'Có 3 dự án.' }), rows);
+    expect(rule).toContain('Số liệu tính từ bảng hiện tại');
+    expect(rule).not.toContain('lời văn do');
+    const bad = agentHtml(ans({ by: 'rule', grounded: false, warnings: ['con số 9 không có trong số liệu'], answer: 'Có 3 dự án.' }), rows);
+    expect(bad).toContain('AI trả lời lệch số liệu nên dùng câu mẫu');
+    expect(bad).toContain('title="con số 9 không có trong số liệu"');   // lý do chi tiết nằm trong tooltip, không làm dòng nguồn dài ra
+  });
+});
+
+describe('Nhớ ngữ cảnh khi hỏi tiếp', () => {
+  it('"dự án đó" đi qua backend, còn "dự án này" (ô đang chọn) vẫn do giao diện xử lý', () => {
+    expect(keepLocal('dự án đó là dự án gì')).toBe(false);
+    expect(keepLocal('trong số đó dự án nào rủi ro cao')).toBe(false);
+    expect(keepLocal('dự án này thế nào')).toBe(true);
+  });
+
+  it('historyOf lấy 3 câu gần nhất, bỏ tin đang gõ, mặc định không có mã', () => {
+    const log = [
+      { q: 'a', scope: ['I.A.1.1'] }, { q: 'b' }, { q: 'c', scope: ['II.B.2.4', 'I.A.1.1'] }, { q: 'd', scope: [] }, { q: 'đang gõ', busy: true },
+    ];
+    expect(historyOf(log)).toEqual([{ q: 'b', codes: [] }, { q: 'c', codes: ['II.B.2.4', 'I.A.1.1'] }, { q: 'd', codes: [] }]);
+    expect(historyOf([])).toEqual([]);
+    expect(historyOf([{ q: 'x'.repeat(500) }])[0].q).toHaveLength(200);
+  });
+});
+
+describe('Cột chữ gửi cho Trợ lý tìm theo nội dung', () => {
+  const cells: Record<string, string> = {
+    muctieu: ' Xây nền tảng thực nghiệm ', kpi: '', milestone: 'UAT 12/12', note: '', ht: 'Xong API', kh: 'Chạy thử', vd: 'Chờ GPU',
+    w1ht: 'Tuần đầu xong thiết kế', w1kh: '', w1vd: '', w2ht: '', w2kh: 'Review', w2vd: 'Thiếu người',
+  };
+  const show = (id: string): string => cells[id] ?? '';
+
+  it('lấy đúng ô, cắt khoảng trắng, ô trống để chuỗi rỗng', () => {
+    const t = textColumns(show, ' Jira comment ');
+    expect(t).toEqual({
+      goal: 'Xây nền tảng thực nghiệm', kpi: '', milestone: 'UAT 12/12', note: '', done: 'Xong API', plan: 'Chạy thử', issue: 'Chờ GPU',
+      prev: 'Tuần 1 – đã làm: Tuần đầu xong thiết kế\nTuần 2 – kế hoạch: Review; vấn đề: Thiếu người', comment: 'Jira comment',
+    });
+  });
+
+  it('không có báo cáo tuần trước thì prev rỗng, ô quá dài bị cắt', () => {
+    expect(textColumns(() => '', '').prev).toBe('');
+    expect(textColumns((id) => (id === 'vd' ? 'x'.repeat(5000) : ''), '').issue).toHaveLength(REMOTE_MAX_TEXT);
+  });
+});
+
+
+describe('Câu trả lời gọn: câu dẫn ngắn + danh sách dựng từ số liệu', () => {
+  const P = (code: string, o: Record<string, string> = {}) => ({ code, name: 'Dự án ' + code, tien_do: 'Chậm tiến độ', rui_ro: '', trang_thai: 'Đang làm', han: '15/11/2026', ...o });
+  const facts = (o: Partial<AgentFacts>): AgentFacts => o as AgentFacts;
+
+  it('danh sách dự án: mã là nút bấm, nhãn có màu theo ý nghĩa, rủi ro trống ghi "chưa đánh giá"', () => {
+    const h = agentHtml(ans({ answer: 'Có 2 dự án khớp.', facts: facts({ kieu: 'projects', so_luong: 2, du_an: [P('I.A.1.1'), P('II.B.2.4', { tien_do: 'Đúng tiến độ', rui_ro: 'Cao' })] }) }), rows);
+    expect(h).toContain('<p>Có 2 dự án khớp.</p>');
+    expect(h).toContain('<li class="pi"><div class="pt"><button class="cd" data-act="exGo" data-i="3">I.A.1.1</button><span class="pn">Dự án I.A.1.1</span>');
+    expect(h).toContain('<span class="pc e">Chậm tiến độ</span>');
+    expect(h).toContain('<span class="pc o">Đúng tiến độ</span>');
+    expect(h).toContain('<span class="pc e">Rủi ro: Cao</span>');
+    expect(h).toContain('<span class="pc mut">Rủi ro: chưa đánh giá</span>');
+    expect(h).toContain('Hạn 15/11/2026');
+  });
+
+  it('quá 6 dự án thì phần còn lại gập vào "Xem thêm", và nói rõ số dự án chưa hiện', () => {
+    const many = Array.from({ length: 9 }, (_, k) => P('IX.Z.' + k + '.1'));
+    const h = agentHtml(ans({ answer: 'Có 30 dự án.', facts: facts({ kieu: 'filter', so_luong: 30, du_an: many }) }), rows);
+    expect(h.match(/<li class="pi">/g)).toHaveLength(9);
+    expect(h).toContain('<summary>Xem thêm 3 dự án</summary>');
+    expect(h).toContain('Còn 21 dự án khác chưa hiện');
+    const few = agentHtml(ans({ answer: 'Có 2.', facts: facts({ kieu: 'filter', so_luong: 2, du_an: many.slice(0, 2) }) }), rows);
+    expect(few).not.toContain('Xem thêm');
+    expect(few).not.toContain('chưa hiện');
+  });
+
+  it('chặn chèn HTML trong tên dự án, đoạn nguồn và nhãn', () => {
+    const h = agentHtml(ans({ answer: 'ok', facts: facts({ kieu: 'projects', so_luong: 1, du_an: [P('I.A.1.1', { name: '<b>x</b>', tien_do: '<i>y</i>' })] }) }), rows);
+    expect(h).not.toContain('<b>x'); expect(h).not.toContain('<i>y');
+    expect(h).toContain('&lt;b&gt;x&lt;/b&gt;');
+    const s = agentHtml(ans({ answer: 'ok', facts: facts({ kieu: 'search', tim_thay: true, doan: [{ code: 'I.A.1.1', ten: '<u>t</u>', truong: 'Comment', noi_dung: '<script>1</script>' }] } as AgentFacts) }), rows);
+    expect(s).not.toContain('<script'); expect(s).not.toContain('<u>');
+  });
+
+  it('một dự án: chỉ có thẻ dự án; rule + lead rỗng thì không có câu dẫn thừa', () => {
+    const h = agentHtml(ans({ by: 'rule', answer: 'I.A.1.1 (Dự án I.A.1.1): tiến độ Chậm tiến độ, mức độ rủi ro chưa có, hạn 15/11/2026.', lead: '', facts: facts({ kieu: 'project', tim_thay: true, du_an: P('I.A.1.1') }) }), rows);
+    expect(h).not.toContain('class="al"');
+    expect(h).toContain('<ul class="pl"><li class="pi">');
+    expect(h).not.toContain('tiến độ Chậm tiến độ, mức độ');   // không lặp lại câu mẫu dài
+  });
+
+  it('AI viết lời thì dùng lời AI; câu mẫu thì dùng câu dẫn ngắn thay vì câu mẫu liệt kê mã', () => {
+    const f = facts({ kieu: 'filter', so_luong: 2, du_an: [P('I.A.1.1'), P('II.B.2.4')] });
+    const viaRule = agentHtml(ans({ by: 'rule', answer: 'Có 2/4 dự án có Tiến độ = Chậm tiến độ: I.A.1.1, II.B.2.4.', lead: 'Có 2/4 dự án có Tiến độ = Chậm tiến độ.', facts: f }), rows);
+    expect(viaRule).toContain('<p>Có 2/4 dự án có Tiến độ = Chậm tiến độ.</p>');
+    expect(viaRule).not.toContain('Chậm tiến độ: <button');
+    const viaAi = agentHtml(ans({ answer: 'Hai dự án chậm, nổi bật là I.A.1.1.', lead: 'không dùng', facts: f }), rows);
+    expect(viaAi).toContain('nổi bật là <button class="cd" data-act="exGo" data-i="3">I.A.1.1</button>');
+    expect(viaAi).not.toContain('không dùng');
+  });
+
+  it('lời AI nhiều dòng "- " thành gạch đầu dòng, bỏ dấu ** markdown', () => {
+    const h = agentHtml(ans({ answer: 'Tìm thấy 2 ý:\n- **I.A.1.1**: chờ GPU\n- II.B.2.4: đã xong' }), rows);
+    expect(h).toContain('<p>Tìm thấy 2 ý:</p>');
+    expect(h).toContain('<ul class="bl"><li><button class="cd" data-act="exGo" data-i="3">I.A.1.1</button>: chờ GPU</li><li><button class="cd" data-act="exGo" data-i="7">II.B.2.4</button>: đã xong</li></ul>');
+    expect(h).not.toContain('**');
+  });
+
+  it('tóm tắt tuần: chip theo tiến độ và rủi ro, mã dự án chậm là nút, số nháp chờ duyệt', () => {
+    const h = agentHtml(ans({ by: 'rule', answer: 'x', lead: 'Tuần này có 4 dự án, trong đó 2 dự án chậm tiến độ.', facts: facts({
+      kieu: 'summary', tong: 4, theo_tien_do: { 'Chậm tiến độ': 2, 'Đúng tiến độ': 1, 'Có nguy cơ chậm': 1 }, theo_muc_do_rui_ro: { Cao: 1, 'Chưa đánh giá': 3 },
+      du_an_cham: ['I.A.1.1', 'II.B.2.4'], so_du_an_cham: 2, so_du_an_co_o_nhap_ai_cho_duyet: 2 }) }), rows);
+    expect(h).toContain('<span class="pc e">Chậm tiến độ · 2</span>');
+    expect(h).toContain('<span class="pc w">Có nguy cơ chậm · 1</span>');
+    expect(h).toContain('<span class="pc e">Cao · 1</span>');
+    expect(h).toContain('Chậm tiến độ (2)');
+    expect(h).toContain('data-i="7">II.B.2.4</button>');
+    expect(h).toContain('2 dự án có ô nháp AI chờ duyệt.');
+  });
+
+  it('đếm theo nhóm: tách mã nhóm khỏi tiêu đề, nhóm lớn nhất nổi bật, tỉ lệ theo nhóm lớn nhất, tên đầy đủ trong tooltip', () => {
+    const h = agentHtml(ans({ answer: 'Nhóm nhiều nhất có 4 dự án.', facts: facts({ kieu: 'analyze', so_luong: 5, phan_nhom: { truong: 'Nhóm', theo: { 'II.E.1Nền tảng MLOps': 4, 'I.A.3.PAI - Cá nhân hóa': 1, 'Khác': 1 }, con_lai_nhom: 2 } }) }), rows);
+    expect(h).toContain('Theo nhóm');
+    expect(h).toContain('<span class="gc">II.E.1</span>Nền tảng MLOps');
+    expect(h).toContain('<span class="gc">I.A.3</span>PAI - Cá nhân hóa');
+    expect(h).toContain('<span class="bn">Khác</span>');          // tên không có mã thì giữ nguyên
+    expect(h).toContain('class="br top" title="II.E.1Nền tảng MLOps"');
+    expect(h.match(/class="br top"/g)).toHaveLength(1);
+    expect(h).toContain('<i style="width:100%"></i>');
+    expect(h).toContain('<i style="width:25%"></i>');
+    expect(h).toContain('Và 2 nhóm khác.');
+  });
+
+  it('tìm theo nội dung: nguồn gập sẵn khi AI đã tóm tắt, mở sẵn khi dùng câu mẫu; đoạn dài bị cắt', () => {
+    const f = facts({ kieu: 'search', tim_thay: true, so_doan: 1, doan: [{ code: 'I.A.1.1', ten: 'Nền tảng', truong: 'Báo cáo tuần này', noi_dung: 'a'.repeat(300) }] });
+    const ai = agentHtml(ans({ answer: '- I.A.1.1: đang chờ GPU', facts: f }), rows);
+    expect(ai).toContain('<details class="srcs"><summary>Nguồn trong bảng (1 đoạn)</summary>');
+    expect(ai).toContain('<span class="pf">Báo cáo tuần này</span>');
+    expect(ai).toContain('a'.repeat(170) + '…');
+    expect(ai).not.toContain('a'.repeat(171));
+    const rule = agentHtml(ans({ by: 'rule', answer: 'x', lead: 'Tìm thấy 1 đoạn liên quan trong bảng.', facts: f }), rows);
+    expect(rule).toContain('<details class="srcs" open>');
+  });
+
+  it('backend cũ không gửi facts/lead: vẫn hiện câu trả lời như trước', () => {
+    const h = agentHtml(ans({ by: 'rule', answer: 'Có 3 dự án.' }), rows);
+    expect(h).toContain('<p>Có 3 dự án.</p>');
+    expect(h).not.toContain('class="pl"');
+  });
+});

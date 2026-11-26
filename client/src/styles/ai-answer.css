@@ -1,0 +1,49 @@
+/* Câu trả lời của Trợ lý AI: câu dẫn ngắn, rồi danh sách dự án / thống kê / nguồn (dựng trong lib/agentRemote.ts agentHtml). */
+.askai .am{display:flex;flex-direction:column;gap:9px}
+.askai .al p{margin:0;line-height:1.5}
+.askai .al p+p{margin-top:5px}
+.askai .bl{margin:4px 0 0;padding-left:16px}
+.askai .bl li{margin:3px 0}
+
+/* danh sách dự án / đoạn nguồn */
+.askai .pl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.askai .pi{margin:0;padding:7px 9px;background:var(--panel);border:1px solid var(--line2);border-radius:8px}
+.askai .pt{display:flex;align-items:baseline;gap:7px;min-width:0}
+.askai .pt .cd,.askai .pt .cdn{flex:none}
+.askai .cdn{font:600 11.5px var(--mono);color:var(--ink2)}
+.askai .pn{min-width:0;font-size:12.5px;font-weight:600;color:var(--ink);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.askai .pp{display:flex;flex-wrap:wrap;gap:4px 5px;margin-top:5px}
+.askai .st .pp{margin-top:4px}
+.askai .px{margin-top:4px;font-size:12px;line-height:1.45;color:var(--ink2)}
+.askai .pf{display:inline-block;margin-right:6px;padding:0 6px;border-radius:5px;background:var(--line2);color:var(--mut);font-size:10.5px;font-weight:600;line-height:17px;vertical-align:1px}
+
+/* nhãn nhỏ: trung tính, đỏ/vàng/xanh theo ý nghĩa */
+.askai .pc{display:inline-block;padding:1px 7px;border:1px solid var(--line);border-radius:999px;background:var(--bg);color:var(--ink2);font-size:11px;font-weight:500;line-height:17px;white-space:nowrap}
+.askai .pc.mut{color:var(--mut);background:transparent}
+.askai .pc.e{color:var(--err);background:var(--errBg);border-color:var(--errLine)}
+.askai .pc.w{color:var(--wrn);background:var(--wrnBg);border-color:var(--wrnLine)}
+.askai .pc.o{color:var(--ok);background:var(--okBg);border-color:var(--okLine)}
+
+/* thống kê */
+.askai .st .sh{font-size:11.5px;font-weight:600;color:var(--mut)}
+.askai .st+.st{margin-top:1px}
+.askai .st .cd{margin-right:7px}
+.askai .br{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:10px;row-gap:3px;align-items:baseline;margin-top:8px;font-size:12px}
+.askai .bn{min-width:0;color:var(--ink2);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.askai .gc{margin-right:6px;font:600 11px var(--mono);color:var(--mut)}
+.askai .br b{font-weight:600;color:var(--ink);text-align:right}
+.askai .bb{grid-column:1 / -1;height:5px;border-radius:99px;background:var(--line2);overflow:hidden}
+.askai .bb i{display:block;height:100%;border-radius:99px;background:var(--mut2)}
+.askai .br.top .bb i{background:var(--accent)}
+.askai .br.top .bn{color:var(--ink);font-weight:600}
+.askai .pm{font-size:11.5px;color:var(--mut)}
+
+/* "Xem thêm" và "Nguồn trong bảng": gập sẵn để câu trả lời gọn */
+.askai details.more,.askai details.srcs{margin:0}
+.askai details>summary{cursor:pointer;color:var(--accent);font-size:12px;font-weight:600;list-style:none;padding:2px 0}
+.askai details>summary::-webkit-details-marker{display:none}
+.askai details>summary::before{content:'▸';display:inline-block;margin-right:5px;font-size:10px;transition:transform .15s}
+.askai details[open]>summary::before{transform:rotate(90deg)}
+.askai details>summary:focus-visible{outline:2px solid var(--accentLine);outline-offset:2px;border-radius:4px}
+.askai details>.pl{margin-top:6px}
+@media (prefers-reduced-motion:reduce){.askai details>summary::before{transition:none}}

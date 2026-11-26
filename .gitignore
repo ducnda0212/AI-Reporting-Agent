@@ -1,0 +1,12 @@
+node_modules
+dist
+.venv
+__pycache__
+.pytest_cache
+server/storage/*.db
+server/storage/uploads/*
+server/storage/exports/*
+server/.env
+!server/storage/uploads/.gitkeep
+!server/storage/exports/.gitkeep
+docs/superpowers
