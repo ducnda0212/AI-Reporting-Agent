@@ -1,6 +1,6 @@
 """Choice A: one row per main ticket (DA code in Summary); other issues are audit subtasks or orphans."""
 from server.app.modules.mapping.resolved import resolve_mapping
-from server.app.modules.mapping.rule_engine import extract_project_code_and_name, map_jira_issue_to_row
+from server.app.modules.mapping.rule_engine import issue_code, map_jira_issue_to_row
 from server.app.schemas.ingest import OrphanIssue
 from server.app.schemas.row import ReportRow, SubtaskAudit
 
@@ -34,7 +34,7 @@ def reconcile_issues(
     coded_children: list[tuple[dict, str]] = []
     uncoded: list[dict] = []
     for rec in records:
-        code, _ = extract_project_code_and_name(rec.get("Summary", ""))
+        code = issue_code(rec, mapping)
         if code is None:
             uncoded.append(rec)
         elif code in catalog:

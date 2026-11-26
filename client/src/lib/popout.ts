@@ -54,10 +54,12 @@ export function poHitsCompute(row: Row, q: string, wkDesc: boolean, ctx: CellCtx
 
 export interface Milestone { date: string | null; text: string; status: 'done' | 'next' | '' }
 
-/** Mỗi dòng "dd/mm: nội dung"; mốc đến hết ngày tham chiếu (activeToday, mặc định 2026-11-22) là done, sau đó là next; dòng không có ngày để status rỗng. */
+/** Mỗi dòng "dd/mm: nội dung" hoặc "yyyy-mm-dd nội dung" (Jira); mốc đến hết ngày tham chiếu (activeToday, mặc định 2026-11-22) là done, sau đó là next; dòng không có ngày để status rỗng. */
 export function parseMilestones(text: string, refTodayIso = '2026-11-22'): Milestone[] {
   const [ry, rm, rd] = refTodayIso.split('-').map(Number), today = new Date(ry, rm - 1, rd);
   return text.split('\n').map((s) => s.trim()).filter(Boolean).map((s): Milestone => {
+    const iso = /^(\d{4})-(\d{2})-(\d{2})[:\s-]*(.*)$/.exec(s);
+    if (iso) return { date: iso[3] + '/' + iso[2], text: iso[4], status: new Date(+iso[1], +iso[2] - 1, +iso[3]) <= today ? 'done' : 'next' }; // năm đủ 4 chữ số: 15/01/2027 chưa tới khi đang tháng 12/2026
     const m = /^(\d{1,2})\/(\d{1,2})\s*:\s*(.*)$/.exec(s);
     if (!m) return { date: null, text: s, status: '' };
     const d = new Date(ry, +m[2] - 1, +m[1]);

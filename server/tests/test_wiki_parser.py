@@ -94,3 +94,7 @@ def test_parse_milestones_splits_goal_and_milestone():
     assert "{{" not in ms and "2026-12-31" in ms and "Go-live" in ms
     assert parse_milestones("không có mốc") == ("không có mốc", "")
     assert parse_milestones("") == ("", "")
+
+
+def test_sanitize_arrows_and_comparators():
+    assert sanitize_jira_markup("A -> B --> C, >= 12%, <= 5") == "A → B → C, ≥ 12%, ≤ 5"

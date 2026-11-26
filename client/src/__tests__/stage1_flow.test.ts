@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getState, mutate, resetStore } from '@/store';
 import {
-  impCancel, IMPORT_END_MS, IMPORT_STEP_MS, initStage1Bootstrap, skipImportWait, mpCloneProfile, mpDeleteProfile, mpPick, mpQuickChange, mpSaveNew, mpUpdateProfile, pvGo, pvStage, reopenSession, SRC_DEFAULT, uploadFile
+  impCancel, IMPORT_END_MS, IMPORT_STEP_MS, initStage1Bootstrap, skipImportWait, mpCloneProfile, mpDeleteProfile, mpPick, mpQuickChange, mpSaveNew, mpUpdateProfile, pvGo, pvStage, reopenSession, uploadFile
 } from '@/store/actions/flow';
 import { cellValue, fieldById } from '@/lib/cell';
 import { setCycle, TODAY, WEEKS } from '@/data/constants';
@@ -211,10 +211,23 @@ describe('cấu hình mapping (mpBar + mapQuick)', () => {
     let s = getState();
     expect(rc).toHaveBeenLastCalledWith({ session_id: 'sess_test', mapping_id: MAPPING.id, src_overrides: { phong: 'Custom field (Dept)' } });
     expect([s.mpDirty, s.mpSrc.phong, s.allRows[0].phong]).toEqual([true, 'Custom field (Dept)', 'AI Dept']);
-    await mpQuickChange('phong', SRC_DEFAULT);
+    await mpQuickChange('phong', '');
     s = getState();
     expect(rc).toHaveBeenLastCalledWith({ session_id: 'sess_test', mapping_id: MAPPING.id, src_overrides: {} });
     expect([s.mpDirty, s.mpSrc]).toEqual([false, {}]);
+  });
+
+  it('chọn "Không lấy từ Jira" gửi nguồn rỗng và lưu cột thành nhập tay', async () => {
+    const col: MappingConfigOut['columns'][number] = { field_id: 'viec', col_letter: 'C', name: 'Công việc', source_type: 'derived', source_field: 'Summary', fallbacks: [], required: false };
+    const cfg: MappingConfigOut = { ...MAPPING, columns: [col] };
+    mutate((d) => { d.mappings = [cfg] as never; d.mpUsed = cfg.id; d.fileCols = ['Summary']; });
+    const rc = vi.spyOn(api, 'recalculate').mockResolvedValue(fixtureResponse('f.csv'));
+    await mpQuickChange('viec', '');
+    expect(rc).toHaveBeenLastCalledWith({ session_id: 'sess_test', mapping_id: cfg.id, src_overrides: { viec: '' } });
+    const create = vi.spyOn(api, 'createMapping').mockResolvedValue({ ...cfg, id: 'map_new', name: 'Mới' });
+    vi.spyOn(api, 'listMappings').mockResolvedValue([cfg]);
+    await mpSaveNew('Mới');
+    expect(create.mock.calls[0][0].columns[0]).toMatchObject({ field_id: 'viec', source_type: 'manual', source_field: '' });
   });
 
   it('mpPick đổi cấu hình rồi tính lại; mpSaveNew / mpUpdateProfile ghi nguồn đã đổi vào cột cấu hình', async () => {

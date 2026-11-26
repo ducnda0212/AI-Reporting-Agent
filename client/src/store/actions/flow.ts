@@ -30,9 +30,6 @@ const holdFor = (ms: number): Promise<void> => new Promise((resolve) => {
 /** "Xem tóm tắt ngay": bỏ qua phần chờ. */
 export function skipImportWait(): void { skipRequested = true; endHold?.(); }
 
-/** Giá trị của ô chọn nguồn mapQuick nghĩa là "dùng nguồn của cấu hình" (bỏ phần đã đổi). */
-export const SRC_DEFAULT = '__default__';
-
 const errMsg = (e: unknown): string => (e instanceof ApiError ? e.message : 'Có lỗi không mong đợi, thử lại sau.');
 const ERROR_TOAST_MS = 6000; // lỗi dài hơn thông báo thường để kịp đọc
 const failUpload = (e: unknown): void => mutate((d) => { d.importErr = errMsg(e); d.importing = null; d.busy = false; });
@@ -41,6 +38,9 @@ const failToast = (e: unknown): void => mutate((d) => { toast(d, errMsg(e), ERRO
 /* ---------- dữ liệu nền từ máy chủ ---------- */
 /** Kỳ báo cáo, lịch sử nhập file, cấu hình mapping đã lưu: gọi một lần khi mở trang. */
 export async function initStage1Bootstrap(): Promise<void> {
+  const active = getActiveSessionStorage();
+  const restore = active ? Promise.all([api.getSession(active.sessionId), api.getDraft(active.sessionId)]) : null; // song song, không chờ nền
+  restore?.catch(() => undefined); // lỗi được xử lý ở dưới; tránh unhandled rejection khi còn đang chờ dữ liệu nền
   const [cyc, hist, maps, vers] = await Promise.allSettled([api.getActiveCycle(), api.getIngestHistory(), api.listMappings(), api.listVersions()]);
   if (cyc.status === 'fulfilled') setCycle(cyc.value.today, cyc.value.weeks);
   withSuppressedDraftSync(() => mutate((d) => {
@@ -51,19 +51,19 @@ export async function initStage1Bootstrap(): Promise<void> {
     const bad = [cyc, hist, maps, vers].find((r) => r.status === 'rejected');
     if (bad && bad.status === 'rejected') toast(d, errMsg(bad.reason));
   }, { track: false }));
-  const active = getActiveSessionStorage();
-  if (!active) return;
+  if (!active || !restore) return;
   try {
-    const [res, draft] = await Promise.all([api.getSession(active.sessionId), api.getDraft(active.sessionId)]);
+    const [res, draft] = await restore;
     withSuppressedDraftSync(() => mutate((d) => {
       commit(d, res, getState().mappings);
       d.mpSrc = {}; d.mpDirty = false; d.mpSave = false;
       if (draft) hydrateDraft(d, draft); else { resetDraftFields(d); importLog(d, res); }
-      d.view = active.view;
+      d.view = active.view; d.restoringSession = false;
     }, { resetUndo: true }));
   } catch (e) {
-    // 4xx: phiên không còn hợp lệ; lỗi mạng/5xx: giữ lại để thử lại ở lần mở sau
+    // 4xx: phiên không còn hợp lệ; lỗi mạng/5xx: giữ lại để thử lại ở lần mở sau. Cả hai: không có dữ liệu thì về Nhập file.
     if (e instanceof ApiError && e.status >= 400 && e.status < 500) setActiveSessionStorage(null);
+    withSuppressedDraftSync(() => mutate((d) => { d.restoringSession = false; if (!d.loaded) d.view = 'import'; }, { track: false }));
   }
 }
 
@@ -181,14 +181,20 @@ export async function mpPick(id: string): Promise<void> {
 /** Đổi nguồn một cột Jira (mapQuick): xem trước ngay từ file gốc, chưa lưu cấu hình. */
 export async function mpQuickChange(fid: string, col: string): Promise<void> {
   const s = getState(), src = { ...s.mpSrc };
-  if (col === SRC_DEFAULT) delete src[fid]; else src[fid] = col;
+  if (col === srcBase(s, fid)) delete src[fid]; else src[fid] = col;
   await recalc(s.mpUsed, src, Object.keys(src).length > 0);
+}
+
+/** Cột Jira cấu hình đang dùng gán cho cột báo cáo (chỉ khi file có cột đó), không thì '' = không lấy từ Jira. */
+export function srcBase(s: Pick<AppState, 'mappings' | 'mpUsed' | 'fileCols'>, fid: string): string {
+  const src = mpCurrent(s)?.columns.find((c) => c.field_id === fid)?.source_field || '';
+  return s.fileCols.includes(src) ? src : '';
 }
 
 /** Cột của cấu hình đang dùng, đã gộp các nguồn đang đổi tạm. */
 function mergedColumns(s: AppState, base: MappingConfigOut): MappingColumnDef[] {
   return base.columns.map((c) => (s.mpSrc[c.field_id] !== undefined
-    ? { ...c, source_type: 'jira', source_field: s.mpSrc[c.field_id], fallbacks: [] } : c));
+    ? { ...c, source_type: s.mpSrc[c.field_id] ? 'jira' : 'manual', source_field: s.mpSrc[c.field_id], fallbacks: [] } : c));
 }
 const valuesOf = (m: MappingConfigOut | undefined): ValueMappings => m?.value_mappings || { status_map: {}, progress_map: {}, phase_map: {}, phase_bucket: {} };
 
@@ -259,6 +265,13 @@ export function curStep(s: Pick<AppState, 'modal' | 'view' | 'loaded'>): Step {
 
 export function goStep(n: Step): void {
   if (n !== 1 && n !== 3 && n !== 4) return;
+  const s = getState(), latest = s.impHist[0];
+  if (n > 1 && !s.loaded && latest) { // chưa nhập file mới nhưng hệ thống đã có file cũ: mở file gần nhất ở Bước 2 để kiểm tra
+    void reopenSession(latest.session_id).then(() => {
+      if (getState().loaded) mutate((d) => { d.modal = null; d.exported = null; d.view = 'grid'; toast(d, 'Chưa nhập file mới — đang mở dữ liệu từ file gần nhất: ' + latest.name); });
+    });
+    return;
+  }
   mutate((d) => {
     d.pop = null; d.menu = null; d.panel = null;
     if (n > 1 && !d.loaded) return toast(d, 'Chưa có dữ liệu — nhập file ở bước 1 trước');

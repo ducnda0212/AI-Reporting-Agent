@@ -140,6 +140,28 @@ describe('ProjectPopout', () => {
     expect(h).toContain('Thu gọn');
   });
 
+  it('mục tiêu: tiêu đề đánh số in đậm + Sentence case giữ từ viết tắt; KPI cách đoạn; không còn ->, >=, <=', () => {
+    fresh();
+    const ri = rowsOf(getState())[0].i;
+    mutate((d) => { d.allRows[ri].muctieu = '1. TRIỂN KHAI AI CHO PMO VÀ SLA\n• ý một\n2. GSM VÀ ANBM/DPO TRADEOFF\n• ý hai'; d.allRows[ri].kpi = '1. A: ≥ 12%\n2. B: ≤ 5'; });
+    poOpen(ri);
+    const h = renderToString(<ProjectPopout />);
+    expect(h).toContain('1. Triển khai AI cho PMO và SLA');
+    expect(h).toContain('2. GSM và ANBM/DPO tradeoff');
+    expect(h).toContain('font-weight:600');
+    expect(h).toContain('margin-top:8px');
+    expect(h).toContain('margin-top:6px');
+    expect(h).not.toMatch(/-&gt;|&gt;=|&lt;=/);
+  });
+
+  it('mục tiêu 120 ký tự (đã quá 110) cũng có "Xem thêm"', () => {
+    fresh();
+    const ri = rowsOf(getState())[0].i;
+    mutate((d) => { d.allRows[ri].muctieu = 'a'.repeat(120); d.allRows[ri].kpi = 'ngắn'; });
+    poOpen(ri);
+    expect(renderToString(<ProjectPopout />)).toContain('data-f="muctieu"');
+  });
+
   it('writer cỡ chữ / vách kéo / gập mục: lưu pmo-po-fz, pmo-po-sidew; nhấp đúp về 300', () => {
     const m = stubLs();
     fresh(); poOpen(0);

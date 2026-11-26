@@ -3,12 +3,10 @@ import json
 from dataclasses import dataclass, field, replace
 
 from server.app.modules.mapping.normalizer import keyed
+from server.app.schemas.row import COLUMN_FIELDS
 
-# Columns whose Jira source the user may re-point (mapQuick). The rest are fixed keys, calculated or hand-filled.
-MAPPABLE = frozenset((
-    "viec", "mang", "muctieu", "kpi", "pic", "start", "end", "tt", "td", "milestone", "buocso", "buoc", "output",
-    "gdk", "phong", "tp", "bo", "po", "aieng", "airs", "mlops", "swe", "loai", "link", "market",
-))
+# Every template column may be re-pointed at a Jira column, or cleared with an empty source.
+MAPPABLE = frozenset(COLUMN_FIELDS.values())
 
 
 @dataclass(frozen=True)
@@ -52,13 +50,14 @@ def resolve_mapping(cfg, src_overrides: dict[str, str] | None = None, vm_overrid
             keyed(vm.get("status_map", {})), keyed(vm.get("progress_map", {})), dict(vm.get("phase_map", {})),
             dict(vm.get("phase_bucket", {})),
             {c["field_id"]: (c["source_field"], *c.get("fallbacks", []))
-             for c in cols if c.get("source_type") == "jira" and c.get("source_field")},
+             for c in cols if c.get("source_type") == "jira" and c.get("source_field")}
+            | {c["field_id"]: () for c in cols if c.get("source_type") == "manual"},  # () = cleared / hand-filled
             {c["field_id"]: c["source_type"] for c in cols},
         )
     if src_overrides:
         base = replace(
-            base, sources={**base.sources, **{f: (c,) for f, c in src_overrides.items()}},
-            kinds={**base.kinds, **{f: "jira" for f in src_overrides}},
+            base, sources={**base.sources, **{f: ((c,) if c else ()) for f, c in src_overrides.items()}},
+            kinds={**base.kinds, **{f: ("jira" if c else "manual") for f, c in src_overrides.items()}},
         )
     if vm_overrides is not None:
         base = replace(

@@ -50,8 +50,9 @@ export function sortVersions(L: VersionItem[]): VersionItem[] {
 
 export function initialState(): AppState {
   const gx = lsJson<AppState['gx']>(LS.grid), pn = lsJson<AppState['pn']>(LS.panel), cols = lsJson<{ hidden: AppState['hidden']; pin: boolean }>(LS.cols);
+  const act = inBrowser() ? getActiveSessionStorage() : null, restoring = !!act && act.view !== 'import';
   const s: AppState = {
-    view: 'import', panel: null, modal: null, loaded: false, importing: null, fileName: '',
+    view: restoring ? act.view : 'import', panel: null, modal: null, loaded: false, restoringSession: restoring, importing: null, fileName: '',
     realOnly: true, newCodes: 'pending', dupMerged: false, phaseBucket: {}, unsorted: [],
     cycleId: '2026_11_w3', weeks: [], activeToday: '', sessionId: null, fileCols: [], fileStats: null, groups: [], applied: null,
     orphans: [], blockers: [], warnings: [], mappings: [], mpUsed: null, mpSrc: {}, mpDirty: false, mpSave: false, busy: false, importErr: null,
@@ -220,18 +221,30 @@ export function hydrateDraft(d: Draft<AppState>, draft: SessionDraftOut): void {
   if (typeof draft.lock_seq === 'number') d.lockSeq = draft.lock_seq;
 }
 
+function saveDraftNow(cur: AppState): void {
+  api.saveDraft(cur.sessionId as string, buildDraftPayload(cur)).then(() => { draftWarned = false; }, () => {
+    if (draftWarned) return;
+    draftWarned = true;
+    mutate((d) => { toast(d, 'Không lưu được bản nháp lên máy chủ, sẽ thử lại ở lần sửa sau'); }, { track: false });
+  });
+}
+
+/** Gửi ngay lần lưu đang chờ (trước khi thay bảng bằng bản cũ). `editWk` là sửa tạm bản cũ, không bao giờ ghi vào nháp tuần hiện tại. */
+export function flushPendingDraftSave(): void {
+  if (draftTimer === null) return;
+  const cur = getState();
+  cancelPendingDraftSave();
+  if (cur.loaded && cur.sessionId && !cur.editWk) saveDraftNow(cur);
+}
+
 export function scheduleDraftSync(s: AppState): void {
-  if (!s.loaded || !s.sessionId || suppressDraftSync) return;
+  if (!s.loaded || !s.sessionId || suppressDraftSync || s.editWk) return;
   cancelPendingDraftSave();
   draftTimer = setTimeout(() => {
     draftTimer = null;
     const cur = getState();
-    if (!cur.loaded || !cur.sessionId) return;
-    api.saveDraft(cur.sessionId, buildDraftPayload(cur)).then(() => { draftWarned = false; }, () => {
-      if (draftWarned) return;
-      draftWarned = true;
-      mutate((d) => { toast(d, 'Không lưu được bản nháp lên máy chủ, sẽ thử lại ở lần sửa sau'); }, { track: false });
-    });
+    if (!cur.loaded || !cur.sessionId || cur.editWk) return;
+    saveDraftNow(cur);
   }, DRAFT_DEBOUNCE_MS);
 }
 
