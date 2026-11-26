@@ -4,9 +4,10 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { ASKQ } from '@/data/constants';
 import { agExamples } from '@/lib/ai';
-import { activeWkOf, displayText, fieldById } from '@/lib/cell';
-import { rowsOf, useAppState } from '@/store';
-import { askSend, exGo, pendingList, stgApply, stgDrop, stgGo, stgMore, stgShow, stgToggle } from '@/store/actions/ai';
+import { displayText, fieldById } from '@/lib/cell';
+import { now, rowsOf, useAppState } from '@/store';
+import { chatDelete, chatHistory, chatNew, chatOpen, chatSearch, askSend, exGo, pendingList, stgApply, stgDrop, stgGo, stgMore, stgShow, stgToggle } from '@/store/actions/ai';
+import { groupChats, previewOf, whenLabel } from '@/lib/chatHistory';
 import { wkName } from '@/store/actions/versions';
 import type { AgStage, AppState } from '@/types';
 import { PanelShell, PnClose, PnExpand } from './PanelShell';
@@ -80,6 +81,39 @@ function Welcome({ s }: { s: AppState }): JSX.Element {
   );
 }
 
+const ico = (d: string): JSX.Element => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>;
+const PLUS_I = ico('M12 5v14M5 12h14'), CLOCK_I = ico('M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z'), BACK_I = ico('M15 18l-6-6 6-6');
+
+/** Màn "Lịch sử": tìm kiếm, nhóm theo ngày, mỗi dòng có tiêu đề, câu trả lời gần nhất, giờ và nút xoá. */
+function History({ s, busy }: { s: AppState; busy: boolean }): JSX.Element {
+  const nowMs = now().getTime(), groups = groupChats(s.chats, nowMs, s.chatQ);
+  return (
+    <div className="hbd chh">
+      <div className="chhtop">
+        <input className="chhq" type="search" value={s.chatQ} placeholder="Tìm trong lịch sử" aria-label="Tìm trong lịch sử trò chuyện" onChange={(e: React.ChangeEvent<HTMLInputElement>) => chatSearch(e.target.value)} />
+        <button className="btn sm pri" disabled={busy} onClick={() => chatNew()}>{PLUS_I} Chat mới</button>
+      </div>
+      {!s.chats.length ? <p className="chhe">Chưa có cuộc trò chuyện nào. Hỏi Agent một câu, cuộc trò chuyện sẽ được lưu ở đây.</p>
+        : !groups.length ? <p className="chhe">Không có cuộc trò chuyện nào khớp “{s.chatQ}”.</p>
+        : groups.map((g) => (
+          <section key={g.label} className="chhg">
+            <h4>{g.label}</h4>
+            {g.items.map((c) => (
+              <div key={c.id} className={'chhr' + (c.id === s.chatId ? ' cur' : '')}>
+                <button className="chho" disabled={busy} onClick={() => chatOpen(c.id)}>
+                  <span className="chht">{c.title}{c.id === s.chatId && <em>đang mở</em>}</span>
+                  <span className="chhp">{previewOf(c)}</span>
+                </button>
+                <time>{whenLabel(c.at, nowMs)}</time>
+                <button className="chhx" aria-label={'Xoá cuộc trò chuyện ' + c.title} title="Xoá khỏi lịch sử" disabled={busy} onClick={() => chatDelete(c.id)}>✕</button>
+              </div>
+            ))}
+          </section>
+        ))}
+    </div>
+  );
+}
+
 export function AiAssistantPanel(): JSX.Element {
   const s = useAppState((x) => x), [q, setQ] = useState('');
   const scroll = useRef<HTMLDivElement>(null), L = s.askLog, busy = !!L[L.length - 1]?.busy;
@@ -95,8 +129,18 @@ export function AiAssistantPanel(): JSX.Element {
   const asked = L.map((x) => x.q);
   const Q = ASKQ.filter((x) => !asked.includes(x)).slice(0, 2), D = agExamples(r0, rowsOf(s)).filter((x) => !asked.includes(x)).slice(0, 2);
   return (
-    <PanelShell k="hub" cls="phub" label="Trợ lý AI">
-      <div className="ph2"><b className="phtitle">Trợ lý AI</b><PnExpand k="hub" /><PnClose /></div>
+    <PanelShell k="hub" cls="phub phai" label="Trợ lý AI">
+      <div className="ph2">
+        {s.chatView === 'history'
+          ? <><button className="chbtn" aria-label="Quay lại cuộc trò chuyện" title="Quay lại" onClick={() => chatHistory(false)}>{BACK_I}</button><b className="phtitle">Lịch sử</b></>
+          : <b className="phtitle">Trợ lý AI</b>}
+        {s.chatView !== 'history' && <>
+          <button className="chbtn" data-act="chatNew" aria-label="Chat mới" title={busy ? 'Đợi Agent trả lời xong' : 'Chat mới'} disabled={busy || !L.length} onClick={() => chatNew()}>{PLUS_I}</button>
+          <button className="chbtn" data-act="chatHist" aria-label="Lịch sử trò chuyện" title="Lịch sử trò chuyện" onClick={() => chatHistory(true)}>{CLOCK_I}{s.chats.length > 0 && <i>{s.chats.length}</i>}</button>
+        </>}
+        <PnExpand k="hub" /><PnClose />
+      </div>
+      {s.chatView === 'history' ? <History s={s} busy={busy} /> : <>
       <div className="hbd" id="askScroll" ref={scroll} onClick={onAns}>
         <div className="aiwrap">
           {r0 && <div className="ctxchip">◎ <span>Đang chọn <b>{r0.ma}</b> · {r0.viec}</span></div>}
@@ -124,6 +168,7 @@ export function AiAssistantPanel(): JSX.Element {
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(q); } }} />
         <div className="r"><small>{'Trả lời từ bảng ' + wkName(activeWkOf(s), true).toLowerCase() + ', ghi rõ cột nguồn'}</small><button data-act="askSend" aria-label="Gửi" onClick={() => send(q)}>↑</button></div>
       </div>
+      </>}
     </PanelShell>
   );
 }

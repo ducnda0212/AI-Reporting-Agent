@@ -120,6 +120,8 @@ export interface FindState {
 export interface AskAnswer { html: string; act: { label: string; act: string; v?: string }[] }
 /** `busy`: đang hiện hiệu ứng gõ; `stage`: id bản xem trước gắn dưới câu trả lời (thay `<!--STAGE:id-->` của prototype). */
 export interface AskMessage { q: string; a: AskAnswer; busy?: boolean; stage?: string }
+/** Một cuộc trò chuyện với Trợ lý AI đã lưu vào lịch sử (chỉ lưu chữ: câu hỏi và HTML câu trả lời). */
+export interface ChatRec { id: string; title: string; at: number; log: { q: string; html: string }[] }
 
 export interface AgStageItem {
   i: number;
@@ -375,6 +377,11 @@ export interface AppState {
   pn: { w: Record<string, number>; col: Record<string, boolean>; big: string | null };
 
   askLog: AskMessage[];
+  /** Lịch sử trò chuyện (mới nhất trước, lưu localStorage), cuộc đang mở, màn đang xem và từ khoá tìm trong lịch sử. */
+  chats: ChatRec[];
+  chatId: string;
+  chatView: 'chat' | 'history';
+  chatQ: string;
   stages: Record<string, AgStage>;
   trace: TraceTarget | null;
   trEdit: string | null;

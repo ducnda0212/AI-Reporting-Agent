@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from server.app.ai.api import mount as mount_ai
 from server.app.core.database import Base, SessionLocal, engine
 from server.app.models import catalog, cycle, file, mapping, session, version  # noqa: F401  (register tables)
 from server.app.modules.ingestion.router import cycles_router, router as ingest_router
@@ -23,7 +24,7 @@ app.include_router(ingest_router)
 app.include_router(cycles_router)
 app.include_router(mapping_router)
 app.include_router(session_router)
-app.include_router(reporting_router)
+mount_ai(app)  # /api/ai/*, /api/risk/assess, /api/agent/ask (phần AI, không dùng DB)
 
 
 @app.get("/health")

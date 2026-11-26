@@ -174,7 +174,7 @@ const codeBtn = (r: Row): string => '<button class="cd" data-act="exGo" data-i="
 const aiText = (r: Row, k: AiFieldId): string => r.ai[k]?.text || '';
 const exPct = (r: Row): number => Math.round((r.done / r.total) * 100);
 /* Có nguy cơ chậm: còn ≤ 14 ngày tới hạn mà chưa xong, hoặc Mức độ rủi ro (AC) = Cao */
-function exTT(r: Row, ctx: CellCtx): string {
+export function exTT(r: Row, ctx: CellCtx): string {
   const due = parseVN(cv(r, 'end', ctx));
   if (cv(r, 'td', ctx) === 'Chậm tiến độ' || (due && due < TODAY)) return 'Chậm tiến độ';
   if ((due && (due.getTime() - TODAY.getTime()) / 864e5 <= 14) || aiText(r, 'rui') === 'Cao') return 'Có nguy cơ chậm';
