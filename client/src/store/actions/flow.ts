@@ -262,6 +262,13 @@ export function curStep(s: Pick<AppState, 'modal' | 'view' | 'loaded'>): Step {
 
 export function goStep(n: Step): void {
   if (n !== 1 && n !== 3 && n !== 4) return;
+  const s = getState(), latest = s.impHist[0];
+  if (n > 1 && !s.loaded && latest) { // chưa nhập file mới nhưng hệ thống đã có file cũ: mở file gần nhất ở Bước 2 để kiểm tra
+    void reopenSession(latest.session_id).then(() => {
+      if (getState().loaded) mutate((d) => { d.modal = null; d.exported = null; d.view = 'grid'; toast(d, 'Chưa nhập file mới — đang mở dữ liệu từ file gần nhất: ' + latest.name); });
+    });
+    return;
+  }
   mutate((d) => {
     d.pop = null; d.menu = null; d.panel = null;
     if (n > 1 && !d.loaded) return toast(d, 'Chưa có dữ liệu — nhập file ở bước 1 trước');

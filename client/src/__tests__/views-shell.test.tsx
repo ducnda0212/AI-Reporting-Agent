@@ -272,3 +272,28 @@ describe('Hành động mới cho bước 1, chọn tuần, nhật ký, giao di�
     expect(getState().toast).toBe('Đã chuyển sang giao diện tối');
   });
 });
+
+describe('Tuần chưa chốt và khoá bước khi chưa có file', () => {
+  it('tuần đã qua chưa có bản chốt hiện "Chưa chốt"; bấm vào chỉ báo, giữ nguyên màn; tuần có bản chốt xổ bản mới nhất', () => {
+    resetStore();
+    loadFixture();
+    mutate((d) => { d.view = 'grid'; d.menu = 'week'; d.versions = []; });
+    const html = renderToString(<TopBar />);
+    expect(html).toContain('Chưa chốt');
+    expect(html).not.toContain('Đã chốt Bản 1');
+    expect(html).toContain('Tuần trước (Tuần 2, chưa chốt)');
+    wkOpen('w1');
+    expect([getState().view, getState().toast]).toEqual(['grid', 'Tuần 01/11 chưa có bản chốt nào']);
+
+    seedVersions();
+    wkOpen('w2');
+    expect([getState().view, getState().verSel, getState().vlOpen]).toEqual(['ver', 'w2|2', 'w2|2']);
+  });
+
+  it('chưa nạp file: bước 2, 3 khoá khi chưa có lịch sử, mở được khi đã có lịch sử', () => {
+    resetStore();
+    expect(renderToString(<TopBar />).match(/<button class="stp[^"]*"[^>]*disabled=""/g)).toHaveLength(2);
+    mutate((d) => { d.impHist = [{ session_id: 's1', name: 'a.csv', wk: 'Tuần 3', at: '', by: '', issues: 1, cols: 1, prj: 1, ver: '' }]; });
+    expect(renderToString(<TopBar />)).not.toMatch(/<button class="stp[^"]*"[^>]*disabled=""/);
+  });
+});

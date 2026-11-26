@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { castDraft } from 'immer';
 import { getState, mutate, resetStore, setNow } from '@/store';
 import * as F from '@/store/actions/flow';
@@ -9,7 +9,8 @@ import * as V from '@/store/actions/versions';
 import * as H from '@/store/actions/help';
 import { cellValue, fieldById, sourceValue } from '@/lib/cell';
 import type { Row } from '@/types';
-import { GOLD_FILE, loadFixture, mockReportApi, SEED_VERSIONS } from './fixtures';
+import { api } from '@/services/api';
+import { fixtureResponse, GOLD_FILE, loadFixture, mockReportApi, SEED_VERSIONS } from './fixtures';
 
 const byCode = (ma: string): Row => getState().allRows.find((r) => r.ma === ma)!;
 
@@ -45,6 +46,18 @@ describe('Store · luồng 3 bước, nạp dữ liệu từ máy chủ', () => 
     expect(getState().view).toBe('import');
     expect(getState().modal).toBeNull();
     expect(F.curStep(getState())).toBe(1);
+  });
+
+  it('goStep(3|4) khi chưa nạp mà đã có file cũ: mở file gần nhất ở Bảng, không bật modal xuất', async () => {
+    const res = fixtureResponse('old.csv');
+    const get = vi.spyOn(api, 'getSession').mockResolvedValue(res);
+    vi.spyOn(api, 'getDraft').mockResolvedValue(null as never);
+    mutate((d) => { d.impHist = [{ session_id: 'sess_old', name: 'old.csv', wk: 'Tuần 3', at: '', by: '', issues: 1, cols: 1, prj: 1, ver: '' }]; });
+    F.goStep(4);
+    await vi.waitFor(() => expect(getState().loaded).toBe(true));
+    await vi.waitFor(() => expect(getState().view).toBe('grid'));
+    expect(get).toHaveBeenCalledWith('sess_old');
+    expect([getState().modal, getState().toast]).toEqual([null, 'Chưa nhập file mới — đang mở dữ liệu từ file gần nhất: old.csv']);
   });
 
   it('navGo quay lại / tiến tới màn trước (lịch sử 50 bước)', () => {

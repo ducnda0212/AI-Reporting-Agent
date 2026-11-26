@@ -183,14 +183,15 @@ export async function reExport(k: string): Promise<void> {
 }
 
 /* ---------- chọn tuần trên thanh trên ---------- */
-/** Bấm một tuần: tuần đã chốt mở ở màn Phiên bản (chỉ xem); tuần này chỉ đóng menu. */
+/** Bấm một tuần: tuần đã chốt mở ở màn Phiên bản (chỉ xem, xổ bản mới nhất); tuần chưa chốt chỉ báo; tuần này chỉ đóng menu. */
 export function wkOpen(k: WeekKey): void {
   mutate((d) => {
     d.menu = null;
     if (k === activeWkOf(d)) return;
     const vv = d.versions.find((v) => v.wk === k);
-    d.view = 'ver'; d.verSel = vv ? vKey(vv) : null;
-    toast(d, 'Tuần đã chốt chỉ xem, không sửa — đang mở bản v' + (vv ? vv.v : 1));
+    if (!vv) return toast(d, wkName(k, true) + ' chưa có bản chốt nào');
+    d.view = 'ver'; d.verSel = vKey(vv); d.vlOpen = vKey(vv);
+    toast(d, 'Tuần đã chốt chỉ xem, không sửa — đang mở bản v' + vv.v);
   });
 }
 /** "Lịch sử phiên bản" trong menu tuần. */
