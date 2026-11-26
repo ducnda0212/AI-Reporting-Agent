@@ -49,8 +49,7 @@ def test_map_jira_issue_to_row():
     assert row.tt1 == "Đang thực hiện Đúng tiến độ"
     assert (row.buocso, row.buoc, row.done) == ("Bước 4", "4.Thiết kế giải pháp", 4)
     assert row.stages[:5] == ["done", "done", "doing", "doing", "todo"]
-    assert row.loai == "KHHĐ 2026"
-    assert row.market == "VN"
+    assert row.loai == "" and row.market == ""  # no hardcoded constants: filled only when mapped
 
 
 def test_pic_fallback_kpi_table_goal_fallback_and_default_workstream():

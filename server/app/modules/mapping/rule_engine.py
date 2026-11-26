@@ -9,7 +9,7 @@ from datetime import date
 from server.app.modules.mapping.normalizer import (
     PHASE_NAMES, normalize_phase, normalize_progress, normalize_status, parse_jira_date, phase_number,
 )
-from server.app.modules.mapping.resolved import MAPPABLE, resolve_mapping
+from server.app.modules.mapping.resolved import resolve_mapping
 from server.app.modules.mapping.wiki_parser import (
     parse_milestones, parse_progress_report, parse_risk_notes, progress_entries, sanitize_jira_markup,
 )
@@ -22,11 +22,30 @@ PRD_COLUMN = re.compile(r"Custom field \(PRD( \(URL\))?\)(_\d+)?")
 URL_RE = re.compile(r"https?://[^\s\]|)]+")
 LABELS_COLUMN = re.compile(r"Labels(_\d+)?")
 DATE_FIELDS = ("start", "end")
+CODE_ONLY_RE = re.compile(r"\s*([IVX]+\.[A-Z0-9]+(?:\.[0-9]+)+)\s*")
+# Columns computed by a built-in parser from their default Jira column; re-pointing one at any other column reads that
+# column verbatim, while keeping the default still runs the parser.
+SMART_SOURCES = {
+    "ma": "Summary", "viec": "Summary", "muctieu": "Description", "milestone": "Description",
+    "swe": "Custom field (Dev-BE)", "link": "Custom field (PRD)",
+    **{f: "Custom field (Progress Report)" for f in (
+        "w1ht", "w1kh", "w1vd", "w2ht", "w2kh", "w2vd", "ht", "kh", "vd", "w4ht", "w4kh", "w4vd")},
+}
 
 
 def extract_project_code_and_name(summary: str) -> tuple[str | None, str]:
     m = CODE_RE.match(summary or "")
     return (m.group(1), m.group(2).strip()) if m else (None, (summary or "").strip())
+
+
+def issue_code(issue: dict, mp) -> str | None:
+    """DA code of an issue, read from the column the mapping points `ma` at (default Summary; it keys the row, so it
+    cannot be cleared)."""
+    col = (mp.sources.get("ma") or ("Summary",))[0]
+    code, _ = extract_project_code_and_name(issue.get(col, ""))
+    if code is None and (m := CODE_ONLY_RE.fullmatch(issue.get(col, "") or "")):
+        return m.group(1)
+    return code
 
 
 def _get(issue: dict, *cols: str) -> str:
@@ -124,8 +143,8 @@ def map_jira_issue_to_row(
     """`mapping_config`: MappingConfig / ResolvedMapping / None (= the Phase-1 PMO defaults)."""
     mp = resolve_mapping(mapping_config)
     src = mp.cols
-    ma, viec = extract_project_code_and_name(issue.get("Summary", ""))
-    ma = ma or ""
+    ma = issue_code(issue, mp) or ""
+    viec = extract_project_code_and_name(issue.get("Summary", ""))[1]
     _, milestone = parse_milestones(issue.get("Description"))
     if not re.search(r"MILESTONES?", issue.get("Description") or "", re.I):
         milestone = ""
@@ -166,13 +185,16 @@ def map_jira_issue_to_row(
         "swe": _developers(issue),
         "prio": _get(issue, *src("prio", ("Priority", "Custom field (Priority)"))),
         "tt1": _tt1(status, progress, due, ref_date),
-        "loai": "KHHĐ 2026", "link": _prd_link(issue),
-        "market": "VN",  # shortcut: sheet says copy Location/Department verbatim (flagged "gợi ý"); plan pins VN
-        **blocks,
+        "link": _prd_link(issue), **blocks,
     }
-    # A column the mapping points at a Jira column takes that column's cleaned text over the built-in parser.
+    # A column the mapping points at another Jira column takes that column's cleaned text over the built-in parser;
+    # an empty source (cleared / hand-filled) leaves it blank.
     for fid, cols in mp.sources.items():
-        if fid in MAPPABLE:
+        if fid == "ma" or fid not in ReportRow.model_fields:
+            continue
+        if not cols:
+            v[fid] = ""
+        elif cols != (SMART_SOURCES.get(fid),):
             v[fid] = _clean(fid, _get(issue, *cols), mp)
 
     poff = _get(issue, "Custom field (PO)")

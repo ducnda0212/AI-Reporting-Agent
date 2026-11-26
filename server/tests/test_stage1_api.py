@@ -51,7 +51,7 @@ def test_upload_history_reopen_cycles_and_recalculate_preview_keeps_baseline():
     assert rec["diff_summary"]["has_previous_session"] and rec["diff_summary"]["modified_count"] >= body["diff_summary"]["modified_count"]  # still vs the first upload, not itself
     assert any(r["phong"] for r in rec["rows"]) and not any(r["phong"] for r in body["rows"])
     assert client.get("/api/v1/mappings/map_default_pmo_49col").json()["version"] == 1  # preview never saves
-    bad = client.post("/api/v1/mapping/recalculate", json={"session_id": sid, "src_overrides": {"ma": "Summary"}})
+    bad = client.post("/api/v1/mapping/recalculate", json={"session_id": sid, "src_overrides": {"nope": "Summary"}})
     assert bad.status_code == 422 and bad.json()["detail"]["code"] == "E_SRC_OVERRIDE_INVALID_FIELD"
 
 

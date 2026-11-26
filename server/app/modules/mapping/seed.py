@@ -10,16 +10,18 @@ from server.app.modules.mapping.normalizer import DEFAULT_PHASE_MAP, DEFAULT_PRO
 from server.app.schemas.row import COLUMN_FIELDS
 
 DEFAULT_MAPPING_ID = "map_default_pmo_49col"
+DEFAULT_MAPPING_NAME = "Hệ thống"
+_OLD_DEFAULT_NAME = "Mẫu 49 cột chuẩn PMO"
 
 # field_id -> (header, source_type, source_field, fallbacks). jira = copied from the listed columns
 # (first non-empty wins) and editable; derived = computed by code (a user-picked Jira column replaces it);
-# constant; manual = left for the user/AI (a user-picked Jira column fills it).
+# manual = left for the user/AI (a user-picked Jira column fills it).
 _J = "jira"
 _SOURCES: dict[str, tuple] = {
-    "mang": ("Mảng việc", "derived", "Master catalog / mã DA", []),
+    "mang": ("Mảng việc", "derived", "", []),
     "ma": ("Mã DA", "derived", "Summary", []),
     "viec": ("Công việc", "derived", "Summary", []),
-    "muctieu": ("Mục tiêu", "derived", "Description / Custom field (Goals)", []),
+    "muctieu": ("Mục tiêu", "derived", "Description", []),
     "kpi": ("KPI", _J, "Custom field (KPI/Outcome)", []),
     "pic": ("PIC", _J, "Assignee", ["Custom field (PO)", "Custom field (Tech lead)"]),
     "start": ("Ngày bắt đầu", _J, "Custom field (Start date)", []),
@@ -32,12 +34,12 @@ _SOURCES: dict[str, tuple] = {
     "phong": ("Phòng chịu trách nhiệm", _J, "Custom field (Department)", []),
     "bo": ("Business Owner", _J, "Custom field (Business Owner)", []),
     "po": ("Product Owner", _J, "Custom field (PO)", ["Custom field (Product manager)"]),
-    "swe": ("BE/FE/DevOps (Software Engineer)", "derived", "Custom field (Dev-BE/Dev-FE/Developer)", []),
+    "swe": ("BE/FE/DevOps (Software Engineer)", "derived", "Custom field (Dev-BE)", []),
     "prio": ("Priority (Final)", _J, "Priority", ["Custom field (Priority)"]),
-    "tt1": ("TRẠNG THÁI 1", "derived", "Trạng thái + Tiến độ + Due date", []),
-    "loai": ("Loại dự án", "constant", "KHHĐ 2026", []),
+    "tt1": ("TRẠNG THÁI 1", "derived", "", []),
+    "loai": ("Loại dự án", "manual", "", []),
     "link": ("Link Confluence", "derived", "Custom field (PRD)", []),
-    "market": ("Market", "constant", "VN", []),
+    "market": ("Market", "manual", "", []),
     "buoc": ("AI Lifecycle", _J, "Custom field (AI Lifecycle)", ["Custom field (Phase)"]),
 }
 _REQUIRED = {"pic", "start", "end"}
@@ -63,7 +65,7 @@ def default_columns() -> list[dict]:
         if field in _SOURCES:
             name, stype, src, fb = _SOURCES[field]
         elif wk := _week(field):
-            name, stype, src, fb = f"{_WEEK_NAMES[wk[0]]} W{wk[1]}", "derived", "Progress Report / Risk Notes", []
+            name, stype, src, fb = f"{_WEEK_NAMES[wk[0]]} W{wk[1]}", "derived", "Custom field (Progress Report)", []
         else:  # manual columns; X is the untitled spacer
             name, stype, src, fb = _TEMPLATE_NAMES.get(field, ""), "manual", "", []
         cols.append({"field_id": field, "col_letter": letter, "name": name, "source_type": stype,
@@ -116,6 +118,11 @@ def _upgrade_stored(db: Session) -> None:
     """Rewrite mappings saved under the old field ids; the stale default is regenerated."""
     for cfg in db.query(MappingConfig):
         cols = json.loads(cfg.columns_json)
+        if cfg.id == DEFAULT_MAPPING_ID and (cfg.name == _OLD_DEFAULT_NAME
+                                             or any(c["field_id"] in ("loai", "market") and c["source_type"] == "constant" for c in cols)):
+            cfg.name = DEFAULT_MAPPING_NAME  # the stored default predates the rename / the dropped KHHĐ 2026 + VN constants
+            cfg.columns_json = json.dumps(default_columns(), ensure_ascii=False)
+            continue
         if not any(c["field_id"] in _LEGACY for c in cols):
             continue
         if cfg.id == DEFAULT_MAPPING_ID:
@@ -134,7 +141,7 @@ def seed_default_mapping(db: Session) -> MappingConfig:
     if existing is not None:
         return existing
     cfg = MappingConfig(
-        id=DEFAULT_MAPPING_ID, name="Mẫu 49 cột chuẩn PMO", description="77 quy tắc mapping chuẩn của PMO (Chặng 1)",
+        id=DEFAULT_MAPPING_ID, name=DEFAULT_MAPPING_NAME, description="77 quy tắc mapping chuẩn của PMO (Chặng 1)",
         is_default=True, columns_json=json.dumps(default_columns(), ensure_ascii=False),
         value_mappings_json=json.dumps(default_value_mappings(), ensure_ascii=False),
     )
