@@ -5,9 +5,9 @@ import uuid
 
 from sqlalchemy.orm import Session
 
-from server.app.models.mapping import MappingConfig
-from server.app.modules.mapping.seed import DEFAULT_MAPPING_ID
-from server.app.schemas.mapping import MappingConfigCreate, MappingConfigOut, MappingConfigUpdate
+from app.models.mapping import MappingConfig
+from app.modules.mapping.seed import DEFAULT_MAPPING_ID
+from app.schemas.mapping import MappingConfigCreate, MappingConfigOut, MappingConfigUpdate
 
 
 def _dump(model) -> str:

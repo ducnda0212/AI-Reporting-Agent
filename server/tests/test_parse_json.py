@@ -1,6 +1,6 @@
 import pytest
 
-from server.app.ai.llm import parse_json
+from app.ai.llm import parse_json
 
 
 def test_plain_json():

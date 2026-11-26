@@ -6,19 +6,19 @@ from fastapi import APIRouter, Depends, File, Form, UploadFile
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
-from server.app.core.config import settings
-from server.app.core.database import get_db
-from server.app.core.errors import api_error, from_service_error
-from server.app.models.file import UploadedFile
-from server.app.models.session import IngestSession
-from server.app.modules.ingestion.cycles import active_cycle, current_week, cycle_for_date, weeks_for_cycle, week_name
-from server.app.modules.ingestion.file_handler import save_and_fingerprint
-from server.app.modules.ingestion.service import latest_session, run_pipeline, save_session
-from server.app.modules.mapping.csv_cleaner import InvalidSchemaError
-from server.app.modules.mapping.service import mapping_or_default
-from server.app.modules.mapping.tabular_reader import CSV_EXT, XLSX_EXT, UnsupportedFormatError
-from server.app.schemas.cycle import ActiveCycle
-from server.app.schemas.ingest import ImportFileMeta, IngestResponse, WarningIssue
+from app.core.config import settings
+from app.core.database import get_db
+from app.core.errors import api_error, from_service_error
+from app.models.file import UploadedFile
+from app.models.session import IngestSession
+from app.modules.ingestion.cycles import active_cycle, current_week, cycle_for_date, weeks_for_cycle, week_name
+from app.modules.ingestion.file_handler import save_and_fingerprint
+from app.modules.ingestion.service import latest_session, run_pipeline, save_session
+from app.modules.mapping.csv_cleaner import InvalidSchemaError
+from app.modules.mapping.service import mapping_or_default
+from app.modules.mapping.tabular_reader import CSV_EXT, XLSX_EXT, UnsupportedFormatError
+from app.schemas.cycle import ActiveCycle
+from app.schemas.ingest import ImportFileMeta, IngestResponse, WarningIssue
 
 router = APIRouter(prefix="/api/v1/ingest", tags=["ingest"])
 

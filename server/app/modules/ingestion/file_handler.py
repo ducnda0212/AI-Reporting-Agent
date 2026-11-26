@@ -5,8 +5,8 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from server.app.core.config import settings
-from server.app.models.file import UploadedFile
+from app.core.config import settings
+from app.models.file import UploadedFile
 
 
 def save_and_fingerprint(

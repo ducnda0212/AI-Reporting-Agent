@@ -1,6 +1,6 @@
 from pydantic import Field
 
-from server.app.schemas.common import ApiModel
+from app.schemas.common import ApiModel
 
 # Template column letter -> ReportRow field (A..AW, sheet "Mẫu báo cáo"). Ids are the client FieldIds;
 # week 3 (the working week) is ht/kh/vd, X is the untitled spacer.

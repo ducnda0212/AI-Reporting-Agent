@@ -2,7 +2,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from server.app.schemas.common import ApiModel
+from app.schemas.common import ApiModel
 
 WeekKey = Literal["w1", "w2", "w3", "w4"]
 

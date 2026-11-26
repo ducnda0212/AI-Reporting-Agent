@@ -1,8 +1,8 @@
 """Agent đề xuất sửa ô: không bao giờ tự ghi; code kiểm tra cột, giá trị, dự án; AI chỉ đọc câu lệnh."""
 import pytest
 
-from server.app.ai.agent import edit as agent_edit, qa as agent
-from server.app.ai.settings import settings
+from app.ai.agent import edit as agent_edit, qa as agent
+from app.ai.settings import settings
 
 FIELDS = [
     {'id': 'td', 'name': 'Tiến độ', 'options': ['Đúng tiến độ', 'Có nguy cơ chậm', 'Chậm tiến độ']},
@@ -135,7 +135,7 @@ def test_flat_ops_from_new_schema(monkeypatch):
 
 
 def test_truncated_reply_from_vllm_still_gives_preview_and_errors_do_not_crash(monkeypatch):
-    from server.app.ai.llm import VllmError, parse_json
+    from app.ai.llm import VllmError, parse_json
     monkeypatch.setattr(settings, 'mode', 'vllm')
     cut = '{"ops":[{"field":"rui","value":"Cao","codes":["DA02","DA04"]'
     monkeypatch.setattr(agent_edit.client, 'chat_json', lambda msgs, schema, max_tokens=None, **k: {'model': 'm', 'data': parse_json(cut, k.get('repair'))})

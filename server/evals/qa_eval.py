@@ -29,9 +29,9 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1]))
 
-from server.app.ai import rag  # noqa: E402
-from server.app.ai.agent import qa  # noqa: E402
-from server.app.ai.settings import settings  # noqa: E402
+from app.ai import rag  # noqa: E402
+from app.ai.agent import qa  # noqa: E402
+from app.ai.settings import settings  # noqa: E402
 
 TODAY = date(2026, 11, 26)
 DEFAULT_FIXTURE = HERE.parents[1] / 'client' / 'src' / '__tests__' / 'fixtures' / 'jira-rows.json'

@@ -1,7 +1,7 @@
 import json
 
-from server.app.core.database import Base, SessionLocal, engine
-from server.app.modules.mapping.seed import seed_default_mapping
+from app.core.database import Base, SessionLocal, engine
+from app.modules.mapping.seed import seed_default_mapping
 
 
 def test_mapping_config_model_and_seed():

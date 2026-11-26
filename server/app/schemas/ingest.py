@@ -1,7 +1,7 @@
 from pydantic import Field
 
-from server.app.schemas.common import ApiModel
-from server.app.schemas.row import ReportRow
+from app.schemas.common import ApiModel
+from app.schemas.row import ReportRow
 
 
 class OrphanIssue(ApiModel):

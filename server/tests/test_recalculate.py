@@ -1,12 +1,12 @@
 import pytest
 
-from server.app.core.database import Base, SessionLocal, engine
-from server.app.modules.ingestion.file_handler import save_and_fingerprint
-from server.app.modules.ingestion.service import run_pipeline, save_session
-from server.app.modules.mapping.recalculate import recalculate_session
-from server.app.modules.mapping.seed import seed_default_mapping
-from server.app.schemas.mapping import OrphanAssignment
-from server.tests.helpers import golden_csv
+from app.core.database import Base, SessionLocal, engine
+from app.modules.ingestion.file_handler import save_and_fingerprint
+from app.modules.ingestion.service import run_pipeline, save_session
+from app.modules.mapping.recalculate import recalculate_session
+from app.modules.mapping.seed import seed_default_mapping
+from app.schemas.mapping import OrphanAssignment
+from tests.helpers import golden_csv
 
 CYCLE = "2026_11_w3"
 
@@ -51,8 +51,8 @@ def test_recalculate_clears_orphan_blocker_and_keeps_overrides(db):
 
 
 def test_recalculate_default_mapping_matches_ingest_and_custom_mapping_applies(db):
-    from server.app.modules.mapping.service import clone_mapping, update_mapping
-    from server.app.schemas.mapping import MappingConfigUpdate, ValueMappings
+    from app.modules.mapping.service import clone_mapping, update_mapping
+    from app.schemas.mapping import MappingConfigUpdate, ValueMappings
 
     resp = _session(db, cycle="2026_11_w2")
     same = recalculate_session(resp.session_id, "map_default_pmo_49col", [], {}, db)
@@ -79,8 +79,8 @@ def test_recalculate_rejects_bad_input(db):
 def test_recalculate_preserves_existing_session_draft_manual_edits_and_fmt(db):
     import json
 
-    from server.app.modules.session.service import get_session_draft, save_session_draft
-    from server.app.schemas.mapping import AuditLogEntry, SessionDraftSaveRequest
+    from app.modules.session.service import get_session_draft, save_session_draft
+    from app.schemas.mapping import AuditLogEntry, SessionDraftSaveRequest
 
     resp = _session(db, cycle="2026_10_w1")
     rows = [r.model_dump(mode="json") for r in resp.rows]

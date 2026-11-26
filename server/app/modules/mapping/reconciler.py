@@ -1,8 +1,8 @@
 """Choice A: one row per main ticket (DA code in Summary); other issues are audit subtasks or orphans."""
-from server.app.modules.mapping.resolved import resolve_mapping
-from server.app.modules.mapping.rule_engine import issue_code, map_jira_issue_to_row
-from server.app.schemas.ingest import OrphanIssue
-from server.app.schemas.row import ReportRow, SubtaskAudit
+from app.modules.mapping.resolved import resolve_mapping
+from app.modules.mapping.rule_engine import issue_code, map_jira_issue_to_row
+from app.schemas.ingest import OrphanIssue
+from app.schemas.row import ReportRow, SubtaskAudit
 
 
 def _catalog_ancestor(code: str, catalog: dict) -> str | None:

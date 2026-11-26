@@ -17,10 +17,10 @@ import time
 from dataclasses import replace
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # gốc repo, để import server.app...
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # gốc repo, để import app...
 
-from server.app.ai.settings import SERVER_DIR, load  # noqa: E402
-from server.app.ai.llm import VllmClient, VllmError  # noqa: E402
+from app.ai.settings import SERVER_DIR, load  # noqa: E402
+from app.ai.llm import VllmClient, VllmError  # noqa: E402
 
 SCHEMA = {'title': 'ping', 'type': 'object', 'additionalProperties': False,
           'properties': {'ok': {'type': 'string'}}, 'required': ['ok']}

@@ -1,6 +1,6 @@
-from server.app.core.database import Base, engine
-from server.app.models.version import ReportVersion
-from server.app.schemas.reporting import ExportExcelRequest, LockReportRequest
+from app.core.database import Base, engine
+from app.models.version import ReportVersion
+from app.schemas.reporting import ExportExcelRequest, LockReportRequest
 
 
 def test_report_version_table_and_schemas():

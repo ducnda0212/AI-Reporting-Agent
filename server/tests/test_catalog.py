@@ -1,4 +1,4 @@
-from server.app.modules.mapping.catalog import load_catalog
+from app.modules.mapping.catalog import load_catalog
 
 
 def test_load_catalog_from_template_has_68_rows_and_workstreams():

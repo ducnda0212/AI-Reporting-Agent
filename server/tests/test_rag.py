@@ -1,10 +1,10 @@
 """RAG cho Trợ lý hỏi đáp: truy xuất đoạn liên quan (từ khoá + embeddings), trả lời có trích dẫn, kiểm tra mã dự án."""
 import pytest
 
-from server.app.ai import rag
-from server.app.ai.agent import qa as agent
-from server.app.ai.llm import VllmError, client
-from server.app.ai.settings import settings
+from app.ai import rag
+from app.ai.agent import qa as agent
+from app.ai.llm import VllmError, client
+from app.ai.settings import settings
 
 ROWS = [
     {'code': 'I.A.1.1', 'name': 'Nền tảng thực nghiệm A/B', 'group': 'Platform', 'status': 'Đang thực hiện', 'progress': 'Đúng tiến độ', 'risk': 'Thấp',

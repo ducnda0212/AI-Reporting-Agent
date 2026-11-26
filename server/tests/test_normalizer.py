@@ -1,6 +1,6 @@
 from datetime import date
 
-from server.app.modules.mapping.normalizer import (
+from app.modules.mapping.normalizer import (
     PHASE_NAMES, PROGRESS_VALUES, STATUS_VALUES,
     normalize_phase, normalize_progress, normalize_status, parse_jira_date,
 )

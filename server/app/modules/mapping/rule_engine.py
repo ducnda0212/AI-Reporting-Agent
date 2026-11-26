@@ -6,14 +6,14 @@ unless the mapping points them at a Jira column.
 import re
 from datetime import date
 
-from server.app.modules.mapping.normalizer import (
+from app.modules.mapping.normalizer import (
     PHASE_NAMES, normalize_phase, normalize_progress, normalize_status, parse_jira_date, phase_number,
 )
-from server.app.modules.mapping.resolved import resolve_mapping
-from server.app.modules.mapping.wiki_parser import (
+from app.modules.mapping.resolved import resolve_mapping
+from app.modules.mapping.wiki_parser import (
     parse_milestones, parse_progress_report, parse_risk_notes, progress_entries, sanitize_jira_markup,
 )
-from server.app.schemas.row import JiraPeople, ReportRow, WeekReportEntry
+from app.schemas.row import JiraPeople, ReportRow, WeekReportEntry
 
 CODE_RE = re.compile(r"^\s*([IVX]+\.[A-Z0-9]+(?:\.[0-9]+)+)\s+(.*)$", re.S)
 PHASE_COLUMNS = ("Custom field (AI Lifecycle)", "Custom field (Phase)")

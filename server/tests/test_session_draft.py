@@ -2,10 +2,10 @@ import json
 
 import sqlalchemy as sa
 
-from server.app.core.database import Base, SessionLocal, engine
-from server.app.modules.mapping.seed import migrate_schema
-from server.app.modules.session.service import get_session_draft, save_session_draft
-from server.app.schemas.mapping import AuditLogEntry, SessionDraftSaveRequest
+from app.core.database import Base, SessionLocal, engine
+from app.modules.mapping.seed import migrate_schema
+from app.modules.session.service import get_session_draft, save_session_draft
+from app.schemas.mapping import AuditLogEntry, SessionDraftSaveRequest
 
 ROWS = [{"i": 0, "ma": "I.C.1.2", "viec": "Task 1"}]
 LOG = {"t": "22:00", "day": "19/11/2026", "seq": 1, "a": "Sửa ô", "o": "I.C.1.2 · F PIC", "d": "Cũ → Mới", "r": "Thành công"}
@@ -54,7 +54,7 @@ def test_extended_draft_schema_and_migration():
     )
     assert req.fmt["0|ht"]["b"] is True and req.audit_logs[0].r == "Thành công"
 
-    from server.app.modules.session.service import draft_out
+    from app.modules.session.service import draft_out
     db = SessionLocal()
     out = draft_out(save_session_draft(db, req))
     assert (out.fmt, out.wrap, out.touched, out.hidden) == (req.fmt, req.wrap, req.touched, req.hidden)

@@ -3,8 +3,8 @@ import io
 import openpyxl
 import pytest
 
-from server.app.modules.mapping.csv_cleaner import InvalidSchemaError
-from server.app.modules.mapping.tabular_reader import UnsupportedFormatError, read_tabular
+from app.modules.mapping.csv_cleaner import InvalidSchemaError
+from app.modules.mapping.tabular_reader import UnsupportedFormatError, read_tabular
 
 
 def _make_xlsx(rows: list[list]) -> bytes:

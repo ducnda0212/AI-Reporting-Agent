@@ -13,7 +13,7 @@ import urllib.request
 import pytest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.dirname(os.path.dirname(HERE)))  # gốc repo: import server.app...
+sys.path.insert(0, os.path.dirname(HERE))  # thư mục server/: import app...
 sys.path.insert(0, HERE)                                    # import fake_vllm
 
 # --- 1. backend: DB + uploads cách ly
@@ -49,7 +49,7 @@ def reset_fake_state():
     import fake_vllm
     fake_vllm.STATE.update({'reject_schema': False, 'status_queue': [], 'reply': None, 'agent_text': None, 'agent_codes': None,
                             'embed_status': None, 'embed_calls': 0, 'embed_inputs': []})
-    from server.app.ai import rag
+    from app.ai import rag
     rag._CACHE.clear()  # bộ nhớ vector không được rò từ test này sang test khác
     yield
 
@@ -59,7 +59,7 @@ def api(fake):
     """Chạy các route AI thật (uvicorn, không cần DB) trỏ tới V-LLM giả; trả hàm gọi HTTP."""
     import json
     import uvicorn
-    from server.app.ai.api import app
+    from app.ai.api import app
     server = uvicorn.Server(uvicorn.Config(app, host='127.0.0.1', port=API_PORT, log_level='warning'))
     threading.Thread(target=server.run, daemon=True).start()
     for _ in range(80):

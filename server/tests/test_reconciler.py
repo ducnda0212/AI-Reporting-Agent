@@ -1,6 +1,6 @@
 from datetime import date
 
-from server.app.modules.mapping.reconciler import reconcile_issues
+from app.modules.mapping.reconciler import reconcile_issues
 
 WEEKS = [{"week": 1, "start": date(2026, 10, 31), "end": date(2026, 11, 6)}]
 CATALOG = {"I.C.1.2": {"mang_viec": "AI Mobility"}, "I.A.4.1": {"mang_viec": "Food"}, "I.A.4.2": {"mang_viec": "Food"}}

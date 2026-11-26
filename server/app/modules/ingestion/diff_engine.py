@@ -1,5 +1,5 @@
-from server.app.schemas.ingest import DiffSummary
-from server.app.schemas.row import SOURCE_FIELDS, ReportRow
+from app.schemas.ingest import DiffSummary
+from app.schemas.row import SOURCE_FIELDS, ReportRow
 
 
 def compute_diff(

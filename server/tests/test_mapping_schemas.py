@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from server.app.schemas.mapping import MappingColumnDef, MappingConfigCreate, RecalculateRequest, ValueMappings
+from app.schemas.mapping import MappingColumnDef, MappingConfigCreate, RecalculateRequest, ValueMappings
 
 
 def test_mapping_schemas_validation():

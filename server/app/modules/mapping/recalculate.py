@@ -11,13 +11,13 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from server.app.models.file import UploadedFile
-from server.app.models.session import IngestSession, SessionDraft
-from server.app.modules.ingestion.service import run_pipeline
-from server.app.modules.mapping.service import mapping_or_default
-from server.app.schemas.ingest import IngestResponse
-from server.app.schemas.mapping import OrphanAssignment, ValueMappings
-from server.app.schemas.row import SOURCE_FIELDS
+from app.models.file import UploadedFile
+from app.models.session import IngestSession, SessionDraft
+from app.modules.ingestion.service import run_pipeline
+from app.modules.mapping.service import mapping_or_default
+from app.schemas.ingest import IngestResponse
+from app.schemas.mapping import OrphanAssignment, ValueMappings
+from app.schemas.row import SOURCE_FIELDS
 
 
 # Hand-entered columns (and AI output) a Jira re-map must never wipe; loai/market/link only fill a blank.

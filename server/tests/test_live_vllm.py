@@ -8,8 +8,8 @@ import time
 
 import pytest
 
-from server.app.ai.settings import SERVER_DIR, load
-from server.app.ai.llm import VllmClient
+from app.ai.settings import SERVER_DIR, load
+from app.ai.llm import VllmClient
 
 LIVE = os.getenv('RUN_LIVE') == '1'
 pytestmark = pytest.mark.skipif(not LIVE, reason='Đặt RUN_LIVE=1 để gọi V-LLM thật')
@@ -43,7 +43,7 @@ def test_live_models(live):
 
 def test_live_draft(live, monkeypatch):
     """Hai ca thật với V-LLM: (1) có rủi ro nhưng thiếu đề xuất, (2) không ghi rủi ro nhưng report có dấu hiệu."""
-    from server.app.ai import drafts
+    from app.ai import drafts
     cfg, c = live
     monkeypatch.setattr(drafts, 'settings', cfg)
     monkeypatch.setattr(drafts, 'client', c)
@@ -63,7 +63,7 @@ def test_live_draft(live, monkeypatch):
 
 
 def test_live_risk(live, monkeypatch):
-    from server.app.ai import risk
+    from app.ai import risk
     cfg, c = live
     monkeypatch.setattr(risk, 'settings', cfg)
     monkeypatch.setattr(risk, 'client', c)
@@ -76,7 +76,7 @@ def test_live_risk(live, monkeypatch):
 
 def test_live_agent(live, monkeypatch):
     """Agent hỏi đáp chỉ đọc với V-LLM thật: số liệu do code tính, câu trả lời phải bám số liệu."""
-    from server.app.ai.agent import qa as agent
+    from app.ai.agent import qa as agent
     cfg, c = live
     monkeypatch.setattr(agent, 'settings', cfg)
     monkeypatch.setattr(agent, 'client', c)
@@ -95,7 +95,7 @@ def test_live_agent(live, monkeypatch):
 
 def test_live_agent_edit(live, monkeypatch):
     """Agent đề xuất sửa ô với V-LLM thật: chỉ ra bản xem trước, không áp dụng."""
-    from server.app.ai.agent import edit as agent_edit
+    from app.ai.agent import edit as agent_edit
     cfg, c = live
     monkeypatch.setattr(agent_edit, 'settings', cfg)
     monkeypatch.setattr(agent_edit, 'client', c)

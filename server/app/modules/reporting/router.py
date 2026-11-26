@@ -7,13 +7,13 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from server.app.core.database import get_db
-from server.app.core.errors import from_service_error
-from server.app.models.session import SessionDraft
-from server.app.models.version import ReportVersion
-from server.app.modules.reporting.excel_builder import build_excel_from_version
-from server.app.modules.reporting.service import get_version, list_versions, lock_report
-from server.app.schemas.reporting import ExportExcelRequest, LockReportRequest, VersionOut
+from app.core.database import get_db
+from app.core.errors import from_service_error
+from app.models.session import SessionDraft
+from app.models.version import ReportVersion
+from app.modules.reporting.excel_builder import build_excel_from_version
+from app.modules.reporting.service import get_version, list_versions, lock_report
+from app.schemas.reporting import ExportExcelRequest, LockReportRequest, VersionOut
 
 router = APIRouter(prefix="/api/v1/reports", tags=["reporting"])
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

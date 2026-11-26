@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from server.app.core.database import get_db
-from server.app.core.errors import api_error, from_service_error
-from server.app.modules.mapping import service
-from server.app.modules.mapping.recalculate import recalculate_session
-from server.app.schemas.ingest import IngestResponse
-from server.app.schemas.mapping import (
+from app.core.database import get_db
+from app.core.errors import api_error, from_service_error
+from app.modules.mapping import service
+from app.modules.mapping.recalculate import recalculate_session
+from app.schemas.ingest import IngestResponse
+from app.schemas.mapping import (
     CloneRequest, MappingConfigCreate, MappingConfigOut, MappingConfigUpdate, RecalculateRequest,
 )
 

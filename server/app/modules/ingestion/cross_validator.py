@@ -2,9 +2,9 @@
 import re
 from datetime import date, datetime
 
-from server.app.modules.mapping.normalizer import PROGRESS_VALUES, STATUS_VALUES, normalize_status
-from server.app.schemas.ingest import WarningIssue
-from server.app.schemas.row import WEEK_TEXT, ReportRow
+from app.modules.mapping.normalizer import PROGRESS_VALUES, STATUS_VALUES, normalize_status
+from app.schemas.ingest import WarningIssue
+from app.schemas.row import WEEK_TEXT, ReportRow
 
 FINISHED = ("Đã hoàn thành", "Hủy")
 RISK_WORDS = re.compile(r"blocker|lùi lịch|chậm|delay|hoãn|vướng|vỡ sla", re.I)

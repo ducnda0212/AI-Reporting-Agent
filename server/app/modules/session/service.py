@@ -2,8 +2,8 @@ import json
 
 from sqlalchemy.orm import Session
 
-from server.app.models.session import SessionDraft
-from server.app.schemas.mapping import SessionDraftOut, SessionDraftSaveRequest
+from app.models.session import SessionDraft
+from app.schemas.mapping import SessionDraftOut, SessionDraftSaveRequest
 
 
 def _dump(items) -> str:

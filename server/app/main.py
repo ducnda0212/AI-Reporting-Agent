@@ -1,14 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from server.app.ai.api import mount as mount_ai
-from server.app.core.database import Base, SessionLocal, engine
-from server.app.models import catalog, cycle, file, mapping, session, version  # noqa: F401  (register tables)
-from server.app.modules.ingestion.router import cycles_router, router as ingest_router
-from server.app.modules.mapping.router import router as mapping_router
-from server.app.modules.mapping.seed import migrate_schema, seed_default_mapping
-from server.app.modules.reporting.router import router as reporting_router
-from server.app.modules.session.router import router as session_router
+from app.ai.api import mount as mount_ai
+from app.core.database import Base, SessionLocal, engine
+from app.models import catalog, cycle, file, mapping, session, version  # noqa: F401  (register tables)
+from app.modules.ingestion.router import cycles_router, router as ingest_router
+from app.modules.mapping.router import router as mapping_router
+from app.modules.mapping.seed import migrate_schema, seed_default_mapping
+from app.modules.reporting.router import router as reporting_router
+from app.modules.session.router import router as session_router
 
 Base.metadata.create_all(bind=engine)
 migrate_schema(engine)

@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
-from server.app.main import app
-from server.tests.helpers import golden_csv
+from app.main import app
+from tests.helpers import golden_csv
 
 client = TestClient(app)
 DEFAULT = "map_default_pmo_49col"

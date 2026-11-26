@@ -8,7 +8,7 @@ from datetime import date, datetime
 
 import openpyxl
 
-from server.app.modules.mapping.csv_cleaner import InvalidSchemaError, build_table, csv_rows
+from app.modules.mapping.csv_cleaner import InvalidSchemaError, build_table, csv_rows
 
 CSV_EXT = {".csv", ".tsv", ".txt"}
 XLSX_EXT = {".xlsx", ".xlsm"}

@@ -1,10 +1,10 @@
 import os
 
-from server.app.core.config import settings
-from server.app.core.database import Base, SessionLocal, engine
-from server.app.models.catalog import MasterCatalogItem  # noqa: F401
-from server.app.models.cycle import ReportingCycle  # noqa: F401
-from server.app.models.file import UploadedFile  # noqa: F401
+from app.core.config import settings
+from app.core.database import Base, SessionLocal, engine
+from app.models.catalog import MasterCatalogItem  # noqa: F401
+from app.models.cycle import ReportingCycle  # noqa: F401
+from app.models.file import UploadedFile  # noqa: F401
 
 
 def test_database_and_storage_initialization():

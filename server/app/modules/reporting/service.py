@@ -5,12 +5,12 @@ from datetime import date, datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from server.app.core.config import settings
-from server.app.models.session import IngestSession, SessionDraft
-from server.app.models.version import ReportVersion
-from server.app.modules.ingestion.cycles import cycle_for_date, weeks_for_cycle
-from server.app.modules.mapping.seed import default_columns
-from server.app.schemas.reporting import LockReportRequest, VerEditEntry, VersionOut, VersionStats
+from app.core.config import settings
+from app.models.session import IngestSession, SessionDraft
+from app.models.version import ReportVersion
+from app.modules.ingestion.cycles import cycle_for_date, weeks_for_cycle
+from app.modules.mapping.seed import default_columns
+from app.schemas.reporting import LockReportRequest, VerEditEntry, VersionOut, VersionStats
 
 # Client `EDIT_RE` (lib/versions.ts): which audit-log actions count as an edit of the locked report.
 EDIT_RE = re.compile(r"^(Sửa|Duyệt|Điền|Hoàn tác|Bỏ nháp|Ghép|Gọi AI|Nhờ AI|Agent|Thêm|Xoá|Xóa|Gửi yêu cầu|Đồng ý|Quy đổi)")

@@ -2,7 +2,7 @@ import unicodedata
 
 import pytest
 
-from server.app.modules.mapping.csv_cleaner import InvalidSchemaError, clean_csv
+from app.modules.mapping.csv_cleaner import InvalidSchemaError, clean_csv
 
 
 def _to_cp1258(text: str) -> bytes:

@@ -1,4 +1,4 @@
-from server.app.ai.settings import load
+from app.ai.settings import load
 
 
 def test_defaults_are_mock_without_env():

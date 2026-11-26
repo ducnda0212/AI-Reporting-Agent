@@ -3,8 +3,8 @@ from datetime import datetime
 
 import openpyxl
 
-from server.app.models.version import ReportVersion
-from server.app.modules.reporting.excel_builder import build_excel_from_version, sanitize_export_filename
+from app.models.version import ReportVersion
+from app.modules.reporting.excel_builder import build_excel_from_version, sanitize_export_filename
 
 SHEET = "Mẫu báo cáo"
 

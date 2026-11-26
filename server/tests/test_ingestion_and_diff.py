@@ -2,11 +2,11 @@ import os
 
 import pytest
 
-from server.app.core.database import Base, SessionLocal, engine
-from server.app.models.file import UploadedFile
-from server.app.modules.ingestion.diff_engine import compute_diff
-from server.app.modules.ingestion.file_handler import save_and_fingerprint
-from server.app.schemas.row import ReportRow
+from app.core.database import Base, SessionLocal, engine
+from app.models.file import UploadedFile
+from app.modules.ingestion.diff_engine import compute_diff
+from app.modules.ingestion.file_handler import save_and_fingerprint
+from app.schemas.row import ReportRow
 
 
 @pytest.fixture()

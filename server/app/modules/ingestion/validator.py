@@ -1,10 +1,10 @@
 from datetime import date
 
-from server.app.modules.ingestion.cross_validator import (
+from app.modules.ingestion.cross_validator import (
     is_active, progress_conflicts, unmapped_subtask_statuses, unmapped_values,
 )
-from server.app.schemas.ingest import BlockerIssue, OrphanIssue, WarningIssue
-from server.app.schemas.row import ReportRow
+from app.schemas.ingest import BlockerIssue, OrphanIssue, WarningIssue
+from app.schemas.row import ReportRow
 
 REQUIRED_FIELDS = ("pic", "start", "end")
 

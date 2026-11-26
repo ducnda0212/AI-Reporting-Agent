@@ -1,6 +1,6 @@
 from datetime import date
 
-from server.app.modules.mapping.wiki_parser import (
+from app.modules.mapping.wiki_parser import (
     parse_milestones, parse_progress_report, parse_risk_notes, sanitize_jira_markup,
 )
 

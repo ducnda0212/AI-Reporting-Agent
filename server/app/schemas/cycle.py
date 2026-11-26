@@ -1,6 +1,6 @@
 from datetime import date
 
-from server.app.schemas.common import ApiModel
+from app.schemas.common import ApiModel
 
 
 class WeekBoundary(ApiModel):

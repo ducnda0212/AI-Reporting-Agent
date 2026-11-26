@@ -1,8 +1,8 @@
 """Stage 2 flow: upload -> save extended draft -> recalculate (Phương án A) -> draft survives."""
 from fastapi.testclient import TestClient
 
-from server.app.main import app
-from server.tests.helpers import golden_csv
+from app.main import app
+from tests.helpers import golden_csv
 
 client = TestClient(app)
 

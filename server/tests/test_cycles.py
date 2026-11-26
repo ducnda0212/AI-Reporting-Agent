@@ -2,7 +2,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from server.app.modules.ingestion.cycles import cycle_for_date, reference_date, weeks_for_cycle
+from app.modules.ingestion.cycles import cycle_for_date, reference_date, weeks_for_cycle
 
 
 def _span(weeks):
@@ -47,9 +47,9 @@ def test_cycle_for_date_examples_and_every_day_has_exactly_its_week():
 def test_active_endpoint_follows_today_unless_pinned(monkeypatch):
     from fastapi.testclient import TestClient
 
-    from server.app.core.config import settings
-    from server.app.main import app
-    from server.app.modules.ingestion import router
+    from app.core.config import settings
+    from app.main import app
+    from app.modules.ingestion import router
 
     client = TestClient(app)
     monkeypatch.setattr(settings, "DEFAULT_CYCLE_ID", "")

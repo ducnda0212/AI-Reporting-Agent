@@ -1,7 +1,7 @@
 import pytest
 
-from server.app.ai.settings import load
-from server.app.ai.llm import VllmClient, VllmError
+from app.ai.settings import load
+from app.ai.llm import VllmClient, VllmError
 
 
 def make(fake_url, **over):

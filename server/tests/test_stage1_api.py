@@ -3,9 +3,9 @@ import io
 import openpyxl
 from fastapi.testclient import TestClient
 
-from server.app.core.config import settings
-from server.app.main import app
-from server.tests.helpers import golden_csv
+from app.core.config import settings
+from app.main import app
+from tests.helpers import golden_csv
 
 client = TestClient(app)
 CYCLE = "2026_11_w3"

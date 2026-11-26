@@ -1,9 +1,9 @@
 """Ô Vấn đề/rủi ro/đề xuất của tuần + gợi ý AC: lấy từ dữ liệu trước, AI chỉ khi thiếu."""
 import pytest
 
-from server.app.ai import drafts
-from server.app.ai.settings import settings
-from server.app.ai.llm import VllmError
+from app.ai import drafts
+from app.ai.settings import settings
+from app.ai.llm import VllmError
 
 WEEK = {'key': 'w3', 'start': '2026-11-15', 'end': '2026-11-22'}
 REPORT = {'date': '2026-11-18', 'done': 'Hoàn thiện API', 'plan': 'Chạy UAT'}

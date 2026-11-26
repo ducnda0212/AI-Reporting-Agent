@@ -1,5 +1,5 @@
 """Script đánh giá 6 tiêu chí (evals/run_eval.py): kiểm tra đáp án chuẩn và các hàm đo, không gọi AI."""
-from server.app.ai.settings import settings
+from app.ai.settings import settings
 from evals import run_eval as E
 
 

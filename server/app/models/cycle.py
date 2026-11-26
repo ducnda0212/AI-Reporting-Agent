@@ -1,7 +1,7 @@
 from sqlalchemy import Boolean, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from server.app.models.base import Base
+from app.models.base import Base
 
 
 class ReportingCycle(Base):

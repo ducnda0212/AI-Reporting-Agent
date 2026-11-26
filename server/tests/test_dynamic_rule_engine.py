@@ -1,8 +1,8 @@
 import json
 from datetime import date
 
-from server.app.models.mapping import MappingConfig
-from server.app.modules.mapping.rule_engine import map_jira_issue_to_row
+from app.models.mapping import MappingConfig
+from app.modules.mapping.rule_engine import map_jira_issue_to_row
 
 WEEKS = [{"week": 1, "start": date(2026, 10, 31), "end": date(2026, 11, 6)}]
 ISSUE = {

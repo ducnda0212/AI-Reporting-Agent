@@ -11,10 +11,10 @@ import os
 
 from fastapi.testclient import TestClient
 
-from server.app.core.config import settings
-from server.app.core.database import SessionLocal
-from server.app.main import app
-from server.app.models.session import IngestSession
+from app.core.config import settings
+from app.core.database import SessionLocal
+from app.main import app
+from app.models.session import IngestSession
 
 client = TestClient(app)
 GOLDEN = os.path.join(settings.FIXTURES_DIR, "golden_dataset.csv")

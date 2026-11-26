@@ -2,8 +2,8 @@
 import json
 from dataclasses import dataclass, field, replace
 
-from server.app.modules.mapping.normalizer import keyed
-from server.app.schemas.row import COLUMN_FIELDS
+from app.modules.mapping.normalizer import keyed
+from app.schemas.row import COLUMN_FIELDS
 
 # Every template column may be re-pointed at a Jira column, or cleared with an empty source.
 MAPPABLE = frozenset(COLUMN_FIELDS.values())

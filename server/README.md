@@ -8,7 +8,7 @@ reconciler (Choice A: 1 row per main ticket, children = audit `subtasks`) → va
 
 ```bash
 pip install -r server/requirements.txt
-uvicorn server.app.main:app --port 8000
+uvicorn app.main:app --port 8000
 ```
 
 Config via env / `server/.env` (see `.env.example`): `DATABASE_URL`, `UPLOADS_DIR`, `MAX_UPLOAD_MB`.

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import openpyxl
 
-from server.app.core.config import settings
+from app.core.config import settings
 
 TEMPLATE_NAME = "20261111_DAN_Mau-bao-cao-PMO.xlsx"
 SHEET = "Mẫu báo cáo"

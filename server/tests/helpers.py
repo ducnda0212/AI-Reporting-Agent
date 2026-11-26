@@ -1,7 +1,7 @@
 import csv
 import io
 
-from server.app.core.config import settings
+from app.core.config import settings
 
 
 def golden_csv(extra_uncoded_key: str | None = None) -> bytes:

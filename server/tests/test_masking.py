@@ -1,4 +1,4 @@
-from server.app.ai.masking import Masker
+from app.ai.masking import Masker
 
 
 def test_mask_and_unmask_roundtrip():

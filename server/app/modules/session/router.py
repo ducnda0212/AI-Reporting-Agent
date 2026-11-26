@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
-from server.app.core.database import get_db
-from server.app.core.errors import api_error
-from server.app.models.session import IngestSession
-from server.app.modules.session.service import draft_out, get_session_draft, save_session_draft
-from server.app.schemas.ingest import IngestResponse
-from server.app.schemas.mapping import SessionDraftOut, SessionDraftSaveRequest
+from app.core.database import get_db
+from app.core.errors import api_error
+from app.models.session import IngestSession
+from app.modules.session.service import draft_out, get_session_draft, save_session_draft
+from app.schemas.ingest import IngestResponse
+from app.schemas.mapping import SessionDraftOut, SessionDraftSaveRequest
 
 router = APIRouter(prefix="/api/v1/sessions", tags=["session"])
 

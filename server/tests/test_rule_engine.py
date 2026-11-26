@@ -1,6 +1,6 @@
 from datetime import date
 
-from server.app.modules.mapping.rule_engine import extract_project_code_and_name, map_jira_issue_to_row
+from app.modules.mapping.rule_engine import extract_project_code_and_name, map_jira_issue_to_row
 
 WEEKS = [
     {"week": 1, "start": date(2026, 10, 31), "end": date(2026, 11, 6)},
@@ -135,7 +135,7 @@ def test_org_fields_priority_link_and_status_category_fallback():
 
 
 def test_goal_preserves_lines_and_bullets_and_kpi_includes_metric():
-    from server.app.modules.mapping.rule_engine import _goal, _kpi
+    from app.modules.mapping.rule_engine import _goal, _kpi
 
     desc = "1. BÀI TOÁN\nNgắn gọn.\n2. MỤC TIÊU\n- Giảm trễ\n- Tăng tỉ lệ\nMILESTONE:\n|2026-05-01|Khởi động|"
     g = _goal({"Description": desc})

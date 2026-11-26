@@ -1,7 +1,7 @@
 """Tách dữ liệu tuần theo quy tắc (không AI)."""
 from datetime import date
 
-from server.app.ai import weekly as W
+from app.ai import weekly as W
 
 WEEK = {'key': 'w3', 'start': '2026-11-15', 'end': '2026-11-22'}
 S, E = date(2026, 11, 15), date(2026, 11, 22)

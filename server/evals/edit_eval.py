@@ -20,8 +20,8 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1]))
 
-from server.app.ai.agent import edit as agent_edit, qa as agent  # noqa: E402
-from server.app.ai.settings import settings  # noqa: E402
+from app.ai.agent import edit as agent_edit, qa as agent  # noqa: E402
+from app.ai.settings import settings  # noqa: E402
 
 FIELDS = [
     {'id': 'td', 'name': 'Tiến độ', 'options': ['Đúng tiến độ', 'Có nguy cơ chậm', 'Chậm tiến độ']},

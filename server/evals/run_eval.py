@@ -29,10 +29,10 @@ from datetime import datetime
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE.parents[1]))  # gốc repo, để import server.app...
+sys.path.insert(0, str(HERE.parents[1]))  # gốc repo, để import app...
 
-from server.app.ai import drafts, risk  # noqa: E402
-from server.app.ai.settings import settings  # noqa: E402
+from app.ai import drafts, risk  # noqa: E402
+from app.ai.settings import settings  # noqa: E402
 
 WEEK = {'key': 'w3', 'start': '2026-11-15', 'end': '2026-11-22'}
 ROLES = re.compile(r'\((?:[^)]*\b)?(PM|PMO|Tech Lead|KD/AM|QA)\b[^)]*\)')

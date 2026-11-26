@@ -1,7 +1,7 @@
 import pytest
 
-from server.app.ai import risk
-from server.app.ai.settings import settings
+from app.ai import risk
+from app.ai.settings import settings
 
 Z = {'delayDays': 0, 'financePct': 0, 'contract': 0, 'quality': 0, 'dataControl': 0}
 
@@ -98,8 +98,8 @@ def test_assess_drops_r02_and_computes_delay_from_dates(monkeypatch):
 
 
 def test_delay_days_kept_when_stated_in_text_but_overridden_when_ai_computed(monkeypatch):
-    from server.app.ai import risk
-    from server.app.ai.settings import settings
+    from app.ai import risk
+    from app.ai.settings import settings
     monkeypatch.setattr(settings, 'mode', 'vllm')
     base = {'kind': 'Issue', 'probability': '', 'category': 'C3', 'why': 'x', 'financePct': 0, 'contract': 0, 'quality': 0,
             'dataControl': 0, 'blocked': False, 'noOwner': False, 'signals': [], 'actions': [], 'closeWhen': '', 'confidence': 'high',

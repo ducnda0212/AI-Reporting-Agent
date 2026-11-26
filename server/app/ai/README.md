@@ -25,7 +25,7 @@ bỏ được khi không còn dùng. `evals/` chấm chất lượng AI; kết q
 
 ## Chạy
 
-Từ gốc repo: `uvicorn server.app.main:app --port 8000`, hoặc `python server/run.py` (cùng việc, kèm in trạng thái AI).
+Từ gốc repo: `uvicorn app.main:app --port 8000`, hoặc `python server/run.py` (cùng việc, kèm in trạng thái AI).
 Terminal thứ hai: `cd client` rồi `npm run dev` (Vite chuyển `/api` sang cổng 8000).
 
 ## Cấu hình (`server/.env`, mẫu ở `.env.example`)

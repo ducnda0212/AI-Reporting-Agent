@@ -3,8 +3,8 @@ from collections.abc import Generator
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from server.app.core.config import settings
-from server.app.models.base import Base
+from app.core.config import settings
+from app.models.base import Base
 
 # check_same_thread=False: FastAPI runs sync endpoints in a threadpool.
 engine = create_engine(settings.DATABASE_URL, connect_args={"check_same_thread": False})

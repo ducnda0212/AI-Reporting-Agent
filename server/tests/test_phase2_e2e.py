@@ -1,8 +1,8 @@
 """Mirrors the Postman flow of the Phase-2 spec (§5)."""
 from fastapi.testclient import TestClient
 
-from server.app.main import app
-from server.tests.helpers import golden_csv
+from app.main import app
+from tests.helpers import golden_csv
 
 client = TestClient(app)
 

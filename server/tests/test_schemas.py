@@ -1,9 +1,9 @@
 from datetime import date
 
-from server.app.schemas.ingest import (
+from app.schemas.ingest import (
     BlockerIssue, DiffSummary, FileStats, IngestResponse, OrphanIssue, WarningIssue,
 )
-from server.app.schemas.row import COLUMN_FIELDS, ReportRow, SubtaskAudit
+from app.schemas.row import COLUMN_FIELDS, ReportRow, SubtaskAudit
 
 
 def test_report_row_schema_validation():

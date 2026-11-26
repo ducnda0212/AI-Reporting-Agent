@@ -5,9 +5,9 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
-from server.app.models.mapping import MappingConfig
-from server.app.modules.mapping.normalizer import DEFAULT_PHASE_MAP, DEFAULT_PROGRESS_MAP, DEFAULT_STATUS_MAP
-from server.app.schemas.row import COLUMN_FIELDS
+from app.models.mapping import MappingConfig
+from app.modules.mapping.normalizer import DEFAULT_PHASE_MAP, DEFAULT_PROGRESS_MAP, DEFAULT_STATUS_MAP
+from app.schemas.row import COLUMN_FIELDS
 
 DEFAULT_MAPPING_ID = "map_default_pmo_49col"
 DEFAULT_MAPPING_NAME = "Hệ thống"

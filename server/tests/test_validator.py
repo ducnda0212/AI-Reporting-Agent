@@ -1,8 +1,8 @@
 from datetime import date
 
-from server.app.modules.ingestion.validator import validate_rows
-from server.app.schemas.ingest import OrphanIssue
-from server.app.schemas.row import ReportRow, SubtaskAudit
+from app.modules.ingestion.validator import validate_rows
+from app.schemas.ingest import OrphanIssue
+from app.schemas.row import ReportRow, SubtaskAudit
 
 REF = date(2026, 11, 19)
 

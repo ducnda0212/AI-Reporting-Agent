@@ -2,12 +2,12 @@ import json
 
 import pytest
 
-from server.app.core.database import Base, SessionLocal, engine
-from server.app.modules.mapping.seed import seed_default_mapping
-from server.app.modules.mapping.service import (
+from app.core.database import Base, SessionLocal, engine
+from app.modules.mapping.seed import seed_default_mapping
+from app.modules.mapping.service import (
     clone_mapping, create_mapping, delete_mapping, get_mapping, list_mappings, set_default_mapping, update_mapping,
 )
-from server.app.schemas.mapping import MappingConfigCreate, MappingConfigUpdate, ValueMappings
+from app.schemas.mapping import MappingConfigCreate, MappingConfigUpdate, ValueMappings
 
 
 @pytest.fixture

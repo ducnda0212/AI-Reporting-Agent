@@ -9,9 +9,9 @@ import openpyxl
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import column_index_from_string
 
-from server.app.core.config import settings
-from server.app.models.version import ReportVersion
-from server.app.schemas.row import COLUMN_FIELDS
+from app.core.config import settings
+from app.models.version import ReportVersion
+from app.schemas.row import COLUMN_FIELDS
 
 SHEET = "Mẫu báo cáo"
 DEFAULT_TEMPLATE = "20261111_DAN_Mau-bao-cao-PMO.xlsx"

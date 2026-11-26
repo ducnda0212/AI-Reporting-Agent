@@ -1,9 +1,9 @@
 from fastapi.testclient import TestClient
 
-from server.app.main import app
-from server.app.modules.mapping.resolved import MAPPABLE
-from server.app.schemas.row import COLUMN_FIELDS
-from server.tests.helpers import golden_csv
+from app.main import app
+from app.modules.mapping.resolved import MAPPABLE
+from app.schemas.row import COLUMN_FIELDS
+from tests.helpers import golden_csv
 
 client = TestClient(app)
 
@@ -54,9 +54,9 @@ def test_recalculate_49_cols_clear_and_no_hardcoded_loai_market():
 def test_old_stored_default_is_renamed_and_loses_constants():
     import json
 
-    from server.app.core.database import SessionLocal
-    from server.app.models.mapping import MappingConfig
-    from server.app.modules.mapping.seed import seed_default_mapping
+    from app.core.database import SessionLocal
+    from app.models.mapping import MappingConfig
+    from app.modules.mapping.seed import seed_default_mapping
 
     with SessionLocal() as db:
         cfg = db.get(MappingConfig, "map_default_pmo_49col")

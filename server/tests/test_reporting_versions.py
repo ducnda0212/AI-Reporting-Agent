@@ -1,14 +1,14 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from server.app.core.config import settings
-from server.app.core.database import SessionLocal
-from server.app.main import app
-from server.app.models.session import SessionDraft
-from server.app.modules.reporting.service import get_version, list_versions, lock_report
-from server.app.schemas.mapping import SessionDraftSaveRequest
-from server.app.schemas.reporting import LockReportRequest
-from server.app.modules.session.service import save_session_draft
+from app.core.config import settings
+from app.core.database import SessionLocal
+from app.main import app
+from app.models.session import SessionDraft
+from app.modules.reporting.service import get_version, list_versions, lock_report
+from app.schemas.mapping import SessionDraftSaveRequest
+from app.schemas.reporting import LockReportRequest
+from app.modules.session.service import save_session_draft
 
 
 @pytest.fixture(scope="module")

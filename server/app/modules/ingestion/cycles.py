@@ -2,7 +2,7 @@ import calendar
 import re
 from datetime import date
 
-from server.app.schemas.cycle import ActiveCycle, ActiveWeek
+from app.schemas.cycle import ActiveCycle, ActiveWeek
 
 _CYCLE = re.compile(r"(\d{4})_(0[1-9]|1[0-2])(?:_w([1-4]))?")
 
