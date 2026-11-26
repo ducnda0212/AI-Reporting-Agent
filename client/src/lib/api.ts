@@ -25,7 +25,7 @@ async function req<T>(path: string, init?: RequestInit, timeoutMs = 120000): Pro
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), timeoutMs);
   try {
-    const res = await fetch(path, { ...init, signal: ctl.signal, headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) } });
+    const res = await fetch((import.meta.env.VITE_API_URL ?? '') + path, { ...init, signal: ctl.signal, headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) } });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error((body as { error?: string }).error || `HTTP ${res.status}`);
     return body as T;
