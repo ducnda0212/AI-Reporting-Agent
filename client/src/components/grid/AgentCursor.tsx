@@ -5,6 +5,8 @@ import { useEffect, useRef } from 'react';
 import { fieldById } from '@/lib/cell';
 import { getState, useAppState } from '@/store';
 import { fxTipClose } from '@/store/actions/grid';
+import { cursorTag } from '@/lib/agentRun';
+import '@/styles/agent-fx.css';
 
 const cellAt = (i: number, f: string): HTMLElement | null => document.querySelector('.cell[data-i="' + i + '"][data-f="' + f + '"]');
 /** Chạy lại hiệu ứng CSS của một lớp trên ô. */
@@ -15,26 +17,32 @@ export function AgentCursor(): JSX.Element {
 
   useEffect(() => {
     const c = cur.current; if (!walk || !c) return;
-    const L = walk.list.filter((x) => cellAt(x[0], x[1])).slice(0, walk.n || 6);
-    if (!L.length) { c.classList.remove('on'); return; }
-    let k = 0, t = 0;
+    const all = walk.list.map((x, k) => ({ x, tag: walk.tags?.[k] || '' }));
+    const lab = c.querySelector('.agt');
+    let L = all.filter((e) => cellAt(e.x[0], e.x[1])).slice(0, walk.n || 6);
+    let k = 0, t = 0, tries = 0;
     const step = (): void => {
       if (k >= L.length) { t = window.setTimeout(() => c.classList.remove('on'), 700); return; }
-      const x = L[k++], el = cellAt(x[0], x[1]); if (!el) return step();
+      const e = L[k++], x = e.x, el = cellAt(x[0], x[1]); if (!el) return step();
       try { el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' }); } catch { /* trình duyệt cũ */ }
       t = window.setTimeout(() => {
         const e2 = cellAt(x[0], x[1]); if (!e2) return step();
         const r = e2.getBoundingClientRect();
         c.style.left = r.left + 6 + 'px'; c.style.top = r.top - 22 + 'px'; c.classList.add('on');
+        if (lab) lab.textContent = cursorTag(e.tag, walk.cls === 'aiflash');
         replay(e2, walk.cls);
         t = window.setTimeout(step, 520);
       }, 320);
     };
     /* áp dụng / xem lại: nháy tím mọi ô ngay, con trỏ đi qua tối đa 6 ô */
-    const t0 = window.setTimeout(() => {
+    /* ô có thể chưa được vẽ (bảng vừa cuộn tới): thử lại vài lần trước khi bỏ */
+    const start = (): void => {
+      L = all.filter((e) => cellAt(e.x[0], e.x[1])).slice(0, walk.n || 6);
+      if (!L.length) { if (tries++ < 6) { t = window.setTimeout(start, 250); } else c.classList.remove('on'); return; }
       if (walk.cls === 'aiflash') walk.list.forEach((x) => cellAt(x[0], x[1])?.classList.add('aiflash'));
       step();
-    }, 60);
+    };
+    const t0 = window.setTimeout(start, 60);
     return () => { clearTimeout(t0); clearTimeout(t); };
   }, [walk?.seq]);
 
@@ -60,7 +68,7 @@ export function AgentCursor(): JSX.Element {
   const f = tip && fieldById(tip.f), ma = tip && getState().allRows[tip.i]?.ma;
   return (
     <>
-      <div id="agCur" ref={cur}><span aria-hidden="true">✦</span>Agent</div>
+      <div id="agCur" ref={cur}><span aria-hidden="true">✦</span>Agent<b className="agt" /></div>
       <div id="fxTip" ref={tipRef}>
         {tip && f && <><b>{'Ô ' + (tip.k + 1) + '/' + tip.n}</b>{' · ' + ma + ' · ' + f.name.split(' (')[0]}<br /><span>{tip.why}</span>{tip.n > 1 && <em>Bấm lại để sang ô kế</em>}</>}
       </div>

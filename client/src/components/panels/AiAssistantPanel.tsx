@@ -10,6 +10,8 @@ import { chatDelete, chatHistory, chatNew, chatOpen, chatSearch, askSend, exGo, 
 import { groupChats, previewOf, whenLabel } from '@/lib/chatHistory';
 import { wkName } from '@/store/actions/versions';
 import type { AgStage, AppState } from '@/types';
+import '@/styles/ai-answer.css';
+import { AgentRun } from './AgentRun';
 import { PanelShell, PnClose, PnExpand } from './PanelShell';
 
 const short = (name: string): string => name.split(' (')[0];
@@ -25,13 +27,13 @@ function Stage({ id, S, s }: { id: string; S: AgStage; s: AppState }): JSX.Eleme
   const on = S.items.filter((x) => !x.off).length, shown = S.more ? S.items : S.items.slice(0, 8);
   const fields = S.items.map((x) => x.f).filter((v, i, A) => A.indexOf(v) === i).map((fid) => short(fieldById(fid)!.name)).join(', ');
   return (
-    <div className="stg">
-      <div className="stgh"><b>Xem trước</b><span>{S.items.length + ' ô · ' + fields}</span></div>
+    <div className="stg agfill">
+      <div className="stgh"><b><span className="agsp" aria-hidden="true">✦</span> Agent đã soạn · xem trước</b><span>{S.items.length + ' ô · ' + fields}</span></div>
       <table className="stgt"><thead><tr><th /><th>Mã DA</th><th>Hiện tại</th><th>Đề xuất</th></tr></thead><tbody>
         {shown.map((x, k) => {
           const rr = s.allRows[x.i], f = fieldById(x.f)!;
           return (
-            <tr key={k} className={x.off ? 'off' : ''}>
+            <tr key={k} className={'agr' + (x.off ? ' off' : '')} style={{ animationDelay: Math.min(k, 9) * 80 + 150 + 'ms' }}>
               <td><input type="checkbox" data-act="stgTog" data-s={id} data-k={k} checked={!x.off} onChange={() => stgToggle(id, k)} aria-label={'Chọn thay đổi ' + rr.ma} /></td>
               <td onClick={() => stgGo(x.i, x.f)}><span className="c2code">{rr.ma}</span><small>{f.col + ' · ' + short(f.name)}</small></td>
               <td className="stgf" title={x.from}>{x.kind === 'approve' ? <em>nháp AI</em> : x.from ? x.from : <i>trống</i>}</td>
@@ -150,7 +152,7 @@ export function AiAssistantPanel(): JSX.Element {
               <Fragment key={k}>
                 <div className={'askme' + (nw && x.busy ? ' nw' : '')}>{x.q}</div>
                 {x.busy
-                  ? <div className="askai nw"><span className="aityping" aria-label="Đang trả lời"><i /><i /><i /></span></div>
+                  ? <div className="askai nw agrun"><AgentRun q={x.q} /></div>
                   : <div className={'askai' + (nw ? ' nw' : '')}><div style={{ display: 'contents' }} dangerouslySetInnerHTML={{ __html: x.a.html }} />{S && x.stage && <Stage id={x.stage} S={S} s={s} />}</div>}
               </Fragment>
             );

@@ -109,6 +109,38 @@ class VllmClient:
         except ValueError:
             raise VllmError('Danh sách model không phải JSON.', status, raw[:300])
 
+    def embed(self, texts: list[str], model: str | None = None) -> list[list[float]]:
+        """/v1/embeddings (chuẩn OpenAI). Trả một vector cho mỗi chuỗi, đúng thứ tự."""
+        if not texts:
+            return []
+        body = {'model': model or self.cfg.embed_model, 'input': texts}
+        if not body['model']:
+            raise VllmError('Chưa đặt AI_EMBED_MODEL.')
+        url = f'{self.cfg.base_url}/embeddings'
+        last: VllmError | None = None
+        refreshed = False
+        for attempt in range(3):
+            status, raw = self._http('POST', url, body, headers=self._auth_headers())
+            if status == 200:
+                try:
+                    data = sorted(json.loads(raw)['data'], key=lambda d: d.get('index', 0))
+                    vecs = [[float(x) for x in d['embedding']] for d in data]
+                except (ValueError, KeyError, TypeError):
+                    raise VllmError('Phản hồi embeddings không đúng định dạng OpenAI.', status, raw[:300])
+                if len(vecs) != len(texts):
+                    raise VllmError('Số vector embeddings không khớp số đoạn gửi.', status, raw[:300])
+                return vecs
+            if status == 401 and self.cfg.auth_kind == 'oauth' and not refreshed:
+                self._get_token(force=True)
+                refreshed = True
+                continue
+            last = VllmError(_http_message(status), status, raw[:500])
+            if status in (429, 500, 502, 503, 504):
+                time.sleep(self.backoff * (attempt + 1))
+                continue
+            raise last
+        raise last or VllmError('Gọi embeddings thất bại.')
+
     def _body(self, messages: list[dict], schema: dict | None, max_tokens: int | None, temperature: float, model: str | None = None) -> dict:
         body: dict[str, Any] = {
             'model': model or self.cfg.model,

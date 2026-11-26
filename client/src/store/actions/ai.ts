@@ -2,18 +2,22 @@
    con trỏ ✦ Agent. Port từ prototype v4 (askSend R8f, stgAdd/stgHtml R8, panelTrace/trSet, aiStart, agWalk). */
 import type { Draft } from 'immer';
 import { AI_IDS } from '@/data/constants';
-import { aiDrafts, askAnswer, exTT, trDraft, trInputs, trText, type TrVariant } from '@/lib/ai';
-import { agentAsk, aiStatus, type AgentRow, type AiStatus } from '@/lib/api';
+import { aiDrafts, askAnswer, exTT, isLate, trDraft, trInputs, trText, type TrVariant } from '@/lib/ai';
+import { agentAsk, agentEdit, aiStatus, draftRemote, type AgentAnswer, type AgentRow, type AiStatus } from '@/lib/api';
+import { editFields, editHtml, editRows, looksLikeEdit, toStageItems } from '@/lib/agentEdit';
+import { DRAFT_CHUNK, draftRequestRow, mergeRemote, type RemoteDrafts } from '@/lib/draftRemote';
 import { fromRec, toRec, upsert } from '@/lib/chatHistory';
-import { REMOTE_MAX_QUESTION, REMOTE_MAX_ROWS, agentHtml, keepLocal } from '@/lib/agentRemote';
+import { REMOTE_MAX_QUESTION, REMOTE_MAX_ROWS, agentHtml, historyOf, intentCommand, keepLocal, textColumns } from '@/lib/agentRemote';
 import { ck, displayText, fieldById } from '@/lib/cell';
 import type { AgStageItem, AiFieldId, AppState, ChatRec, FieldId, Row, TraceTarget } from '@/types';
 import { getState, inBrowser, log, mutate, now, rowsOf, toast } from '@/store';
 import { editCell } from './grid';
 
 /* ---------- con trỏ ✦ Agent: UI đọc `walk` (đổi `seq` mỗi lần) để cuộn bảng và nháy ô ---------- */
-function walk(d: Draft<AppState>, items: Pick<AgStageItem, 'i' | 'f' | 'off'>[], cls: 'aiflash' | 'aiwalk', n: number): void {
-  d.walk = { list: items.filter((x) => !x.off).map((x) => [x.i, x.f]), cls, n, seq: (d.walk ? d.walk.seq : 0) + 1 };
+function walk(d: Draft<AppState>, items: (Pick<AgStageItem, 'i' | 'f' | 'off'> & Partial<Pick<AgStageItem, 'to' | 'kind'>>)[], cls: 'aiflash' | 'aiwalk', n: number): void {
+  const on = items.filter((x) => !x.off);
+  /* `tags`: chữ hiện trên con trỏ ✦ Agent, cùng thứ tự với `list` ("Indo", "Duyệt") */
+  d.walk = { list: on.map((x) => [x.i, x.f]), cls, n, seq: (d.walk ? d.walk.seq : 0) + 1, tags: on.map((x) => (x.kind === 'approve' ? 'Duyệt nháp' : x.to ? String(x.to) : '')) };
 }
 
 /* ---------- lịch sử trò chuyện ---------- */
@@ -48,9 +52,13 @@ export function chatHistory(on: boolean): void { mutate((d) => { d.chatView = on
 export function chatSearch(q: string): void { mutate((d) => { d.chatQ = q; }, { track: false }); }
 
 /* ---------- hỏi đáp / Agent ---------- */
-function answer(q: string, replaceBusy: boolean): string | null {
+function answer(q: string, replaceBusy: boolean, cmd?: string | string[]): string | null {
   const s = getState();
-  const res = askAnswer(q, { rows: rowsOf(s), allRows: s.allRows, sel: s.sel, phaseBucket: s.phaseBucket });
+  const ctx = { rows: rowsOf(s), allRows: s.allRows, sel: s.sel, phaseBucket: s.phaseBucket };
+  /* V-LLM đã đọc ý định: `cmd` là lệnh chuẩn để chạy đúng chức năng có sẵn (ẩn cột, soạn nháp, duyệt…), khung chat vẫn hiện câu gốc của người dùng */
+  const list = cmd === undefined ? [q] : Array.isArray(cmd) ? cmd : [cmd];
+  const rs = list.map((c) => askAnswer(c, ctx));
+  const res = rs.length === 1 ? rs[0] : { ...rs[0], stagedItems: rs.flatMap((r) => r.stagedItems), html: rs[0].html.replace(/<b>\d+ thay đổi<\/b>/, '<b>' + rs.reduce((n, r) => n + r.stagedItems.length, 0) + ' thay đổi</b>') };
   let id: string | null = null;
   mutate((d) => {
     if (replaceBusy && d.askLog.length && d.askLog[d.askLog.length - 1].busy) d.askLog.pop();
@@ -59,6 +67,7 @@ function answer(q: string, replaceBusy: boolean): string | null {
       d.stgSeq++; id = 's' + d.stgSeq;
       d.stages[id] = { q, items: res.stagedItems, st: 'open' };
       walk(d, res.stagedItems, 'aiwalk', 6);
+      if (d.view === 'grid') { const x0 = res.stagedItems.find((x) => !x.off); if (x0) { d.sel = { i: x0.i, f: x0.f }; d.scrollSel = true; } } // đưa ô đầu vào khung nhìn để con trỏ Agent tìm thấy
     } else if (/^Đã đổi <b>/.test(res.html)) a = { html: 'Không có gì cần thay đổi.', act: [] }; // sửa trùng giá trị hiện tại
     if (res.hide) { if (res.hide.on) d.hidden[res.hide.f] = true; else delete d.hidden[res.hide.f]; }
     if (res.onlyFix !== undefined) d.onlyFix = res.onlyFix;
@@ -100,35 +109,102 @@ function agentRow(r: Row, s: AppState): AgentRow {
   return {
     code: r.ma, name: r.viec, group: show('mang'), status: show('tt'), progress: exTT(r, s), risk: r.ai.rui?.text || show('rui'),
     pic: show('pic'), start: show('start'), end: show('end'), pending: (['rui', 'kh', 'vd'] as const).some((k) => !!r.ai[k] && !r.ai[k]!.ok),
+    ...textColumns(show, r.comment),
   };
 }
 
-/** HTML câu trả lời từ backend, hoặc `null` để dùng câu trả lời tại chỗ (lệnh sửa bảng, backend tắt/lỗi, bảng quá lớn). */
-async function remoteAnswer(q: string): Promise<string | null> {
+/** Gửi câu chat cho V-LLM (qua backend) để đọc Ý ĐỊNH: hỏi gì, hay muốn sửa / soạn nháp / duyệt / đổi cách xem bảng. `null` = backend tắt/lỗi, bảng quá lớn → dùng luật tại chỗ. */
+async function remoteAsk(q: string): Promise<AgentAnswer | null> {
   const s = getState(), rows = rowsOf(s);
-  if (keepLocal(q) || q.length > REMOTE_MAX_QUESTION || !rows.length || rows.length > REMOTE_MAX_ROWS) return null;
-  const loc = askAnswer(q, { rows, allRows: s.allRows, sel: s.sel, phaseBucket: s.phaseBucket });
-  if (loc.stagedItems.length || loc.hide || loc.onlyFix !== undefined) return null; // câu này là lệnh, giữ ở giao diện
+  if (q.length > REMOTE_MAX_QUESTION || !rows.length || rows.length > REMOTE_MAX_ROWS) return null;
   if (!(await backendReady())) return null;
+  /* dòng đang chọn trên bảng là "dự án này" cho câu nối tiếp; đặt trước các câu đã hỏi nên câu hỏi gần nhất vẫn ưu tiên */
+  const sel = s.sel ? s.allRows[s.sel.i] : null;
+  const hist = historyOf(s.askLog);
+  const history = sel && rows.some((r) => r.ma === sel.ma) ? [{ q: '(dòng đang chọn trên bảng)', codes: [sel.ma] }, ...hist] : hist;
+  try { return await agentAsk(q, rows.map((r) => agentRow(r, s)), history); } catch { return null; }
+}
+
+/** Lệnh sửa bảng: nhờ V-LLM đọc ý, chỉ đề xuất; kết quả thành bản xem trước. `null` = V-LLM lỗi. */
+interface RemoteEdit { html: string; items: AgStageItem[] }
+async function remoteEdit(q: string): Promise<RemoteEdit | null> {
+  const s = getState(), rows = rowsOf(s);
+  if (!rows.length || rows.length > REMOTE_MAX_ROWS) return null;
   try {
-    const res = await agentAsk(q, rows.map((r) => agentRow(r, s)));
-    return res.intent === 'edit' ? null : agentHtml(res, rows);
+    const res = await agentEdit(q, editRows(rows, s), editFields());
+    const items = toStageItems(res, rows);
+    return { html: editHtml(res, items.length), items };
   } catch { return null; }
 }
 
-/** Hiện câu trả lời sau tối thiểu 650ms + 8ms/ký tự (như hiệu ứng gõ cũ); backend lỗi thì rơi về câu trả lời tại chỗ. */
+/** Hiện câu trả lời lệnh sửa do V-LLM đọc ý: có đề xuất thì tạo bản xem trước như lệnh sửa tại chỗ. */
+function answerEdit(q: string, e: RemoteEdit): void {
+  mutate((d) => {
+    if (d.askLog.length && d.askLog[d.askLog.length - 1].busy) d.askLog.pop();
+    let id: string | null = null;
+    if (e.items.length) {
+      d.stgSeq++; id = 's' + d.stgSeq;
+      d.stages[id] = { q, items: e.items, st: 'open' };
+      walk(d, e.items, 'aiwalk', 6);
+      if (d.view === 'grid') { const x0 = e.items[0]; d.sel = { i: x0.i, f: x0.f }; d.scrollSel = true; }
+    }
+    const a = { html: e.html, act: [] };
+    d.askLog.push(id ? { q, a, stage: id } : { q, a });
+    syncChat(d);
+    log(d, 'Hỏi AI', q, 'V-LLM đọc ý lệnh sửa · ' + e.items.length + ' đề xuất');
+  });
+}
+
+type Decision =
+  | { kind: 'html'; html: string; scope: string[] }
+  | { kind: 'edit'; edit: RemoteEdit }
+  | { kind: 'local'; cmd: string | string[] }
+  | { kind: 'say'; html: string }
+  | { kind: 'fallback' };
+
+const EDIT_DOWN = 'Mình hiểu đây là lệnh sửa bảng nhưng chưa đọc được ý vì V-LLM đang lỗi, nên mình chưa sửa gì. Bạn thử lại sau ít phút, hoặc gõ theo mẫu: <i>Đổi Note "Chờ họp" cho các dự án chậm tiến độ</i> hoặc <i>Đổi Tiến độ của I.A.3.1, I.A.4.1 thành Chậm tiến độ</i>.';
+
+/** V-LLM đọc ý định trước, rồi gọi đúng chức năng. Không đoán ý bằng từ khóa khi V-LLM đang chạy. */
+async function decide(q: string): Promise<Decision> {
+  const res = await remoteAsk(q);
+  if (!res) return { kind: 'fallback' };
+  if (res.intent === 'edit') {
+    const edit = await remoteEdit(q);
+    return edit ? { kind: 'edit', edit } : { kind: 'say', html: EDIT_DOWN };
+  }
+  if (res.intent === 'view' || res.intent === 'draft' || res.intent === 'approve') {
+    const cmd = intentCommand(res);
+    return cmd ? { kind: 'local', cmd } : { kind: 'say', html: 'Mình hiểu bạn muốn đổi cách xem bảng nhưng chưa rõ cột nào. Bạn nói tên hoặc ký hiệu cột nhé, ví dụ: <i>Ẩn cột Note</i>.' };
+  }
+  return { kind: 'html', html: agentHtml(res, rowsOf(getState())), scope: res.scope ?? [] };
+}
+
+/** Hiện câu trả lời sau tối thiểu 650ms + 8ms/ký tự (như hiệu ứng gõ cũ); backend tắt/lỗi thì rơi về luật tại chỗ. */
 async function respond(q: string): Promise<void> {
   const t0 = Date.now(), min = 650 + Math.min(q.length * 8, 450);
-  const html = await remoteAnswer(q);
+  const d0 = await decide(q);
   const wait = min - (Date.now() - t0);
   if (wait > 0) await new Promise((res) => setTimeout(res, wait));
-  if (html === null) { answer(q, true); return; }
-  mutate((d) => {
+  const say = (html: string): void => mutate((d) => {
     if (d.askLog.length && d.askLog[d.askLog.length - 1].busy) d.askLog.pop();
     d.askLog.push({ q, a: { html, act: [] } });
     syncChat(d);
-    log(d, 'Hỏi AI', q, 'V-LLM qua backend');
   });
+  if (d0.kind === 'edit') { answerEdit(q, d0.edit); return; }
+  if (d0.kind === 'local') { answer(q, true, d0.cmd); return; }
+  if (d0.kind === 'say') { say(d0.html); return; }
+  if (d0.kind === 'html') {
+    mutate((d) => {
+      if (d.askLog.length && d.askLog[d.askLog.length - 1].busy) d.askLog.pop();
+      d.askLog.push({ q, a: { html: d0.html, act: [] }, scope: d0.scope });
+      syncChat(d);
+      log(d, 'Hỏi AI', q, 'V-LLM qua backend');
+    });
+    return;
+  }
+  /* V-LLM không dùng được: luật từ khóa tại chỗ (câu sửa viết tự nhiên thì nói rõ là chưa đọc được) */
+  if (!keepLocal(q) && looksLikeEdit(q)) { say(EDIT_DOWN); return; }
+  answer(q, true);
 }
 
 /* ---------- bản xem trước ---------- */
@@ -172,26 +248,70 @@ export function stgShow(id: string): void {
 export function stgGo(i: number, f: FieldId): void { mutate((d) => walk(d, [{ i, f }], 'aiwalk', 1)); }
 
 /* ---------- Gọi AI soạn các ô trống ---------- */
-function writeDrafts(d: Draft<AppState>): void {
-  const rows = rowsOf(d), L = aiDrafts(rows, d);
+function writeDrafts(d: Draft<AppState>, remote?: RemoteDrafts): void {
+  const rows = rowsOf(d), local = aiDrafts(rows, d);
+  const m = remote ? mergeRemote(local, remote) : null, L = m ? m.cells : local;
   L.forEach((x) => { d.allRows[x.i].ai[x.f] = x.d; });
-  log(d, 'Gọi AI đọc Progress Report', rows.length + ' dòng', 'V-LLM · ' + L.length + ' ô nháp (AC, AS, AT), chờ duyệt từng ô');
+  const failed = remote ? Object.keys(remote.errors).length : 0;
+  log(d, 'Gọi AI đọc Progress Report', rows.length + ' dòng',
+    (remote ? 'V-LLM ' + remote.model + ' · ' + m!.fromAi + ' ô do AI soạn (AC, AT), ' + m!.byRule + ' ô theo luật từ Progress Report' + (failed ? ', ' + failed + ' dòng AI lỗi nên dùng nháp theo luật' : '')
+      : 'Theo luật tại chỗ · ' + L.length + ' ô nháp (AC, AS, AT)') + ', chờ duyệt từng ô');
   d.modal = L.length ? 'aiDone' : null;
   if (!L.length) toast(d, 'Mọi ô đã có nội dung — không có gì để soạn thêm');
+  else if (failed) toast(d, 'AI lỗi ở ' + failed + ' dòng, các dòng đó dùng nháp theo luật');
 }
-/** Nút "✦ Nhờ AI soạn các ô trống": trên trình duyệt chạy thanh tiến trình `aiRun` rồi mới ghi nháp. */
-export function aiStart(): void {
+
+/** Gọi backend soạn nháp cho các dòng còn thiếu ô AC hoặc AT. Trả `null` khi backend tắt/chưa sẵn sàng hoặc không có dòng nào cần AI (dùng bản theo luật). */
+async function remoteDrafts(): Promise<RemoteDrafts | null> {
+  const s = getState(), rows = rowsOf(s);
+  if (!rows.length || !(await backendReady())) return null;
+  const need = new Set(aiDrafts(rows, s).filter((x) => x.f === 'rui' || x.f === 'vd').map((x) => x.i));
+  const send = rows.filter((r) => need.has(r.i));
+  if (!send.length) return null;
+  const show = (r: Row) => (id: string): string => displayText(r, fieldById(id)!, s) || '';
+  const out: RemoteDrafts = { drafts: {}, errors: {}, model: '' };
+  mutate((d) => { d.aiRun = { n: 0, total: send.length }; }, { track: false });
+  for (let k = 0; k < send.length; k += DRAFT_CHUNK) {
+    const part = send.slice(k, k + DRAFT_CHUNK);
+    try {
+      const res = await draftRemote(part.map((r) => draftRequestRow(r, show(r), isLate(r, s))));
+      Object.assign(out.drafts, res.drafts); Object.assign(out.errors, res.errors); out.model = res.model || out.model;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Lỗi gọi AI';
+      part.forEach((r) => { out.errors[String(r.i)] = msg; });
+    }
+    mutate((d) => { if (d.aiRun) d.aiRun.n = Math.min(d.aiRun.total, k + part.length); }, { track: false });
+  }
+  if (!Object.keys(out.drafts).length) return null;  // cả lô lỗi: dùng bản theo luật, không báo AI đã soạn
+  return out;
+}
+
+/** Thanh tiến trình giả khi không gọi được backend, rồi ghi nháp theo luật. */
+function animateLocal(): void {
   const total = rowsOf(getState()).length;
-  if (!inBrowser() || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { mutate(writeDrafts); return; }
-  mutate((d) => { d.aiRun = { n: 0, total }; d.modal = null; });
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { mutate((d) => { d.aiRun = null; writeDrafts(d); }); return; }
+  mutate((d) => { d.aiRun = { n: 0, total }; d.modal = null; }, { track: false });
   const tick = (): void => {
     const R = getState().aiRun; if (!R) return;
     const n = Math.min(R.total, R.n + Math.ceil(R.total / 7));
-    mutate((d) => { if (d.aiRun) d.aiRun.n = n; });
+    mutate((d) => { if (d.aiRun) d.aiRun.n = n; }, { track: false });
     if (n >= R.total) { setTimeout(() => mutate((d) => { d.aiRun = null; writeDrafts(d); }), 260); return; }
     setTimeout(tick, 230);
   };
   setTimeout(tick, 200);
+}
+
+/** Nút "✦ Nhờ AI soạn các ô trống": backend sẵn sàng thì V-LLM soạn AC và AT (AS lấy theo luật từ Progress Report), không thì chạy bản theo luật tại chỗ.
+    Mọi nháp chờ duyệt từng ô. */
+export function aiStart(): void {
+  const s = getState();
+  if (!inBrowser()) { mutate((d) => writeDrafts(d)); return; }
+  if (s.aiRun) return;
+  mutate((d) => { d.aiRun = { n: 0, total: rowsOf(s).length }; d.modal = null; }, { track: false });
+  void remoteDrafts().then((remote) => {
+    if (remote) mutate((d) => { d.aiRun = null; writeDrafts(d, remote); });
+    else animateLocal();
+  });
 }
 
 /* ---------- khung "AI soạn nháp" ---------- */

@@ -75,7 +75,7 @@ def test_unclear_command_asks_back(monkeypatch):
 
 
 def test_all_only_when_explicit_and_cell_limit(monkeypatch):
-    rows = [{'code': f'P{i}', 'values': {'ghichu': ''}} for i in range(80)]
+    rows = [{'code': f'P{i}', 'values': {'ghichu': ''}} for i in range(agent_edit.MAX_CELLS + 20)]
     ai_returns(monkeypatch, {'ops': [op('ghichu', 'Chờ họp khối', all_=True)], 'unclear': ''})
     out = agent_edit.propose('Điền Ghi chú "Chờ họp khối" cho tất cả dự án', rows, FIELDS)
     assert len(out['proposals']) == agent_edit.MAX_CELLS and any('tối đa' in s['reason'] for s in out['skipped'])
@@ -94,7 +94,14 @@ def test_names_masked_in_command(monkeypatch):
     assert 'Nguyễn Văn An' not in seen['user'] and out['proposals'][0]['to'] == 'Hỏi Nguyễn Văn An về GPU'
 
 
-def test_ask_routes_edit_to_proposals(no_ai):
+def test_ask_routes_edit_to_proposals(monkeypatch):
+    monkeypatch.setattr(settings, 'mode', 'vllm')
+
+    def fake(msgs, schema, max_tokens=None, **k):
+        if schema['title'] == 'agent_route':   # V-LLM đọc ý định: đây là lệnh sửa; việc dựng đề xuất do bước sau (luật + code kiểm tra)
+            return {'model': 'm', 'data': {'query': 'edit', 'field': '', 'value': '', 'filters': [], 'group_by': '', 'sort': '', 'limit': 0, 'due': '', 'view_action': '', 'column': '', 'refers_previous': False}}
+        pytest.fail('không được gọi AI')
+    monkeypatch.setattr(agent_edit.client, 'chat_json', fake)
     rows = [{**r, 'progress': r['values']['td']} for r in ROWS]
     out = agent.ask('Đổi Mức độ rủi ro của DA04 thành Thấp', rows, FIELDS)
     assert out['intent'] == 'edit' and out['proposals'][0]['code'] == 'DA04' and out['applied'] is False
@@ -143,3 +150,70 @@ def test_truncated_reply_from_vllm_still_gives_preview_and_errors_do_not_crash(m
     monkeypatch.setattr(agent.client, 'chat_json', boom)
     a = agent.ask('Dự án nào chậm?', [{'code': 'DA01', 'progress': 'Chậm tiến độ'}])
     assert a['answer'].startswith('Có 1/1 dự án') and not a['grounded']
+
+
+def test_edit_flag_skips_routing_and_lets_ai_read_free_wording(monkeypatch):
+    """Giao diện báo đây là lệnh sửa (luật tại chỗ không hiểu): bỏ qua phân loại, AI đọc ý, code vẫn kiểm tra rồi mới đề xuất."""
+    seen = ai_returns(monkeypatch, {'ops': [op('ghichu', 'Chờ họp', wf='td', wv='Chậm tiến độ')], 'unclear': ''})
+    monkeypatch.setattr(agent, 'route', lambda *a, **k: pytest.fail('không được phân loại lại'))
+    out = agent.ask('mấy dự án đang trễ thì note lại giúp mình là chờ họp', ROWS, FIELDS, None, True)
+    assert out['intent'] == 'edit' and out['applied'] is False
+    assert [(p['code'], p['field'], p['to']) for p in out['proposals']] == [('DA01', 'ghichu', 'Chờ họp'), ('DA03', 'ghichu', 'Chờ họp')]
+    assert 'Chờ họp' in seen['user'] or 'trễ' in seen['user']
+
+
+def test_edit_flag_still_refuses_locked_column_and_missing_fields(monkeypatch):
+    ai_returns(monkeypatch, {'ops': [op('tt', 'Done', codes=['DA01'])], 'unclear': ''})
+    out = agent.ask('chuyển DA01 sang xong giúp mình', ROWS, FIELDS, None, True)
+    assert out['proposals'] == [] and 'Jira' in out['skipped'][0]['reason']
+    # không có danh sách cột thì không ép sang nhánh sửa (đi đường phân loại như cũ)
+    monkeypatch.setattr(agent, 'route', lambda *a, **k: ({'query': 'edit', 'field': '', 'value': ''}, 'rule'))
+    assert 'danh sách cột' in agent.ask('đổi gì đó', ROWS, None, None, True)['answer']
+
+
+def test_only_empty_alone_is_a_valid_scope(monkeypatch):
+    """"dự án nào chưa có note thì ghi X": điều kiện ô trống đã đủ làm phạm vi, không cần nói "tất cả"."""
+    ai_returns(monkeypatch, {'ops': [op('ghichu', 'Chờ CBLD', only_empty=True)], 'unclear': ''})
+    out = agent.ask('dự án nào chưa có note thì ghi chờ CBLD', ROWS, FIELDS, None, True)
+    assert [p['code'] for p in out['proposals']] == ['DA01', 'DA03', 'DA04'] and all(p['to'] == 'Chờ CBLD' for p in out['proposals'])
+    assert not out['skipped']
+
+
+def test_empty_where_value_means_empty_cell(monkeypatch):
+    """V-LLM thật từng ghi "chưa có note" thành where_field=ghichu, where_value="": hiểu là ô ghi chú trống."""
+    ai_returns(monkeypatch, {'ops': [op('ghichu', 'chờ CBLD', wf='ghichu', wv='')], 'unclear': ''})
+    out = agent.ask('dự án nào chưa có note thì ghi chờ CBLD', ROWS, FIELDS, None, True)
+    assert [p['code'] for p in out['proposals']] == ['DA01', 'DA03', 'DA04'] and not out['skipped']
+
+
+def test_ai_returning_nothing_without_reason_asks_user_to_clarify(monkeypatch):
+    ai_returns(monkeypatch, {'ops': [], 'unclear': ''})
+    out = agent.ask('đổi tất cả dự án sang đúng tiến độ', ROWS, FIELDS, None, True)
+    assert out['proposals'] == [] and 'nói rõ' in out['unclear'] and out['plan']['ops'] == []
+
+
+@pytest.mark.parametrize('target', [dict(wf='td', wv='Chậm tiến độ'), dict(only_empty=True), dict(wf='rui', wv='')])
+def test_command_without_any_project_scope_never_guesses_scope(monkeypatch, target):
+    """"đổi mức rủi ro thành cao" không nói dự án nào: AI tự đoán phạm vi thì code bỏ đi, không đề xuất gì."""
+    ai_returns(monkeypatch, {'ops': [op('rui', 'Cao', **target)], 'unclear': ''})
+    out = agent.ask('đổi mức rủi ro thành cao', ROWS, FIELDS, None, True)
+    assert out['proposals'] == [] and out['skipped']
+
+
+def test_rule_match_with_trailing_words_is_reread_by_ai(monkeypatch):
+    """"…thành đúng tiến độ dc ko": mẫu quen đọc cả đuôi câu thành giá trị sai; V-LLM đọc lại ý rồi mới kết luận."""
+    seen = ai_returns(monkeypatch, {'ops': [op('td', 'Đúng tiến độ', codes=['DA01'])], 'unclear': ''})
+    out = agent_edit.propose('Đổi Tiến độ của DA01 thành đúng tiến độ dc ko', ROWS, FIELDS)
+    assert [(p['code'], p['to']) for p in out['proposals']] == [('DA01', 'Đúng tiến độ')] and out['by'] == 'm' and 'user' in seen
+
+
+def test_already_equal_value_is_named_in_the_answer(no_ai):
+    out = agent_edit.propose('Đổi Tiến độ của DA01 thành Chậm tiến độ', ROWS, FIELDS)
+    assert not out['proposals'] and 'DA01' in out['answer'] and 'rồi' in out['answer']
+
+
+def test_nothing_empty_in_scope_says_so(monkeypatch):
+    rows = [{'code': f'P{i}', 'values': {'ghichu': 'đã có'}} for i in range(5)]
+    ai_returns(monkeypatch, {'ops': [op('ghichu', 'Chờ họp khối', only_empty=True)], 'unclear': ''})
+    out = agent_edit.propose('Điền Ghi chú "Chờ họp khối" cho các dự án đang trống', rows, FIELDS)
+    assert out['proposals'] == [] and 'cả 5 dự án' in out['answer'] and 'đã có nội dung' in out['answer']

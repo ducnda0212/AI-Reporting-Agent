@@ -55,7 +55,7 @@ describe('Panel Trợ lý AI', () => {
     const id = askSubmit('Đổi Tiến độ của ' + ma + ' thành Chậm tiến độ');
     expect(id).toBeTruthy();
     const h = renderToString(<AiAssistantPanel />);
-    expect(h).toContain('Xem trước');
+    expect(h).toContain('xem trước');
     expect(h).toContain('type="checkbox"');
     expect(h).toContain('Áp dụng 1 thay đổi');
     expect(h).toContain('>Bỏ<');

@@ -3,7 +3,7 @@ import json
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-STATE = {'tokens': 0, 'calls': 0, 'reject_first_token': True, 'bodies': [], 'reject_schema': False, 'status_queue': [], 'reply': None}
+STATE = {'embed_calls': 0, 'embed_inputs': [], 'embed_status': None, 'tokens': 0, 'calls': 0, 'reject_first_token': True, 'bodies': [], 'reject_schema': False, 'status_queue': [], 'reply': None}
 
 
 def _answer(body):
@@ -27,8 +27,15 @@ def _answer(body):
         return json.dumps({'ops': [{'field': 'rui', 'value': 'Trung bình', 'target': {'codes': [], 'where_field': 'mang', 'where_value': 'Food',
                                                                                   'only_empty': True, 'all': False}}], 'unclear': ''}, ensure_ascii=False)
     if name == 'agent_route' or 'Giá trị hiện có trong bảng' in user:
-        q = user.split('Câu hỏi:', 1)[-1].lower()
-        spec = {'query': 'filter', 'field': 'tien_do', 'value': 'chậm'} if 'chậm' in q else {'query': 'summary', 'field': '', 'value': ''}
+        q = user.split('Câu của người dùng:', 1)[-1].strip().lower()
+        if q.startswith(('điền', 'đổi', 'sửa', 'ghi', 'chuyển')):
+            spec = {'query': 'edit'}
+        elif 'chờ gpu' in q:
+            spec = {'query': 'search', 'field': '', 'value': ''}
+        elif 'chậm' in q:
+            spec = {'query': 'filter', 'field': 'tien_do', 'value': 'chậm'}
+        else:
+            spec = {'query': 'summary', 'field': '', 'value': ''}
         return json.dumps(spec, ensure_ascii=False)
     if name == 'agent_answer' or 'so_lieu:' in user:
         facts = json.loads(user.split('so_lieu:\n', 1)[1])
@@ -43,6 +50,22 @@ def _answer(body):
                            'closeWhen': 'KH xác nhận mốc mới', 'confidence': 'high', 'uncertainty': '', 'alternativeCategory': '', 'missingInfo': []},
                           ensure_ascii=False)
     return 'OK'
+
+
+_ALIAS = {'card': 'gpu', 'hoa': 'gpu', 'thieu': 'cho'}  # "đồng nghĩa" giả để thử tìm theo nghĩa
+
+
+def _embed(text, dim=64):
+    """Vector giả: đếm từ (bỏ dấu, quy đồng nghĩa giả) vào 64 ô. Đủ để thử trộn xếp hạng, không phải mô hình thật."""
+    import re
+    import unicodedata
+    import zlib
+    t = unicodedata.normalize('NFD', text.lower().replace('đ', 'd'))
+    toks = re.findall(r'[a-z0-9]+', ''.join(c for c in t if unicodedata.category(c) != 'Mn'))
+    v = [0.0] * dim
+    for w in toks:
+        v[zlib.crc32(_ALIAS.get(w, w).encode()) % dim] += 1.0
+    return v
 
 
 class H(BaseHTTPRequestHandler):
@@ -74,6 +97,14 @@ class H(BaseHTTPRequestHandler):
                 return self._send(401, {'error': 'bad secret'})
             STATE['tokens'] += 1
             return self._send(200, {'access_token': f"tok-{STATE['tokens']}", 'token_type': 'bearer', 'expires_in': 7884000})
+        if self.path.endswith('/v1/embeddings'):
+            if not self._auth_ok():
+                return self._send(401, {'error': 'unauthorized'})
+            STATE['embed_calls'] += 1
+            STATE['embed_inputs'].extend(body['input'])
+            if STATE['embed_status']:
+                return self._send(STATE['embed_status'], {'error': 'embedding failure'})
+            return self._send(200, {'model': body.get('model'), 'data': [{'index': i, 'embedding': _embed(t)} for i, t in reversed(list(enumerate(body['input'])))]})
         if self.path.endswith('/v1/chat/completions'):
             STATE['calls'] += 1
             STATE['bodies'].append(body)

@@ -99,7 +99,7 @@ def test_agent_ask_end_to_end(api, fake):
     n0 = len(fake['bodies'])
     s, d = api('/api/agent/ask', {'question': 'Dự án nào đang chậm?', 'rows': rows})
     assert s == 200, d
-    assert d['grounded'] and d['codes'] == ['DA01'] and d['facts']['so_luong'] == 1 and len(fake['bodies']) == n0 + 1
+    assert d['grounded'] and d['codes'] == ['DA01'] and d['facts']['so_luong'] == 1 and len(fake['bodies']) == n0 + 2   # V-LLM đọc ý định rồi mới diễn đạt
     assert all('Nguyễn Văn An' not in b['messages'][-1]['content'] for b in fake['bodies'][n0:])
     fake['agent_text'] = 'Có 9 dự án chậm.'          # AI nói sai số lượng → dùng câu mẫu theo số liệu
     s, d = api('/api/agent/ask', {'question': 'Dự án nào đang chậm?', 'rows': rows})

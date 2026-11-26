@@ -24,6 +24,7 @@ app.include_router(ingest_router)
 app.include_router(cycles_router)
 app.include_router(mapping_router)
 app.include_router(session_router)
+app.include_router(reporting_router)
 mount_ai(app)  # /api/ai/*, /api/risk/assess, /api/agent/ask (phần AI, không dùng DB)
 
 

@@ -40,6 +40,8 @@ class Settings:
     concurrency: int
     mask_names: bool
     port: int
+    embed_model: str = ''        # tên model embeddings của V-LLM; trống = RAG chỉ tìm theo từ khoá
+    rag_embeddings: bool = True  # tắt hẳn embeddings dù đã đặt model
 
     @property
     def auth_kind(self) -> str:
@@ -96,6 +98,8 @@ def load(env: dict | None = None) -> Settings:
         concurrency=max(1, int(g('AI_CONCURRENCY', '3'))),
         mask_names=b('AI_MASK_NAMES', '1'),
         port=int(g('PORT', '8000')),
+        embed_model=g('AI_EMBED_MODEL', '').strip(),
+        rag_embeddings=b('AI_RAG_EMBEDDINGS', '1'),
     )
 
 

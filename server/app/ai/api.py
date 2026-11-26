@@ -21,7 +21,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from .. import jira_import
-from . import agent, drafts, risk
+from . import agent, drafts, rag, risk
 from .llm import VllmError, client
 from .settings import settings
 
@@ -53,6 +53,7 @@ async def ai_status(_: Request):
         'mode': settings.mode, 'model': settings.model, 'host': host, 'auth': settings.auth_kind,
         'thinking': settings.thinking, 'guardrail': settings.guardrail or 'mặc định', 'jsonMode': client._json_mode,
         'maskNames': settings.mask_names, 'problems': settings.problems(),
+        'rag': {'embeddings': rag.embeddings_enabled(), 'model': settings.embed_model or None},
     })
 
 
@@ -127,7 +128,8 @@ async def agent_ask(request: Request):
         return err('; '.join(settings.problems()), 400)
     try:
         fields = body.get('fields') if isinstance(body.get('fields'), list) else None
-        return JSONResponse(await run_in_threadpool(agent.ask, question, rows, fields))
+        history = body.get('history') if isinstance(body.get('history'), list) else None
+        return JSONResponse(await run_in_threadpool(agent.ask, question, rows, fields, history, body.get('edit') is True))
     except VllmError as e:
         return err(str(e), 502, e.detail)
 

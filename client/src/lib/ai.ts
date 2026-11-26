@@ -25,7 +25,7 @@ function trSplit(done: string): { prog: string; blk: string } {
 const trLines = (t: string | undefined): string[] => (t || '').split('\n').map((x) => x.replace(/^[•\-–\s]+/, '').trim())
   .filter((x) => x && !/^(Mục tiêu|Tiến độ|Mục tiêu và tiến độ|Blockers?)\s*:?$/i.test(x));
 const trDate = (d: string): string => (d ? d.slice(8, 10) + '/' + d.slice(5, 7) : '');
-const isLate = (r: Row, ctx: CellCtx): boolean =>
+export const isLate = (r: Row, ctx: CellCtx): boolean =>
   mapNorm(PROG_MAP, r.rawProgress) === 'Chậm tiến độ' || cv(r, 'tt1', ctx) === 'Đang thực hiện Chậm tiến độ';
 const commentDate = (r: Row): string => { const m = /(\d{4})-(\d{2})-(\d{2})/.exec(r.comment || ''); return m ? m[3] + '/' + m[2] : ''; };
 
@@ -125,6 +125,8 @@ export function aiDrafts(rows: Row[], ctx: CellCtx): AiDraftCell[] {
 const KIND_NAME: Record<string, string> = { jira: 'Jira', bucket: 'rổ gom', calc: 'tính toán', manual: 'nhập tay', cfg: 'hệ thống', ai: 'AI', report: 'progress report', tpl: 'có sẵn trong mẫu', past: 'đã chốt', future: 'chưa tới', none: 'không dùng' };
 const CODE3 = /\b([IVX]+\.[A-Z0-9]+\.\d+\.\d+)\b/i;
 const VERB = /^(đổi|điền|sửa|đặt|chuyển|ghi|cập nhật)\s+/i;
+const EDITISH = /^\s*(?:đổi|điền|sửa|đặt|chuyển|ghi|cập nhật|đánh dấu|duyệt|chốt|gán|xóa|xoá|thêm)\s+/i;
+const CODEISH = /\b(?:[IVX]+\.[A-Z0-9]+(?:\.\d+)+|[A-Za-z]{2,4}\d{1,4})\b/g;
 
 export const aiNorm = (s: unknown): string =>
   String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/\s+/g, ' ').trim();
@@ -218,17 +220,51 @@ function agentCmd(q: string, t: string, r: Row | undefined, ctx: AskCtx, stage: 
     return { html: 'Bảng đang chỉ hiện <b>' + rows.filter((x) => needsFix(x, ctx)).length + ' dòng cần sửa</b>. Bấm chip ⚠ trên thanh công cụ để bỏ lọc.', act: [], onlyFix: true, log: ['Lọc bảng', 'Dòng cần sửa', CHAT] };
   }
   if (/(bo loc|hien lai tat ca|hien het)/.test(t)) return { html: 'Đã hiện lại mọi dòng.', act: [], onlyFix: false };
-  /* điền cho nhiều dự án đang trống: Điền Note "Chờ họp" cho các dự án đang trống */
-  if ((m = q.match(/^\s*(?:điền|ghi|đặt)\s+(.+?)\s*["“](.+?)["”]\s*(?:cho|vào)\s+(?:tất cả|mọi|các)\s+(?:dự án|dòng)(?:\s+(?:đang|còn))?\s+trống\s*$/i))) {
-    const fb = aiField(m[1]);
-    if (!fb) return noCol(m[1]);
-    if (!aiCanFill(fb)) return { html: aiFill(rows[0], fb, m[2], stage)!, act: [] };
-    const vb = aiOpt(fb, m[2]);
+  /* soạn nháp bằng AI: chuyển thành nút để chạy thật (V-LLM nếu backend sẵn sàng) */
+  if (/^\s*(?:hãy\s+|nhờ\s+)?(?:ai\s+)?soạn\b/i.test(q) && !r) {
+    return { html: 'Mình sẽ nhờ AI soạn nháp các ô còn trống (Mức độ rủi ro AC, Vấn đề &amp; rủi ro AT; AS soạn theo Progress Report). Nháp chưa ghi vào báo cáo cho tới khi bạn duyệt.', act: [{ act: 'ai', label: '✦ Nhờ AI soạn các ô trống' }] };
+  }
+  /* sửa hàng loạt theo phạm vi: Đổi Note "Chờ họp" cho tất cả dự án | Điền … cho các dự án đang trống | … chậm tiến độ | … rủi ro cao | … cần sửa */
+  if (!r && (m = q.match(/^\s*(điền|ghi|đặt|đổi|sửa|chuyển)\s+(.+?)\s*(?:thành\s*|=\s*|:\s*)?["“](.+?)["”]\s*(?:cho|vào|ở)\s+(.+?)\s*$/i)) && /^(tat ca|moi|cac|toan bo)\b/.test(aiNorm(m[4]))) {
+    const fb = aiField(m[2]);
+    if (!fb) return noCol(m[2]);
+    if (!aiCanFill(fb)) return { html: aiFill(rows[0], fb, m[3], stage)!, act: [] };
+    const vb = aiOpt(fb, m[3]);
     if (vb === null) return { html: onlyOpts(fb), act: [] };
-    const E = rows.filter((x) => !displayText(x, fb, ctx));
-    if (!E.length) return { html: 'Cột <b>' + esc(fb.name) + '</b> không còn ô trống.', act: [] };
+    const sc = aiNorm(m[4]);
+    const kind = /trong/.test(sc) ? 'trống' : /cham tien do|dang cham/.test(sc) ? 'chậm tiến độ' : /nguy co/.test(sc) ? 'có nguy cơ chậm' : /rui ro cao/.test(sc) ? 'rủi ro cao' : /can sua/.test(sc) ? 'cần sửa' : '';
+    const pick = (x: Row): boolean => kind === 'trống' ? !displayText(x, fb, ctx) : kind === 'chậm tiến độ' ? exTT(x, ctx) === 'Chậm tiến độ' : kind === 'có nguy cơ chậm' ? exTT(x, ctx) === 'Có nguy cơ chậm' : kind === 'rủi ro cao' ? aiText(x, 'rui') === 'Cao' : kind === 'cần sửa' ? needsFix(x, ctx) : true;
+    const S = rows.filter(pick), E = S.filter((x) => displayText(x, fb, ctx) !== vb);
+    if (!S.length) {
+      return kind === 'trống'
+        ? { html: 'Cột <b>' + esc(fb.name) + '</b> không còn ô trống. Muốn đặt lại cho mọi dự án, gõ: <i>' + esc(m[1]) + ' ' + esc(fb.name.split(' (')[0]) + ' "' + esc(m[3]) + '" cho tất cả dự án</i>.' + agChips([m[1] + ' ' + fb.name.split(' (')[0] + ' "' + m[3] + '" cho tất cả dự án']), act: [] }
+        : { html: 'Không có dự án nào ' + (kind ? 'ở nhóm “' + kind + '”' : 'trong bảng') + '.', act: [] };
+    }
+    if (!E.length) return { html: 'Các dự án trong phạm vi đã là “' + esc(vb) + '” rồi, không có gì cần đổi.', act: [] };
     E.forEach((x) => stage(x, fb, vb, 'edit'));
     return undefined;
+  }
+  /* nhiều mã trong một lệnh: Đổi Tiến độ của I.A.3.1, I.A.4.1 thành Chậm tiến độ */
+  const CD = '[IVX]+\\.[A-Z0-9]+\\.\\d+\\.\\d+';
+  if ((m = q.match(new RegExp('^\\s*(?:điền|ghi|đặt|đổi|chuyển|sửa)\\s+(.+?)\\s+(?:của|cho|ở)\\s+(' + CD + '(?:\\s*(?:,|;|và)\\s*' + CD + ')+)\\s+(?:thành|là|=|:)\\s*["“]?(.+?)["”]?\\s*$', 'i')))) {
+    const fm = aiField(m[1]);
+    if (!fm) return noCol(m[1]);
+    if (!aiCanFill(fm)) return { html: 'Cột <b>' + fm.col + ' · ' + esc(fm.name) + '</b> lấy từ ' + esc(KIND_NAME[fm.kind] || 'nguồn khác') + ' nên không điền tay được.', act: [] };
+    const vm = aiOpt(fm, m[3]);
+    if (vm === null) return { html: onlyOpts(fm), act: [] };
+    const L = Array.from(new Set((m[2].match(new RegExp(CD, 'gi')) || []).map((c) => c.toUpperCase()))).map((c) => aiRow(rows, c)).filter((x): x is Row => !!x);
+    const E = L.filter((x) => displayText(x, fm, ctx) !== vm);
+    if (!E.length) return { html: 'Các dự án này đã là “' + esc(vm) + '” rồi, không có gì cần đổi.', act: [] };
+    E.forEach((x) => stage(x, fm, vm, 'edit'));
+    return undefined;
+  }
+  /* xóa nội dung một ô: Xóa Note của I.A.3.1 */
+  if (r && (m = q.match(/^\s*(?:xóa|xoá)\s+(.+?)\s+(?:của|cho|ở)\s+[IVX]+\.[A-Z0-9]+\.\d+\.\d+\s*$/i))) {
+    const fx = aiField(m[1]);
+    if (!fx) return noCol(m[1]);
+    if (!displayText(r, fx, ctx)) return { html: 'Ô <b>' + esc(fx.name.split(' (')[0]) + '</b> của <b>' + esc(r.ma) + '</b> đang trống sẵn rồi.', act: [] };
+    const ex = aiFill(r, fx, '', stage);
+    return ex ? { html: ex, act: [] } : undefined;
   }
   /* điền / đổi một ô: "Đổi Tiến độ của I.A.4.1 thành Chậm tiến độ" */
   if (r && (m = q.match(/^\s*(?:điền|ghi|đặt|đổi|chuyển|sửa)\s+(.+?)\s+(?:của|cho|ở)\s+[IVX]+\.[A-Z0-9]+\.\d+\.\d+\s+(?:thành|là|=|:)\s*["“]?(.+?)["”]?\s*$/i))) {
@@ -318,7 +354,29 @@ export function askAnswer(q0: string, ctx: AskCtx): AskResult {
   let q = String(q0).replace(/^[\s(\[“"'‘]+/, '').replace(/[\s)\]”"’,.;]+$/, '');
   /* "đổi tiến độ I.A.3.1 chậm tiến độ" → "đổi tiến độ của I.A.3.1 thành chậm tiến độ" */
   const m = q.match(/^\s*(đổi|điền|sửa|đặt|chuyển|ghi)\s+(.+?)\s+(?:của\s+|cho\s+)?([IVX]+\.[A-Z0-9]+\.\d+\.\d+)\s+(?:thành\s+|là\s+|=\s*|:\s*)?(.+)$/i);
-  if (m) q = m[1] + ' ' + m[2] + ' của ' + m[3].toUpperCase() + ' thành ' + m[4];
+  const nCodes = (q.match(/[IVX]+\.[A-Z0-9]+\.\d+\.\d+/gi) || []).length;
+  if (m && nCodes < 2) q = m[1] + ' ' + m[2] + ' của ' + m[3].toUpperCase() + ' thành ' + m[4];
+
+  /* Lệnh sửa nhắc tới mã không có trong file: báo rõ, không đoán sang câu hỏi khác. Bỏ phần trong ngoặc kép và sau dấu ":" (nội dung ghi chú). */
+  if (EDITISH.test(q)) {
+    const head = (q.indexOf('"') < 0 && q.indexOf('“') < 0 ? q.split(':')[0] : q).replace(/["“][^"”]*["”]/g, ' ');
+    const bad = Array.from(new Set((head.match(CODEISH) || []).map((c) => c.toUpperCase()))).filter((c) => !aiRow(rows, c));
+    if (bad.length) {
+      const have = rows.slice(0, 3).map((x) => x.ma);
+      return { html: 'Không có dự án mã <b>' + bad.map(esc).join(', ') + '</b> trong file Jira đang mở, nên mình chưa sửa gì.' + (have.length ? ' Mã có trong file, ví dụ: ' + have.map((x) => '<b>' + esc(x) + '</b>').join(', ') + '.' : ''), act: [], stagedItems: [] };
+    }
+    /* "đánh dấu I.A.3.1, I.A.4.1 là rủi ro cao" → đổi Mức độ rủi ro từng dự án */
+    const mk = q.match(/^\s*đánh dấu\s+(.+?)\s+(?:là|thành)\s+rủi ro\s+(cao|trung bình|thấp)\s*$/i);
+    const codes = mk ? mk[1].match(CODEISH) : null;
+    if (mk && codes) {
+      const lv = mk[2][0].toUpperCase() + mk[2].slice(1).toLowerCase();
+      const out: AgStageItem[] = [];
+      Array.from(new Set(codes.map((c) => c.toUpperCase()))).forEach((c) => { out.push(...(askAnswer('Đổi Mức độ rủi ro của ' + c + ' thành ' + lv, ctx).stagedItems || [])); });
+      return out.length
+        ? { html: 'Mình đã soạn <b>' + out.length + ' thay đổi</b>. Xem lại bên dưới, bỏ tick dòng không muốn, rồi bấm <b>Áp dụng</b> — bảng chỉ đổi sau khi bạn duyệt.', act: [], stagedItems: out }
+        : { html: 'Các dự án này đã ở mức rủi ro <b>' + esc(lv) + '</b>, không có gì cần đổi.', act: [], stagedItems: [] };
+    }
+  }
 
   const items: AgStageItem[] = [];
   const stage: Stage = (r, f, to, kind = 'edit') => {

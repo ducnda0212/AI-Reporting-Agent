@@ -119,7 +119,8 @@ export interface FindState {
 /* ---------- Trợ lý AI ---------- */
 export interface AskAnswer { html: string; act: { label: string; act: string; v?: string }[] }
 /** `busy`: đang hiện hiệu ứng gõ; `stage`: id bản xem trước gắn dưới câu trả lời (thay `<!--STAGE:id-->` của prototype). */
-export interface AskMessage { q: string; a: AskAnswer; busy?: boolean; stage?: string }
+/** `scope`: mã các dự án câu trả lời vừa nêu, gửi lại backend để hiểu câu nối tiếp ("dự án đó"). Không lưu vào lịch sử. */
+export interface AskMessage { q: string; a: AskAnswer; busy?: boolean; stage?: string; scope?: string[] }
 /** Một cuộc trò chuyện với Trợ lý AI đã lưu vào lịch sử (chỉ lưu chữ: câu hỏi và HTML câu trả lời). */
 export interface ChatRec { id: string; title: string; at: number; log: { q: string; html: string }[] }
 
@@ -391,7 +392,7 @@ export interface AppState {
   trBusy: string | null;
   trReq: boolean;
   /** Hiệu ứng con trỏ ✦ Agent: danh sách ô đi qua, lớp nháy, số ô tối đa; `seq` tăng mỗi lần chạy. */
-  walk: { list: [number, FieldId][]; cls: 'aiflash' | 'aiwalk'; n: number; seq: number } | null;
+  walk: { list: [number, FieldId][]; cls: 'aiflash' | 'aiwalk'; n: number; seq: number; tags?: string[] } | null;
   aiRun: { n: number; total: number } | null;
   review: { list: CellRef[]; pos: number; done: number } | null;
 
