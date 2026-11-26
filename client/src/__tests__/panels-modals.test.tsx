@@ -140,6 +140,14 @@ describe('ProjectPopout', () => {
     expect(h).toContain('Thu gọn');
   });
 
+  it('mục tiêu 120 ký tự (đã quá 110) cũng có "Xem thêm"', () => {
+    fresh();
+    const ri = rowsOf(getState())[0].i;
+    mutate((d) => { d.allRows[ri].muctieu = 'a'.repeat(120); d.allRows[ri].kpi = 'ngắn'; });
+    poOpen(ri);
+    expect(renderToString(<ProjectPopout />)).toContain('data-f="muctieu"');
+  });
+
   it('writer cỡ chữ / vách kéo / gập mục: lưu pmo-po-fz, pmo-po-sidew; nhấp đúp về 300', () => {
     const m = stubLs();
     fresh(); poOpen(0);

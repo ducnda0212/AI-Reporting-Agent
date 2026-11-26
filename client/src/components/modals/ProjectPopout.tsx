@@ -57,7 +57,7 @@ function Popout({ s }: { s: AppState }): JSX.Element | null {
   };
   const clamp = (fid: string, lines: number): JSX.Element => {
     const t = txt(fid); if (!t) return <div className="pv" data-pf={fid}><span className="nil">—</span></div>;
-    const long = t.length > 160 || t.split('\n').length > lines, open = !!P.exp[fid] || !!q;
+    const long = t.length > 110 || t.split('\n').length > lines, open = !!P.exp[fid] || !!q;
     return (
       <>
         <div className={'pa-clw' + (long && !open ? ' cl' : '')} style={{ '--cl': lines } as React.CSSProperties}><Val fid={fid} /></div>

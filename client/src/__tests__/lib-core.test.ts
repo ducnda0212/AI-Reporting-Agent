@@ -57,6 +57,17 @@ describe('Core Pure Helpers', () => {
     expect(poNm('Đã Hoàn Thành')).toBe('da hoan thanh');
   });
 
+  it('parseMilestones đọc dòng Jira yyyy-mm-dd, hiện dd/mm và so cả năm', () => {
+    const ms = parseMilestones('2026-05-01 Khởi động\n2026-11-14 Pilot\n2026-12-10 Go-Live\n2027-01-15 Phase 2', '2026-11-26');
+    expect(ms).toEqual([
+      { date: '01/05', text: 'Khởi động', status: 'done' },
+      { date: '14/11', text: 'Pilot', status: 'done' },
+      { date: '10/12', text: 'Go-Live', status: 'next' },
+      { date: '15/01', text: 'Phase 2', status: 'next' },
+    ]);
+    expect(parseMilestones('2026-12-10 Go-Live\n2027-01-15 Phase 2', '2026-12-20').map((m) => m.status)).toEqual(['done', 'next']);
+  });
+
   it('poWeeks and parseMilestones adapt to December cycle weeks and activeToday', () => {
     const decWeeks = [
       { k: 'w1' as const, name: 'Tuần 01/12 · 01–07/12', range: '01–07/12', start: '2026-12-01', end: '2026-12-07' },

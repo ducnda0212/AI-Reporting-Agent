@@ -3033,6 +3033,7 @@ button.imrecr:hover{background:var(--row)}
 .pa-ms li.next:first-of-type i,.pa-ms li.done+li.next i{border-color:var(--accent);background:var(--accentSoft)}
 .pa-ms li b{font:600 12px var(--mono);color:var(--mut)}
 .pa-ms li.done span{color:var(--mut)}
+.pa-ms li.next:first-of-type span,.pa-ms li.done+li.next span{font-weight:700;color:var(--ink)}
 .pa-wkc{display:flex;align-items:center;gap:8px;width:100%;text-align:left;cursor:pointer;font:inherit;color:var(--ink);padding:11px 16px}
 .pa-wkc:hover{border-color:var(--mut2)}
 .pa-wkc b{font:600 13.5px var(--font);flex:none}.pa-wd{font-size:12px;color:var(--mut);flex:none}
