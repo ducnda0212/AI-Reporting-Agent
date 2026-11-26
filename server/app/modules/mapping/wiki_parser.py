@@ -26,6 +26,7 @@ def sanitize_jira_markup(text: str | None) -> str:
     if not text:
         return ""
     t = text.replace("\r\n", "\n").replace("\r", "\n").replace(_PIPE, "|")
+    t = re.sub(r"-{1,2}>", "→", t).replace(">=", "≥").replace("<=", "≤")  # arrows and comparators -> typographic symbols
     t = re.sub(r"ApprovalsCFValue\{[^}]*\}", "", t)
     t = _TAGS.sub("", t)
     t = _LINK.sub(_link, t)
