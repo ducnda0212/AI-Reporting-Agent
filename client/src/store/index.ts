@@ -21,7 +21,7 @@ export function lsJson<T>(key: string): Partial<T> {
 }
 
 export const LS = {
-  store: 'pmo-proto-store-v1', grid: 'pmo-proto-grid-v1', poSideW: 'pmo-po-sidew', poFz: 'pmo-po-fz',
+  grid: 'pmo-proto-grid-v1', poSideW: 'pmo-po-sidew', poFz: 'pmo-po-fz',
   panel: 'pmo-proto-panel-v1', tourVer: 'pmo-tour-ver', tourMain: 'pmo-tour-v1', cols: 'pmo-proto-cols-v4',
   activeSession: 'pmo-active-session-v1'
 } as const;
@@ -42,16 +42,9 @@ const NAV_F = ['view', 'vlView', 'verSel', 'vlA', 'vlB', 'panel'] as const;
 export const navKey = (s: Pick<AppState, (typeof NAV_F)[number]>): string => NAV_F.map((k) => String(s[k] ?? '')).join('|');
 const navSnap = (s: AppState): NavSnap => ({ view: s.view, vlView: s.vlView, verSel: s.verSel, vlA: s.vlA, vlB: s.vlB, panel: s.panel, key: navKey(s) });
 
-/* bản đã chốt lưu trên "hệ thống" (localStorage) gộp với bản có sẵn, tuần mới trước, bản mới trước */
+/* bản đã chốt (lấy từ máy chủ): tuần mới trước, bản mới trước */
 export function sortVersions(L: VersionItem[]): VersionItem[] {
   return L.sort((a, b) => (a.wk === b.wk ? b.v - a.v : a.wk < b.wk ? 1 : -1));
-}
-function loadVersions(): VersionItem[] {
-  const L: VersionItem[] = [];
-  (lsJson<{ versions: VersionItem[] }>(LS.store).versions || []).slice().reverse().forEach((v) => {
-    if (!L.some((x) => x.wk === v.wk && x.v === v.v)) L.unshift(v);
-  });
-  return sortVersions(L);
 }
 
 export function initialState(): AppState {
@@ -73,7 +66,7 @@ export function initialState(): AppState {
       open: false, i: null, fz: Number(lsGet(LS.poFz)) || 14, col: {}, q: '', hits: [], cur: -1, wkDesc: true,
       colW: {}, rowH: {}, sideW: Number(lsGet(LS.poSideW)) || 300, exp: {}, wkOpen: { w3: true }
     },
-    versions: loadVersions(), verSel: null, vlView: 'lib', vlA: null, vlB: null, editWk: null,
+    versions: [], verSel: null, vlView: 'lib', vlA: null, vlB: null, editWk: null,
     vlOpen: null, vbA: null, vbB: null, vbMore: false, openedVer: null,
     lockBy: 'Khuê', lockMsg: null, exported: null, exCols: 'vis',
     log: [], lgQ: '', lgF: '', lgW: '',

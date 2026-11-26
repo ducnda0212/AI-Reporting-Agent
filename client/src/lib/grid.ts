@@ -1,7 +1,7 @@
 /* Cột hiển thị, lọc cột, tìm kiếm, vùng chọn, độ rộng cột. Port từ prototype v4; mọi hàm nhận state tường minh. */
 import { AI_IDS, FIELDS } from '@/data/constants';
 import type { AppState, CellRef, Field, FieldId, FilterMap, FindState, Row, SelectionRange } from '@/types';
-import { cellValue, ck, colNum, displayText, fieldById, optsFor, phName, type CellCtx } from './cell';
+import { activeWkOf, cellValue, ck, colNum, displayText, effectiveKind, fieldById, optsFor, phName, type CellCtx, type WeeksCtx } from './cell';
 
 export const visibleFields = (hidden: AppState['hidden']): Field[] => FIELDS.filter((f) => f.key || !hidden[f.id]);
 
@@ -28,11 +28,11 @@ export function hitText(hay: string, F: Pick<FindState, 'q' | 'cs' | 'whole'>): 
 }
 
 /** Phạm vi tìm: cả bảng / tuần này / cột đang chọn (`selF`; chưa chọn ô thì cả bảng). */
-export const scopeHas = (f: Field, F: Pick<FindState, 'scope'>, selF?: FieldId): boolean =>
-  F.scope === 'week' ? f.grp === 'w3' : F.scope === 'col' && selF ? f.id === selF : f.kind !== 'future' && f.kind !== 'none';
+export const scopeHas = (f: Field, F: Pick<FindState, 'scope'>, selF?: FieldId, ctx?: WeeksCtx): boolean =>
+  F.scope === 'week' ? f.grp === activeWkOf(ctx) : F.scope === 'col' && selF ? f.id === selF : !['future', 'none'].includes(effectiveKind(f, ctx));
 
 export const hitCell = (r: Row, f: Field, F: FindState, ctx: CellCtx, selF?: FieldId): boolean =>
-  scopeHas(f, F, selF) && hitText(displayText(r, f, ctx), F);
+  scopeHas(f, F, selF, ctx) && hitText(displayText(r, f, ctx), F);
 
 export interface FindMatch { i: number; f: FieldId; t: string }
 
@@ -76,7 +76,7 @@ export function autofitWidth(f: Field, rows: Row[], ctx: CellCtx, measure: (text
 
 /** Độ rộng ban đầu đủ đọc hết tên cột và chữ gợi ý "Chọn …" (tối đa 380px). `measure(text, weight, size)` đo chữ (canvas). */
 export function headerWidth(f: Field, measure: (text: string, weight: number, size: number) => number): number {
-  if (f.kind === 'future' || f.kind === 'none') return f.w;
+  if (['future', 'none'].includes(effectiveKind(f))) return f.w;
   let need = measure(f.name, 600, 12.5) + 84;
   if (f.required && optsFor(f)) need = Math.max(need, measure('Chọn ' + phName(f), 500, 12) + 64);
   return f.w < need ? Math.min(need, 380) : f.w;

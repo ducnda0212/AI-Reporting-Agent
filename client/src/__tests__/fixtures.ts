@@ -1,6 +1,8 @@
 /* Dữ liệu thử CHỈ cho test: dựng phản hồi giống POST /ingest/upload từ bộ dòng Jira đã dọn (fixtures/jira-rows.json),
    rồi nạp qua đúng hàm production `applyIngest`. Không có dữ liệu giả nào trong mã chạy thật. */
 import { castDraft } from 'immer';
+import { vi } from 'vitest';
+import { api } from '@/services/api';
 import { FIELDS, setCycle } from '@/data/constants';
 import { aiDrafts } from '@/lib/ai';
 import type { CellCtx } from '@/lib/cell';
@@ -198,3 +200,14 @@ export const SEED_VERSIONS: VersionItem[] = [
   { wk:'w2', v:1, by:'Khuê', at:'13/11 17:05', note:'Bản gửi trước họp', exported:'20261113_DAN_Bao-cao-PMO.xlsx', stats:{ rows:38, hand:4, ai:114 }, changes:[] },
   { wk:'w1', v:1, by:'Tuấn', at:'07/11 09:40', note:'', exported:'20261107_DAN_Bao-cao-PMO.xlsx', stats:{ rows:37, hand:9, ai:111 }, changes:[] }
 ];
+
+/** Máy chủ giả cho chốt bản / xuất Excel: bản trả về lặp lại đúng những gì client gửi (số bản tăng theo tuần). */
+export function mockReportApi(): void {
+  const n: Record<string, number> = {};
+  vi.spyOn(api, 'lockReport').mockImplementation(async (req) => {
+    const v = (n[req.wk] = (n[req.wk] || 0) + 1);
+    return { id: 'ver_' + req.cycle_id.slice(0, 7) + '_' + req.wk + '_v' + v, session_id: req.session_id, cycle_id: req.cycle_id, wk: req.wk, v, by: req.by, at: '20/11 09:05',
+      note: req.note, exported: null, stats: req.stats, changes: [], snap: req.snap, fmt: req.fmt, wrap: req.wrap, hidden: req.hidden, edits: req.edits, mine: true, fileName: req.file_name };
+  });
+  vi.spyOn(api, 'exportExcel').mockImplementation(async (req) => ({ blob: new Blob(['xlsx']), fileName: req.file_name || 'bao-cao.xlsx' }));
+}

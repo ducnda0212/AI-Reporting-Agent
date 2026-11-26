@@ -4,7 +4,7 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { ASKQ } from '@/data/constants';
 import { agExamples } from '@/lib/ai';
-import { displayText, fieldById } from '@/lib/cell';
+import { activeWkOf, displayText, fieldById } from '@/lib/cell';
 import { rowsOf, useAppState } from '@/store';
 import { askSend, exGo, pendingList, stgApply, stgDrop, stgGo, stgMore, stgShow, stgToggle } from '@/store/actions/ai';
 import { wkName } from '@/store/actions/versions';
@@ -66,7 +66,7 @@ function Welcome({ s }: { s: AppState }): JSX.Element {
   return (
     <div className="ai9">
       <div className="ai9hero"><div className="ai9orb" aria-hidden="true"><i /><span>✦</span></div>
-        <h3>Chào {s.lockBy || 'Khuê'}, cần gì cho <em>{wkName('w3', true)}</em>?</h3>
+        <h3>Chào {s.lockBy || 'Khuê'}, cần gì cho <em>{wkName(activeWkOf(s), true)}</em>?</h3>
         <p>Hỏi về số liệu, hoặc nhờ Agent sửa bảng. Agent gửi bản xem trước, bạn duyệt mới áp dụng.</p>
         <div className="ai9sts">
           {stat(rows.length, 'dự án', '', 'Tóm tắt tuần này')}
@@ -122,7 +122,7 @@ export function AiAssistantPanel(): JSX.Element {
       <div className="aiin">
         <textarea id="askIn" rows={1} value={q} onChange={(e) => setQ(e.target.value)} placeholder={r0 ? 'Hỏi về ' + r0.ma + ' hoặc cả tuần…' : 'Hỏi về dữ liệu tuần này…'}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(q); } }} />
-        <div className="r"><small>Trả lời từ bảng tuần 3/11, ghi rõ cột nguồn</small><button data-act="askSend" aria-label="Gửi" onClick={() => send(q)}>↑</button></div>
+        <div className="r"><small>{'Trả lời từ bảng ' + wkName(activeWkOf(s), true).toLowerCase() + ', ghi rõ cột nguồn'}</small><button data-act="askSend" aria-label="Gửi" onClick={() => send(q)}>↑</button></div>
       </div>
     </PanelShell>
   );

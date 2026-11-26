@@ -2,8 +2,8 @@
    "col · Jira"; R6 L11670 "hệ thống" → "Jira"; R7 L11690 dải Khối cột chuyển vào menu Cột; lite: không có nút Rổ gom),
    căn lề alignBtn L10261, chip ✦ AI agChip L11398, chip ⚠ Dòng cần sửa fixChip L9565 + R34 L11393, menu Cột. */
 import type { CSSProperties } from 'react';
-import { FIELDS, GRP } from '@/data/constants';
-import { cellValue, ck, fieldById, isSrc, locked, refOf } from '@/lib/cell';
+import { FIELDS } from '@/data/constants';
+import { cellValue, ck, effectiveKind, fieldById, grpName, isSrc, locked, refOf, wkShort } from '@/lib/cell';
 import { needsFix, selKeys, tplColor, visibleFields } from '@/lib/grid';
 import { rowsOf, useAppState } from '@/store';
 import { setPanel } from '@/store/actions/flow';
@@ -20,7 +20,7 @@ const FILL_COLORS = [null, '#FEF3C7', '#FEE2E2', '#FFEDD5', '#DCFCE7', '#DBEAFE'
 /* KIND_NAME L3991, "hệ thống" đổi thành "Jira" (R6) */
 const KIND_NAME: Record<string, string> = { jira: 'Jira', bucket: 'rổ gom', calc: 'tính toán', manual: 'nhập tay', cfg: 'Jira', ai: 'AI', report: 'progress report', tpl: 'có sẵn trong mẫu', past: 'đã chốt', future: 'chưa tới', none: 'không dùng' };
 const OVR_RAW: Record<string, 'rawStatus' | 'rawProgress'> = { tt: 'rawStatus', td: 'rawProgress' };
-const GT_LBL: Partial<Record<FieldGroup, string>> = { info: 'Thông tin', prog: 'Tiến độ', org: 'Đơn vị & NS', eval: 'Phân loại', w1: 'T01/11', w2: 'T02/11', w3: 'T3/11', w4: 'T4/11' };
+const GT_LBL: Partial<Record<FieldGroup, string>> = { info: 'Thông tin', prog: 'Tiến độ', org: 'Đơn vị & NS', eval: 'Phân loại', w1: '', w2: '', w3: '', w4: '' };
 const MUT = { color: 'var(--mut)' };
 const NOTE = { fontSize: 10.5, color: 'var(--mut2)', whiteSpace: 'nowrap' } as const;
 
@@ -95,8 +95,8 @@ function ColsMenu({ s }: { s: AppState }): JSX.Element {
             const hid = fs.filter((f) => s.hidden[f.id]).length, on = hid < fs.length, part = !!hid && on, col = gtColor(g);
             return (
               <button key={g} className={'gtb' + (col ? ' tc' : '') + (on ? ' on' : '') + (part ? ' part' : '')} style={col ? ({ '--gtc': col } as CSSProperties) : undefined}
-                data-act="grpTog" data-g={g} aria-pressed={on} title={GRP[g] + ' · ' + (fs.length - hid) + '/' + fs.length + ' cột đang hiện — bấm để ' + (on ? 'ẩn' : 'hiện') + ' cả khối'} onClick={() => grpTog(g)}>
-                {GT_LBL[g]}
+                data-act="grpTog" data-g={g} aria-pressed={on} title={grpName(g, s) + ' · ' + (fs.length - hid) + '/' + fs.length + ' cột đang hiện — bấm để ' + (on ? 'ẩn' : 'hiện') + ' cả khối'} onClick={() => grpTog(g)}>
+                {GT_LBL[g] || wkShort(g, s.cycleId)}
               </button>
             );
           })}
@@ -133,11 +133,11 @@ function FxVal({ s, keys }: { s: AppState; keys: string[] }): JSX.Element | null
     return <><span style={MUT}>Đang chọn nhiều ô — định dạng sẽ áp cho cả vùng.</span>{pend && <button className="btn sm" data-act="reviewRange" onClick={() => startReview(keys)}>Duyệt từng ô trong vùng →</button>}</>;
   }
   const f = fieldById(c.f)!, r = s.allRows[c.i];
-  if (f.kind === 'future') return <span style={MUT}>{f.col + ' · khối tuần chưa tới — để trống khi xuất.'}</span>;
+  if (effectiveKind(f, s) === 'future') return <span style={MUT}>{f.col + ' · khối tuần chưa tới — để trống khi xuất.'}</span>;
   if (f.kind === 'none') return <span style={MUT}>Cột X trong mẫu không có tên — giữ trống.</span>;
   const val = (t: string): JSX.Element => <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t}</span>;
   if (f.kind === 'cfg') return <><span className="lbl" style={{ flex: 'none' }}>{f.col + ' · Jira'}</span>{val(cellValue(r, f, s) || '')}</>;
-  if (locked(f)) {
+  if (locked(f, s)) {
     return <><span className="lbl" style={{ flex: 'none' }}>{f.col + (f.key ? ' · khoá ghép dòng' : ' · đã chốt')}</span>{val(cellValue(r, f, s) || '')}
       <span style={NOTE}>{f.key ? 'không sửa · bấm để mở chi tiết dự án' : 'giữ nguyên khi xuất, không sửa'}</span></>;
   }

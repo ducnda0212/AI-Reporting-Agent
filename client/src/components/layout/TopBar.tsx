@@ -1,5 +1,6 @@
 /* Thanh trên (prototype topBar L3702 + navBtns L10695 + weekPicker L7857 + testMenu L6943 + themeBtn L7797), bản gọn 3 bước. */
 import { useMemo, useState } from 'react';
+import { activeWkOf } from '@/lib/cell';
 import { diffSnap, snapshot } from '@/lib/versions';
 import { currentTheme } from '@/lib/theme';
 import { rowsOf, useAppState } from '@/store';
@@ -78,7 +79,7 @@ function ThemeBtn(): JSX.Element {
 
 export function TopBar(): JSX.Element {
   const s = useAppState((x) => x);
-  const L = s.loaded, lc = s.versions.find((v) => v.wk === 'w3');
+  const L = s.loaded, lc = s.versions.find((v) => v.wk === activeWkOf(s));
   /* quét toàn bảng: chỉ tính lại khi dữ liệu đổi, không phải mỗi lần chọn ô / ghi nhật ký */
   const { allRows, newCodes, dupMerged, realOnly, phaseBucket, versions } = s;
   const [c3, chg] = useMemo(() => [fillCount(s), lc && lc.snap ? diffSnap(lc.snap, snapshot(rowsOf(s), s)) : null] as const,

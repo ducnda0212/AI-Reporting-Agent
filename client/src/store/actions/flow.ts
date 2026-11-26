@@ -12,7 +12,7 @@ import type {
 } from '@/types';
 import {
   cancelPendingDraftSave, dropRowSession, getActiveSessionStorage, getState, hydrateDraft, inBrowser, log, lsGet, lsSet, LS, mutate, rowsOf,
-  setActiveSessionStorage, toast, withSuppressedDraftSync
+  setActiveSessionStorage, sortVersions, toast, withSuppressedDraftSync
 } from '@/store';
 import { startTour } from './help';
 
@@ -41,13 +41,14 @@ const failToast = (e: unknown): void => mutate((d) => { toast(d, errMsg(e), ERRO
 /* ---------- dữ liệu nền từ máy chủ ---------- */
 /** Kỳ báo cáo, lịch sử nhập file, cấu hình mapping đã lưu: gọi một lần khi mở trang. */
 export async function initStage1Bootstrap(): Promise<void> {
-  const [cyc, hist, maps] = await Promise.allSettled([api.getActiveCycle(), api.getIngestHistory(), api.listMappings()]);
+  const [cyc, hist, maps, vers] = await Promise.allSettled([api.getActiveCycle(), api.getIngestHistory(), api.listMappings(), api.listVersions()]);
   if (cyc.status === 'fulfilled') setCycle(cyc.value.today, cyc.value.weeks);
   withSuppressedDraftSync(() => mutate((d) => {
     if (cyc.status === 'fulfilled') { d.cycleId = cyc.value.cycle_id; d.weeks = cyc.value.weeks; d.activeToday = cyc.value.today; }
     if (hist.status === 'fulfilled') d.impHist = hist.value;
     if (maps.status === 'fulfilled') d.mappings = castDraft(maps.value);
-    const bad = [cyc, hist, maps].find((r) => r.status === 'rejected');
+    if (vers.status === 'fulfilled') d.versions = sortVersions(castDraft(vers.value));
+    const bad = [cyc, hist, maps, vers].find((r) => r.status === 'rejected');
     if (bad && bad.status === 'rejected') toast(d, errMsg(bad.reason));
   }, { track: false }));
   const active = getActiveSessionStorage();

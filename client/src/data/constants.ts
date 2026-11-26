@@ -128,7 +128,7 @@ export const TR_RULES: Record<AiFieldId, string[]> = {
   rui: ['Chọn 1 trong 3 mức: Thấp, Trung bình, Cao', 'Cao nếu K1 là Chậm tiến độ', 'Trung bình nếu có Blocker, Risk hoặc không cập nhật tuần này', 'Kèm lý do, mỗi lý do trỏ về một dòng đầu vào']
 };
 
-export const WK_TXT: Record<WeekKey, [string, string, string]> = { w1: ['w1ht', 'w1kh', 'w1vd'], w2: ['w2ht', 'w2kh', 'w2vd'], w3: ['ht', 'kh', 'vd'] };
+export const WK_TXT: Record<WeekKey, [string, string, string]> = { w1: ['w1ht', 'w1kh', 'w1vd'], w2: ['w2ht', 'w2kh', 'w2vd'], w3: ['ht', 'kh', 'vd'], w4: ['w4ht', 'w4kh', 'w4vd'] };
 
 export const WK_TXT_N: readonly string[] = ['Công việc đã hoàn thành trong tuần', 'Kế hoạch tuần sau', 'Vấn đề, rủi ro và đề xuất'];
 

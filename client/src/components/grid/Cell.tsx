@@ -2,7 +2,7 @@
    (cellInnerBase L6625 → malink L9150 → spill L10001 → mũi tên ▾ .cdd L11408 → chữ gợi ý .reqph L11646),
    ô Agent đang đề xuất .aipend L12262, ô vừa sửa .svflash L12501, ô "N ô cần sửa" .fxpulse L12470. */
 import { memo, type CSSProperties, type ReactNode } from 'react';
-import { cellValue, locked, optsFor, phName, spillCls, type CellCtx } from '@/lib/cell';
+import { cellValue, effectiveKind, locked, optsFor, phName, spillCls, type CellCtx } from '@/lib/cell';
 import { hitText } from '@/lib/grid';
 import type { AgStageItem, AiFieldId, CellFormat, Field, Row } from '@/types';
 import { LvlPill, RISK_F, RiskText, textHasRisk } from '@/components/common/RiskText';
@@ -64,7 +64,7 @@ export interface CellProps {
 }
 
 function CellImpl(p: CellProps): JSX.Element {
-  const { r, f, w } = p, v = cellValue(r, f, { phaseBucket: p.pb }), a = f.kind === 'ai' ? r.ai[f.id as AiFieldId] : undefined;
+  const { r, f, w } = p, v = cellValue(r, f, { phaseBucket: p.pb }), a = f.kind === 'ai' ? r.ai[f.id as AiFieldId] : undefined, ek = effectiveKind(f);
   const hit = (t: string): boolean => p.findQ !== null && p.inScope && hitText(t, { q: p.findQ, cs: p.findCs, whole: p.findWhole });
   const tdCls = p.stick || undefined;
 
@@ -82,12 +82,12 @@ function CellImpl(p: CellProps): JSX.Element {
   }
 
   let cls = 'cell', txt: string;
-  if (f.kind === 'future') { cls += ' fut'; txt = '—'; }
-  else if (f.kind === 'none') { cls += ' opt'; txt = ''; }
-  else if (v === null && f.kind === 'ai') { cls += ' aitodo'; txt = 'Chờ AI soạn'; }
+  if (ek === 'future') { cls += ' fut'; txt = '—'; }
+  else if (ek === 'none') { cls += ' opt'; txt = ''; }
+  else if (v === null && ek === 'ai') { cls += ' aitodo'; txt = 'Chờ AI soạn'; }
   else if (v === null && f.required) { cls += ' err'; txt = 'trống — bắt buộc'; }
   else if (v === null) { cls += ' opt'; txt = ''; }
-  else { txt = v; if (f.kind === 'past') cls += ' past'; else if (a && !a.ok) cls += ' ai'; }
+  else { txt = v; if (ek === 'past') cls += ' past'; else if (a && !a.ok) cls += ' ai'; }
   const isOvr = !!r.ovr[f.id] || p.touched;
   if (isOvr) cls += ' ovr';
   if (p.wrap) cls += ' wrap';

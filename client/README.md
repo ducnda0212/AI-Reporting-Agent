@@ -44,6 +44,9 @@ Các phần chính khác:
 | "Lần nhập gần nhất", nhập lại file cũ | `GET /api/v1/ingest/history`, `GET /api/v1/sessions/{id}` |
 | Cấu hình mapping (chọn / lưu mới / cập nhật / nhân bản / đặt mặc định / xoá) | `/api/v1/mappings…` |
 | Đổi nguồn một cột Jira (xem trước, chưa lưu) | `POST /api/v1/mapping/recalculate` với `src_overrides` |
+| Danh sách bản đã chốt (theo tháng của kỳ đang mở) | `GET /api/v1/reports/versions` |
+| Chốt bản bất biến (`doLock`) | `POST /api/v1/reports/lock` |
+| Xuất `.xlsx` thật vào file mẫu PMO, tải lại file đã xuất (`doExport`, `reExport`) | `POST` / `GET /api/v1/reports/export-excel` |
 
 **Thông báo lỗi và màn đọc file (sửa giao diện Giai đoạn 1).** Mã lỗi của máy chủ được đổi sang câu tiếng Việt cụ thể bởi `friendlyError` trong `src/services/api.ts` (vd file thiếu cột `Summary` / `Issue key`, định dạng `.xls`, file quá 50 MB, mất kết nối server); mã lạ giữ thông báo gốc. Lỗi nhập file hiện thành khung đỏ cố định ngay trong ô xem trước (`importErr`), file đã chọn được giữ để thử lại; lỗi ở thao tác mapping hiện thông báo nổi 6 giây. Màn **Đang đọc file** làm đúng prototype (`impLoadA`) với số liệu thật: đứng ở bước 1 chờ máy chủ, rồi 4 bước chạy lần lượt mỗi `IMPORT_STEP_MS` = 650 ms, bước xong hiện dòng kết quả ("90 cột, 125 issue", "3 nhóm cột đã gộp", "56 dự án ghép được, 12 issue chưa có mã", "N mã mới" hoặc "Chưa có file tuần trước để so"), cột "Đã tìm thấy" có 6 dòng hiện số dần theo bước (thêm "Mã mới so với tuần trước"), dừng `IMPORT_END_MS` = 400 ms (tổng 3 giây) rồi tự sang màn tóm tắt. Chữ dựng ở `src/lib/importSteps.ts` từ phản hồi `POST /ingest/upload`. Nút "Xem tóm tắt ngay" bỏ qua phần chờ, "Huỷ" giữa chừng thì không nạp bảng; chế độ giảm chuyển động (`prefers-reduced-motion`) không chờ. Tên file dài ở "Lần nhập gần nhất" xuống tối đa 2 dòng (tên đầy đủ ở `title`). Ô chọn cột Jira nằm gọn trong cột "Nguồn". Màn nhập file cuộn được nhờ `body.onimp #root{display:flex;flex-direction:column}` (React gắn vào `#root` trong khi CSS prototype chỉ xếp cột cho `#app`); quy tắc chỉ áp cho màn nhập file. Ảnh chụp mới cần chụp tay: khung lỗi nhập file, màn đọc file có số liệu, bảng mapping có ô chọn cột.
 
@@ -51,7 +54,7 @@ Các phần chính khác:
 
 `src/data/constants.ts` giữ 49 field, hướng dẫn, tour, FAQ... Mã field giữ nguyên theo prototype (`ma`, `rui`, `kh`, `vd`, `tt`...) và là mã dùng chung với `server/`. Dữ liệu dùng trong test nằm riêng ở `src/__tests__/fixtures*` (không vào mã chạy thật).
 
-Khoá localStorage: `pmo-theme`, `pmo-tour-v1`, `pmo-tour-ver`, `pmo-proto-store-v1`, `pmo-proto-grid-v1` (rộng cột), `pmo-proto-cols-v4` (ẩn cột + ghim), `pmo-proto-panel-v1`, `pmo-proto-imphist-v1` (lịch sử nhập), `pmo-po-fz`, `pmo-po-sidew` (popout).
+Khoá localStorage: `pmo-theme`, `pmo-tour-v1`, `pmo-tour-ver`, `pmo-proto-grid-v1` (rộng cột), `pmo-proto-cols-v4` (ẩn cột + ghim), `pmo-proto-panel-v1`, `pmo-proto-imphist-v1` (lịch sử nhập), `pmo-po-fz`, `pmo-po-sidew` (popout).
 
 ## Cấu trúc thư mục
 
@@ -112,8 +115,17 @@ Kế hoạch: `docs/superpowers/plans/2026-11-25-fe-rebuild-prototype-v4-lite.md
 - Picker, filter, menu, find, popout là lớp nổi gắn ngoài `.gridwrap`; `App` đóng menu khi bấm ra ngoài và bỏ qua Esc khi xem trước file toàn màn hình đang mở.
 - `main.tsx` chỉ áp theme khi đã lưu `pmo-theme` (giống prototype). Store và component an toàn khi chạy trong node (không có DOM) để test bằng vitest không cần jsdom.
 - Không thêm dependency. Giai đoạn 1 có đụng `server/` (hợp đồng `Row`, upload Excel, lịch sử, mở lại phiên, mapping preview) nhưng không đụng `ai/`.
-- Màn Phiên bản / Chốt & xuất chưa nối máy chủ (Giai đoạn 3): danh sách bản đã chốt khởi tạo rỗng, chỉ có bản lưu cục bộ.
+- Màn Phiên bản / Chốt & xuất đã nối máy chủ ở Giai đoạn 3 (xem mục dưới); `versions` không còn lưu ở localStorage.
 - Ảnh chụp màn hình mới của bước 1 (mpBar, mapQuick) cần chụp tay khi chạy `npm run dev` cùng `server/`; chưa có trong `docs/screenshots/`.
+
+### Giai đoạn 3 — chốt bản bất biến, xuất Excel thật, tuần động w1..w4 (nhánh `feat/backend-integrate`)
+Kế hoạch: `docs/superpowers/plans/2026-11-26-stage-3-versions-export-and-cycles.md`; đặc tả: `docs/superpowers/specs/2026-11-26-stage-3-versions-export-and-cycles-design.md`. **Không đổi giao diện** (không sửa JSX bố cục, CSS, nút, cột); không đụng `ai/`, `lib/ai.ts`, `actions/ai.ts`; không thêm endpoint chuyển kỳ (`GET /cycles/active` vẫn tự chạy theo ngày thật).
+- **Bản đã chốt nằm trên máy chủ** (bảng `report_versions`): `doLock` gửi `snap`, `raw_notes` (Note gốc, chưa ghép hậu tố "sửa tay"), `fmt`/`wrap` (khoá đổi `chỉ số dòng|cột` → `mã|cột`), `hidden`, `edits`; `vKey` `wk|v` được tách theo tháng của kỳ. `verOpen` ("Mở →" ở bước 1) tự nạp phiên (`getSession`) khi bảng chưa nạp, khôi phục `snap` + định dạng + cột ẩn, đặt `editWk` nếu bản không thuộc tuần đang làm, và bọc trong `withSuppressedDraftSync` nên không ghi đè nháp của phiên đó cho tới khi người dùng thực sự sửa.
+- **Xuất Excel thật**: `doExport` gọi `POST /reports/export-excel`, máy chủ điền vào file mẫu PMO bằng `openpyxl` (giữ nguyên sheet, hàng tiêu đề, định dạng gốc) rồi trả `.xlsx`; `reExport` tải đúng file đã xuất. Hai ô trong "Tuỳ chọn ghi file" nay có tác dụng: *Chỉ ghi khối tuần đang chốt* (mặc định bật: chỉ ghi đè 3 cột của khối tuần đó, 3 khối còn lại trên mẫu giữ nguyên; tắt: ghi đè cả 4 khối `AL..AW`) và *Ghi ô đã sửa tay vào Note* (tắt: ghi Note gốc không có hậu tố). "Cột đang hiển thị" ẩn các cột ẩn bằng `column_dimensions.hidden` (không xoá cột, giữ đủ 49 cột).
+- **Tuần động** (Phương án 1A): `lib/cell.ts` có `activeWkOf(s?)` và `effectiveKind(f, s?)`; tuần `cur` sửa được (kể cả `w4` ở kỳ `2026_11_w4`), tuần `future` hiện `—`, tuần đã qua là `past` và khoá. Đọc `s.weeks`, không có thì đọc `WEEKS` toàn cục (do `setCycle` cập nhật), không có nữa thì dùng `f.kind` như trước. Nhãn "Tuần 3/11", tên file mặc định, khoảng cột `AR–AT`, "Cấu hình mẫu" (số tuần, khối tuần sau), Popout, thanh trên đều lấy theo kỳ.
+- `rule_engine.py` `prw` hỗ trợ tuần 1..4. `server/storage/exports/` chứa các file đã xuất (không đưa vào git); đổi thư mục bằng biến môi trường `EXPORTS_DIR`.
+- Kiểm: `python -m pytest server/tests/ -v` và `npm --prefix client run typecheck && npm --prefix client test` (không chạy `npm run build`). Giao diện không đổi nên không có ảnh màn hình mới.
+- Còn lại: `exXlsx` / `xlsxName` trong `lib/xlsx.ts` không còn được gọi (vẫn có test), có thể xoá khi dọn dẹp.
 
 ## Trạng thái và hạn chế đã biết
 - Mọi dữ liệu là mock. Nạp file là giả lập (chưa gửi backend).
