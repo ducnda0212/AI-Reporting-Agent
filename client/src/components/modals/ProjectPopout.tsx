@@ -23,6 +23,29 @@ function Mark({ text, q, cur }: { text: string; q: string; cur: boolean }): JSX.
   return <>{out}</>;
 }
 
+const ACR = new Set('AI KPI PMO SLA GSM ANBM DPO API BI UI UX QA QC IT HR SIT UAT MVP ROI OKR EV CRM ERP P95 P99 B2B B2C R&D VN'.split(' '));
+/** "1. TIÊU ĐỀ VIẾT HOA" -> "1. Tiêu đề viết hoa" (giữ từ viết tắt); độ dài giữ nguyên để Mark khớp. */
+function sentenceCase(t: string): string {
+  if (t !== t.toUpperCase()) return t;
+  let first = true;
+  return t.toLowerCase().replace(/[\p{L}\p{N}&]+/gu, (w) => {
+    const u = w.toUpperCase();
+    if (ACR.has(u)) { first = false; return u; }
+    if (first && /\p{L}/u.test(w)) { first = false; return w.charAt(0).toUpperCase() + w.slice(1); }
+    return w;
+  });
+}
+const NUM = /^\d+\.\s/;
+/** Mục tiêu / KPI: mỗi dòng một div; dòng "N. ..." là tiêu đề (Mục tiêu) hoặc mục KPI, cách đoạn từ mục thứ 2. */
+function numberedLines(fid: 'muctieu' | 'kpi', t: string, q: string, cur: boolean): JSX.Element {
+  let n = 0;
+  return <>{t.split('\n').map((ln, k) => {
+    if (!NUM.test(ln)) return <div key={k}><Mark text={ln} q={q} cur={cur} /></div>;
+    const head = fid === 'muctieu', style: React.CSSProperties = { ...(n++ ? { marginTop: head ? 8 : 6 } : null), ...(head ? { fontWeight: 600 } : null) };
+    return <div key={k} className={head ? 'pa-goalh' : 'pa-kpi'} style={style}><Mark text={head ? sentenceCase(ln) : ln} q={q} cur={cur} /></div>;
+  })}</>;
+}
+
 function Popout({ s }: { s: AppState }): JSX.Element | null {
   const P = s.po, r: Row | undefined = P.i === null ? undefined : s.allRows[P.i], root = useRef<HTMLDivElement>(null), wrap = useRef<HTMLDivElement>(null);
   const q = P.q.trim(), curF = P.cur >= 0 && P.hits[P.cur] ? P.hits[P.cur].f : null;
@@ -51,7 +74,7 @@ function Popout({ s }: { s: AppState }): JSX.Element | null {
     if (t && !cur && !hit && fid === 'rui' && !pend) return <div className="pv" data-pf={fid}><LvlPill v={t} /></div>;
     return (
       <div className={'pv' + (pend ? ' pend' : '') + (cur ? ' cur' : hit ? ' hit' : '')} data-pf={fid}>
-        {t ? <Mark text={t} q={P.q} cur={cur} /> : <span className="nil">{effectiveKind(f, s) === 'future' ? 'chưa tới tuần' : '—'}</span>}{pend && <em>nháp AI chưa duyệt</em>}
+        {t ? (fid === 'muctieu' || fid === 'kpi' ? numberedLines(fid, t, P.q, cur) : <Mark text={t} q={P.q} cur={cur} />) : <span className="nil">{effectiveKind(f, s) === 'future' ? 'chưa tới tuần' : '—'}</span>}{pend && <em>nháp AI chưa duyệt</em>}
       </div>
     );
   };

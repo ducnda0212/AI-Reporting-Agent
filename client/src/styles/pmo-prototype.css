@@ -3179,3 +3179,4 @@ select.cellsel{cursor:pointer}
 .chhx:hover:not(:disabled){background:var(--line2);color:var(--err)}
 .chhe{margin:18px 4px;font-size:12.5px;line-height:1.5;color:var(--mut);text-align:center}
 @media (hover:none){.chhx{opacity:1}}
+.pa-goalh{font-weight:600}

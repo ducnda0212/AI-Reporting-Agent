@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setCycle } from '@/data/constants';
-import { getState, mutate, resetStore } from '@/store';
+import { getState, mutate, resetStore, scheduleDraftSync } from '@/store';
 import { initStage1Bootstrap } from '@/store/actions/flow';
 import { api } from '@/services/api';
-import { doExport, doLock, reExport, verOpen } from '@/store/actions/versions';
+import { doExport, doLock, reExport, verOpen, vlEdit, vlExitEdit } from '@/store/actions/versions';
 import type { IngestResponse, VersionItem } from '@/types';
 import { FIXTURE_WEEKS } from './fixtures';
 
@@ -97,5 +97,53 @@ describe('Giai đoạn 3: chốt bản, xuất Excel và mở lại bản qua m�
     await initStage1Bootstrap();
     expect(getState().versions.map((v) => v.id)).toEqual([VER.id]);
     setCycle('2026-11-22', []);
+  });
+
+  describe('vlEdit / vlExitEdit không làm mất nháp tuần hiện tại', () => {
+    const setup = () => {
+      vi.useFakeTimers();
+      const save = vi.spyOn(api, 'saveDraft').mockResolvedValue(undefined as never);
+      mutate((d) => {
+        d.loaded = true; d.sessionId = 's1'; d.cycleId = '2026_11_w4'; d.weeks = FIXTURE_WEEKS; d.activeToday = '2026-11-26';
+        d.allRows = [{ i: 0, real: true, ma: 'I.C.1.2', viec: 'T1', ovr: { pic: 'Cur' }, ai: {}, reasons: {}, stages: [], note: '' } as never];
+        d.versions = [{ ...VER, id: 'ver_w2_v1', cycle_id: '2026_11_w2', wk: 'w2', snap: { 'I.C.1.2|milestone': 'Old MS' } }];
+      });
+      return save;
+    };
+    afterEach(() => vi.useRealTimers());
+
+    it('flush nháp đang chờ, không lưu khi sửa ở editWk, toast "của tuần đó"', async () => {
+      const save = setup();
+      mutate((d) => { d.allRows[0].ovr.pic = 'Edited'; });
+      scheduleDraftSync(getState()); // trong node subscribe không chạy, tự gọi như subscriber
+      vlEdit('w2|1');
+      expect(save).toHaveBeenCalledTimes(1);
+      expect((save.mock.calls[0][1].rows[0].ovr as Record<string, string>).pic).toBe('Edited');
+      expect(getState().editWk).toBe('w2');
+      expect(getState().toast).toContain('của tuần đó');
+      mutate((d) => { d.allRows[0].ovr.milestone = 'Changed'; });
+      scheduleDraftSync(getState());
+      await vi.advanceTimersByTimeAsync(900);
+      expect(save).toHaveBeenCalledTimes(1);
+    });
+
+    it('vlExitEdit khôi phục nguyên bảng tuần hiện tại, không bắn saveDraft', async () => {
+      const save = setup();
+      mutate((d) => { d.allRows[0].ovr.pic = 'Edited'; });
+      const before = getState();
+      vlEdit('w2|1');
+      save.mockClear();
+      mutate((d) => { d.allRows[0].ovr.milestone = 'Changed'; });
+      vlExitEdit();
+      await vi.advanceTimersByTimeAsync(900);
+      const s = getState();
+      expect(s.editWk).toBeNull();
+      expect(s.openedVer).toBeNull();
+      expect(s.allRows).toBe(before.allRows);
+      expect(s.fmt).toBe(before.fmt);
+      expect(s.touched).toBe(before.touched);
+      expect(s.log).toBe(before.log);
+      expect(save).not.toHaveBeenCalled();
+    });
   });
 });

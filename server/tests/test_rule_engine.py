@@ -60,7 +60,7 @@ def test_pic_fallback_kpi_table_goal_fallback_and_default_workstream():
         "Custom field (PO)": "Lê Ngọc Anh",
         "Custom field (Tech lead)": "Trần Quốc Bảo",
         "Custom field (Goals)": "Mục tiêu từ Goals",
-        "Custom field (KPI/Outcome)": "||*STT*||*KPI*||*Chỉ số chính*||*KQ*||\n|1|Pickup ETA|<= 5.0 phút|Đạt|\n|2|Hủy cuốc|<= 8%|Đạt|",
+        "Custom field (KPI/Outcome)": "||*STT*||*KPI*||*Chỉ số chính*||*KQ*||\n|1|Pickup ETA|≤ 5.0 phút|Đạt|\n|2|Hủy cuốc|≤ 8%|Đạt|",
         "Status": "Monitoring",
         "Custom field (Phase)": "TBD",
     }
@@ -68,7 +68,7 @@ def test_pic_fallback_kpi_table_goal_fallback_and_default_workstream():
     assert row.i == 6
     assert row.pic == "Lê Ngọc Anh" and row.po == "Lê Ngọc Anh"
     assert row.muctieu == "Mục tiêu từ Goals"
-    assert row.kpi == "1. Pickup ETA: <= 5.0 phút\n2. Hủy cuốc: <= 8%"  # rule E: "STT. KPI: Chỉ số chính" per line
+    assert row.kpi == "1. Pickup ETA: ≤ 5.0 phút\n2. Hủy cuốc: ≤ 8%"  # rule E: "STT. KPI: Chỉ số chính" per line
     assert row.mang == "I.A.9"  # no catalog entry -> workstream prefix
     assert row.tt == "Monitoring"  # unmapped kept raw for W_UNMAPPED_VALUE
     assert row.buocso == ""
@@ -141,5 +141,5 @@ def test_goal_preserves_lines_and_bullets_and_kpi_includes_metric():
     g = _goal({"Description": desc})
     assert "\n" in g and "• Giảm trễ" in g and "1. BÀI TOÁN" in g and "MILESTONE" not in g
 
-    kpi = "||*STT*||*KPI*||*Chỉ số chính*||\n|1|Tỉ lệ chuyển đổi|Tăng >= 12%|\n|2|Độ ổn định|"
-    assert _kpi(kpi) == "1. Tỉ lệ chuyển đổi: Tăng >= 12%\n2. Độ ổn định"
+    kpi = "||*STT*||*KPI*||*Chỉ số chính*||\n|1|Tỉ lệ chuyển đổi|Tăng ≥ 12%|\n|2|Độ ổn định|"
+    assert _kpi(kpi) == "1. Tỉ lệ chuyển đổi: Tăng ≥ 12%\n2. Độ ổn định"

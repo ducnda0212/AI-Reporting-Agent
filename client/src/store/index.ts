@@ -221,18 +221,30 @@ export function hydrateDraft(d: Draft<AppState>, draft: SessionDraftOut): void {
   if (typeof draft.lock_seq === 'number') d.lockSeq = draft.lock_seq;
 }
 
+function saveDraftNow(cur: AppState): void {
+  api.saveDraft(cur.sessionId as string, buildDraftPayload(cur)).then(() => { draftWarned = false; }, () => {
+    if (draftWarned) return;
+    draftWarned = true;
+    mutate((d) => { toast(d, 'Không lưu được bản nháp lên máy chủ, sẽ thử lại ở lần sửa sau'); }, { track: false });
+  });
+}
+
+/** Gửi ngay lần lưu đang chờ (trước khi thay bảng bằng bản cũ). `editWk` là sửa tạm bản cũ, không bao giờ ghi vào nháp tuần hiện tại. */
+export function flushPendingDraftSave(): void {
+  if (draftTimer === null) return;
+  const cur = getState();
+  cancelPendingDraftSave();
+  if (cur.loaded && cur.sessionId && !cur.editWk) saveDraftNow(cur);
+}
+
 export function scheduleDraftSync(s: AppState): void {
-  if (!s.loaded || !s.sessionId || suppressDraftSync) return;
+  if (!s.loaded || !s.sessionId || suppressDraftSync || s.editWk) return;
   cancelPendingDraftSave();
   draftTimer = setTimeout(() => {
     draftTimer = null;
     const cur = getState();
-    if (!cur.loaded || !cur.sessionId) return;
-    api.saveDraft(cur.sessionId, buildDraftPayload(cur)).then(() => { draftWarned = false; }, () => {
-      if (draftWarned) return;
-      draftWarned = true;
-      mutate((d) => { toast(d, 'Không lưu được bản nháp lên máy chủ, sẽ thử lại ở lần sửa sau'); }, { track: false });
-    });
+    if (!cur.loaded || !cur.sessionId || cur.editWk) return;
+    saveDraftNow(cur);
   }, DRAFT_DEBOUNCE_MS);
 }
 
