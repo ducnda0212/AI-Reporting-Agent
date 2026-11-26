@@ -41,7 +41,7 @@ export function onOutsideClick(ev: MouseEvent): void {
 
 export function App(): JSX.Element {
   const s = useAppState((x) => x);
-  const onImp = !s.loaded || s.view === 'import' || !!s.importing, step = curStep(s);
+  const onImp = !s.restoringSession && (!s.loaded || s.view === 'import' || !!s.importing), step = curStep(s);
   useKeyboard();
   useGridResize();
 
@@ -61,7 +61,7 @@ export function App(): JSX.Element {
   const panel = s.panel === 'ai' ? <AiAssistantPanel /> : s.panel === 'aitrace' ? <AiTracePanel /> : s.panel === 'tvcfg' ? <TplConfigPanel /> : null;
   const main = (
     <main>
-      {onImp ? <ImportView /> : s.view === 'ver' ? <VersionsView /> : s.view === 'log' ? <LogView /> : <Grid />}
+      {s.restoringSession ? <div className="restoring" role="status" aria-live="polite">Đang khôi phục phiên làm việc…</div> : onImp ? <ImportView /> : s.view === 'ver' ? <VersionsView /> : s.view === 'log' ? <LogView /> : <Grid />}
       {panel}
     </main>
   );

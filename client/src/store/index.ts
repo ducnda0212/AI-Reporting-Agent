@@ -50,8 +50,9 @@ export function sortVersions(L: VersionItem[]): VersionItem[] {
 
 export function initialState(): AppState {
   const gx = lsJson<AppState['gx']>(LS.grid), pn = lsJson<AppState['pn']>(LS.panel), cols = lsJson<{ hidden: AppState['hidden']; pin: boolean }>(LS.cols);
+  const act = inBrowser() ? getActiveSessionStorage() : null, restoring = !!act && act.view !== 'import';
   const s: AppState = {
-    view: 'import', panel: null, modal: null, loaded: false, importing: null, fileName: '',
+    view: restoring ? act.view : 'import', panel: null, modal: null, loaded: false, restoringSession: restoring, importing: null, fileName: '',
     realOnly: true, newCodes: 'pending', dupMerged: false, phaseBucket: {}, unsorted: [],
     cycleId: '2026_11_w3', weeks: [], activeToday: '', sessionId: null, fileCols: [], fileStats: null, groups: [], applied: null,
     orphans: [], blockers: [], warnings: [], mappings: [], mpUsed: null, mpSrc: {}, mpDirty: false, mpSave: false, busy: false, importErr: null,

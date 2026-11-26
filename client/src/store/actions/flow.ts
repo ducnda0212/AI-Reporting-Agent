@@ -38,6 +38,9 @@ const failToast = (e: unknown): void => mutate((d) => { toast(d, errMsg(e), ERRO
 /* ---------- dữ liệu nền từ máy chủ ---------- */
 /** Kỳ báo cáo, lịch sử nhập file, cấu hình mapping đã lưu: gọi một lần khi mở trang. */
 export async function initStage1Bootstrap(): Promise<void> {
+  const active = getActiveSessionStorage();
+  const restore = active ? Promise.all([api.getSession(active.sessionId), api.getDraft(active.sessionId)]) : null; // song song, không chờ nền
+  restore?.catch(() => undefined); // lỗi được xử lý ở dưới; tránh unhandled rejection khi còn đang chờ dữ liệu nền
   const [cyc, hist, maps, vers] = await Promise.allSettled([api.getActiveCycle(), api.getIngestHistory(), api.listMappings(), api.listVersions()]);
   if (cyc.status === 'fulfilled') setCycle(cyc.value.today, cyc.value.weeks);
   withSuppressedDraftSync(() => mutate((d) => {
@@ -48,19 +51,19 @@ export async function initStage1Bootstrap(): Promise<void> {
     const bad = [cyc, hist, maps, vers].find((r) => r.status === 'rejected');
     if (bad && bad.status === 'rejected') toast(d, errMsg(bad.reason));
   }, { track: false }));
-  const active = getActiveSessionStorage();
-  if (!active) return;
+  if (!active || !restore) return;
   try {
-    const [res, draft] = await Promise.all([api.getSession(active.sessionId), api.getDraft(active.sessionId)]);
+    const [res, draft] = await restore;
     withSuppressedDraftSync(() => mutate((d) => {
       commit(d, res, getState().mappings);
       d.mpSrc = {}; d.mpDirty = false; d.mpSave = false;
       if (draft) hydrateDraft(d, draft); else { resetDraftFields(d); importLog(d, res); }
-      d.view = active.view;
+      d.view = active.view; d.restoringSession = false;
     }, { resetUndo: true }));
   } catch (e) {
-    // 4xx: phiên không còn hợp lệ; lỗi mạng/5xx: giữ lại để thử lại ở lần mở sau
+    // 4xx: phiên không còn hợp lệ; lỗi mạng/5xx: giữ lại để thử lại ở lần mở sau. Cả hai: không có dữ liệu thì về Nhập file.
     if (e instanceof ApiError && e.status >= 400 && e.status < 500) setActiveSessionStorage(null);
+    withSuppressedDraftSync(() => mutate((d) => { d.restoringSession = false; if (!d.loaded) d.view = 'import'; }, { track: false }));
   }
 }
 

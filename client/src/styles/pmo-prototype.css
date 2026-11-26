@@ -125,6 +125,7 @@ footer.status{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding-bl
 .stp.now i{background:var(--accent);border-color:var(--accent);color:#fff}
 .stp b{font-weight:700}
 .stp:disabled{opacity:.5;cursor:not-allowed}
+.restoring{padding:48px 24px;text-align:center;color:var(--mut);font-size:13px}
 .stpsep{color:var(--mut2);font-size:11px}
 .chk{border:1px solid var(--line);border-radius:11px;background:var(--bg);padding:14px 16px}
 .chk.ok{border-color:var(--okLine)}
