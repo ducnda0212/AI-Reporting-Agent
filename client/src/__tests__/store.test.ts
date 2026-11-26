@@ -9,7 +9,7 @@ import * as V from '@/store/actions/versions';
 import * as H from '@/store/actions/help';
 import { cellValue, fieldById, sourceValue } from '@/lib/cell';
 import type { Row } from '@/types';
-import { GOLD_FILE, loadFixture, SEED_VERSIONS } from './fixtures';
+import { GOLD_FILE, loadFixture, mockReportApi, SEED_VERSIONS } from './fixtures';
 
 const byCode = (ma: string): Row => getState().allRows.find((r) => r.ma === ma)!;
 
@@ -177,16 +177,17 @@ describe('Store · popout, phiên bản, hướng dẫn', () => {
     expect(getState().editWk).toBeNull();
   });
 
-  it('chốt bản rồi xuất Excel 49 cột', () => {
-    V.doLock('', '');
+  it('chốt bản rồi xuất Excel 49 cột', async () => {
+    mockReportApi();
+    await V.doLock('', '');
     expect(getState().lockMsg).toBe('Gõ tên người chốt trước.');
-    V.doLock('Khuê', '');
+    await V.doLock('Khuê', '');
     const v = getState().versions[0];
     expect(v).toMatchObject({ wk: 'w3', v: 1, by: 'Khuê', at: '20/11 09:05', mine: true, fileName: GOLD_FILE });
     expect(v.snap).toBeDefined();
     expect(getState().log[0].a).toBe('Chốt bản');
-    const blob = V.doExport('20261121_DAN_Bao-cao-PMO.xlsx');
-    expect(blob.size).toBeGreaterThan(0);
+    const blob = await V.doExport('20261121_DAN_Bao-cao-PMO.xlsx');
+    expect(blob!.size).toBeGreaterThan(0);
     expect(getState().versions[0].exported).toBe('20261121_DAN_Bao-cao-PMO.xlsx');
   });
 

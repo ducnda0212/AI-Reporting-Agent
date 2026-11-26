@@ -1,7 +1,7 @@
 /* Máy khách API (server/app): gọi `/api/v1/*` qua proxy của Vite tới 127.0.0.1:8000. Lỗi FastAPI `detail: { code, message }` thành ApiError. */
 import type {
-  ActiveCycle, ImportFileMeta, IngestResponse, MappingConfigIn, MappingConfigOut, RecalculateIn,
-  SessionDraftIn, SessionDraftOut, SessionDraftSaveRes
+  ActiveCycle, ExportExcelIn, ImportFileMeta, IngestResponse, LockReportIn, MappingConfigIn, MappingConfigOut, RecalculateIn,
+  SessionDraftIn, SessionDraftOut, SessionDraftSaveRes, VersionItem
 } from '@/types';
 
 const BASE = '/api/v1';
@@ -20,7 +20,9 @@ const FRIENDLY: Record<string, string> = {
   E_SRC_OVERRIDE_INVALID_FIELD: 'Cột này không đổi được nguồn Jira.',
   E_OVERRIDE_INVALID_FIELD: 'Cột này không đổi được nguồn Jira.',
   E_DRAFT_NOT_FOUND: 'Chưa có bản nháp cho lần nhập này.',
-  E_ORPHAN_ASSIGNMENT_INVALID: 'Không gắn được issue vào dự án đã chọn.'
+  E_ORPHAN_ASSIGNMENT_INVALID: 'Không gắn được issue vào dự án đã chọn.',
+  E_VERSION_NOT_FOUND: 'Không tìm thấy bản đã chốt này, có thể đã bị xoá. Hãy tải lại trang.',
+  E_LOCK_BY_REQUIRED: 'Cần nhập tên người chốt bản.'
 };
 const SERVER_ERROR = 'Máy chủ gặp lỗi khi xử lý. Thử lại sau, nếu vẫn lỗi hãy báo người phụ trách.';
 
@@ -35,7 +37,7 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function rawRequest(path: string, init?: RequestInit): Promise<Response> {
   let res: Response;
   try {
     res = await fetch(BASE + path, init);
@@ -48,7 +50,20 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     if (d && typeof d === 'object' && d.code) throw new ApiError(d.code, d.message || d.code, res.status);
     throw new ApiError('E_HTTP_' + res.status, typeof d === 'string' ? d : 'Máy chủ trả lỗi ' + res.status, res.status);
   }
-  return (await res.json()) as T;
+  return res;
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  return (await (await rawRequest(path, init)).json()) as T;
+}
+
+export interface ExportBlobRes { blob: Blob; fileName: string }
+
+/** Tải file: tên file do máy chủ gửi qua `X-Exported-Filename` (đã mã hoá %). */
+async function requestBlob(path: string, init?: RequestInit): Promise<ExportBlobRes> {
+  const res = await rawRequest(path, init);
+  const raw = res.headers.get('X-Exported-Filename');
+  return { blob: await res.blob(), fileName: raw ? decodeURIComponent(raw) : 'bao-cao.xlsx' };
 }
 
 const json = (method: string, body?: unknown): RequestInit => ({
@@ -80,5 +95,11 @@ export const api = {
     try { return await request('/sessions/' + encodeURIComponent(sessionId) + '/draft'); }
     catch (e) { if (e instanceof ApiError && e.code === 'E_DRAFT_NOT_FOUND') return null; throw e; }
   },
-  recalculate: (req: RecalculateIn): Promise<IngestResponse> => request('/mapping/recalculate', json('POST', req))
+  recalculate: (req: RecalculateIn): Promise<IngestResponse> => request('/mapping/recalculate', json('POST', req)),
+  listVersions: (cycleMonth?: string): Promise<VersionItem[]> =>
+    request('/reports/versions' + (cycleMonth ? '?cycle_month=' + encodeURIComponent(cycleMonth) : '')),
+  lockReport: (req: LockReportIn): Promise<VersionItem> => request('/reports/lock', json('POST', req)),
+  exportExcel: (req: ExportExcelIn): Promise<ExportBlobRes> => requestBlob('/reports/export-excel', json('POST', req)),
+  downloadVersionExcel: (versionId: string): Promise<ExportBlobRes> =>
+    requestBlob('/reports/export-excel?version_id=' + encodeURIComponent(versionId))
 };

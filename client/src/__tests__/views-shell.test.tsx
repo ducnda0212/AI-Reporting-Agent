@@ -17,7 +17,7 @@ import { FilePreviewModal } from '@/views/Import/FilePreviewModal';
 import { VersionsView } from '@/views/Versions/VersionsView';
 import { LogView } from '@/views/Log/LogView';
 import { api } from '@/services/api';
-import { fixtureResponse, loadFixture, seedVersions } from './fixtures';
+import { fixtureResponse, loadFixture, mockReportApi, seedVersions } from './fixtures';
 
 const csvFile = (name: string, text: string) => ({ name, size: text.length, arrayBuffer: async () => new TextEncoder().encode(text).buffer as ArrayBuffer });
 
@@ -235,15 +235,16 @@ describe('Hành động mới cho bước 1, chọn tuần, nhật ký, giao di�
     expect(getState().replaceFile).toBe(false);
   });
 
-  it('verOpen: bản không có dữ liệu báo lỗi; bản đã chốt mở lại trên bảng', () => {
+  it('verOpen: bản không có dữ liệu báo lỗi; bản đã chốt mở lại trên bảng', async () => {
     resetStore();
-    verOpen('w2|2');
+    await verOpen('w2|2');
     expect(getState().toast).toBe('Bản này không có dữ liệu để mở lại');
     loadFixture('x.csv');
-    doLock('Khuê', '');
+    mockReportApi();
+    await doLock('Khuê', '');
     const k = getState().verSel!;
     setView('import');
-    verOpen(k);
+    await verOpen(k);
     expect([getState().view, getState().openedVer]).toEqual(['grid', k]);
     expect(getState().toast).toMatch(/^Đã mở bản v/);
   });

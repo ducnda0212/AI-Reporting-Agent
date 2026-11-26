@@ -1,7 +1,7 @@
 /* Phiên bản: ảnh chụp bảng, so sánh 2 bản, danh sách bản, mốc chỉnh sửa. Port từ prototype v4; không đọc state toàn cục. */
 import { CX_PH, FIELDS, RUI_LV, TODAY, TT_RK, WEEKS, WK_TXT } from '@/data/constants';
 import type { AiCell, AppState, LogEntry, Row, VerEdit, VersionChange, VersionItem, WeekKey } from '@/types';
-import { cellValue, fieldById, parseVN, type CellCtx } from './cell';
+import { activeWkOf, cellValue, effectiveKind, fieldById, parseVN, type CellCtx } from './cell';
 
 /** Ảnh chụp bảng: khoá `mã|cột` → giá trị. */
 export type Snap = Record<string, string | null>;
@@ -11,7 +11,7 @@ export type VCtx = CellCtx & Pick<AppState, 'loaded' | 'versions'>;
 export function snapshot(rows: Row[], ctx: CellCtx): Snap {
   const m: Snap = {};
   rows.forEach((r) => FIELDS.forEach((f) => {
-    if (f.kind === 'future' || f.kind === 'none') return;
+    if (effectiveKind(f, ctx) === 'future' || f.kind === 'none') return;
     let v = cellValue(r, f, ctx);
     if (f.kind === 'ai') { const d = r.ai[f.id as 'rui']; v = d && d.ok ? d.text : null; }
     m[r.ma + '|' + f.id] = v;
@@ -51,11 +51,11 @@ export function vSnap(v: VersionItem | null, rows: Row[], ctx: VCtx): Snap | nul
   if (v.snap) return v.snap;
   if (!ctx.loaded) return null;
   const s = snapshot(rows, ctx);
-  const later = v.wk === 'w1' ? ['w2', 'w3'] : v.wk === 'w2' ? ['w3'] : [];
+  const cur = activeWkOf(ctx), later = (['w1', 'w2', 'w3', 'w4'] as const).filter((w) => w > v.wk && w <= cur);
   rows.forEach((r) => {
     (['rui', 'kh', 'vd'] as const).forEach((fid) => { const k = r.ma + '|' + fid; if (s[k] == null && r.ai[fid]?.text) s[k] = r.ai[fid]!.text; });
     later.forEach((w) => FIELDS.forEach((f) => { if (f.grp === w) s[r.ma + '|' + f.id] = null; }));
-    WK_TXT.w3.forEach((fid, j) => { if (v.wk !== 'w3') s[r.ma + '|' + fid] = s[r.ma + '|' + WK_TXT[v.wk][j]]; });
+    WK_TXT[cur].forEach((fid, j) => { if (v.wk !== cur) s[r.ma + '|' + fid] = s[r.ma + '|' + WK_TXT[v.wk][j]]; });
   });
   const setC = (c: VersionChange, val: string): void => {
     const f = FIELDS.find((x) => c[1].startsWith(x.col + ' '));
@@ -79,7 +79,7 @@ export interface CmpSide { key: string; wk: WeekKey; snap: Snap; demo?: boolean 
 /** Một vế so sánh: ảnh chụp + tuần + cờ minh hoạ; `null` nếu chưa có dữ liệu (chưa nhập file). */
 export function vSide(v: VersionItem | null, rows: Row[], ctx: VCtx): CmpSide | null {
   const snap = vSnap(v, rows, ctx);
-  return snap ? { key: vKey(v), wk: v ? v.wk : 'w3', snap, demo: !!v && !v.snap } : null;
+  return snap ? { key: vKey(v), wk: v ? v.wk : activeWkOf(ctx), snap, demo: !!v && !v.snap } : null;
 }
 
 export interface CmpOverview { run: number; ok: number; risk: number; late: number; high: number; pct: number | null }
@@ -94,7 +94,7 @@ export interface Compare {
 }
 interface Cx { v: string; draft: boolean }
 
-const WK_IX: Record<WeekKey, number> = { w1: 1, w2: 2, w3: 3 };
+const WK_IX: Record<WeekKey, number> = { w1: 1, w2: 2, w3: 3, w4: 4 };
 const masOf = (S: Snap): string[] => [...new Set(Object.keys(S).map((k) => k.split('|')[0]))];
 
 /* chữ giữ chỗ (không có nội dung thật) coi như trống khi so sánh */

@@ -1,7 +1,7 @@
 /* Tay nắm điền #fillh ở góc dưới phải vùng chọn (prototype fillHandleHost / placeFillHandle L7241-7261, kéo L7262-7297):
    kéo xuống (hoặc lên) để chép giá trị vùng chọn, ô đích tô .fillprev khi đang kéo, tự cuộn khi sát mép. Lớp nổi ngoài .gridwrap. */
 import { useEffect, useRef, type MouseEvent as RMouseEvent } from 'react';
-import { fieldById, locked } from '@/lib/cell';
+import { effectiveKind, fieldById, locked } from '@/lib/cell';
 import { getState, useAppState } from '@/store';
 import { fillTo, rangeBox } from '@/store/actions/grid';
 
@@ -18,7 +18,7 @@ export function FillHandle(): JSX.Element {
       if (!h || drag.current) return;
       const end = st.range ? st.range.b : c, f = end && fieldById(end.f);
       const el = end && gw ? gw.querySelector('[data-i="' + end.i + '"][data-f="' + end.f + '"]') : null;
-      if (st.view !== 'grid' || !el || !f || st.pe || locked(f) || ['calc', 'none', 'future', 'past'].includes(f.kind)) { h.style.display = 'none'; return; }
+      if (st.view !== 'grid' || !el || !f || st.pe || locked(f) || ['calc', 'none', 'future', 'past'].includes(effectiveKind(f))) { h.style.display = 'none'; return; }
       const r = el.getBoundingClientRect(), g = gw!.getBoundingClientRect();
       if (r.bottom < g.top + 40 || r.bottom > g.bottom || r.right < g.left || r.right > g.right) { h.style.display = 'none'; return; }
       h.style.display = 'block'; h.style.left = r.right - 4 + 'px'; h.style.top = r.bottom - 4 + 'px';

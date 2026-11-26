@@ -148,7 +148,7 @@ def map_jira_issue_to_row(
     entries = progress_entries(issue.get("Custom field (Progress Report)"), week_boundaries)
     pr = [WeekReportEntry(date=e["date"], done=e["done"], plan=e["plan"]) for e in sorted(entries, key=lambda e: e["date"])]
     prw = {f"w{e['week']}": WeekReportEntry(date=e["date"], done=e["done"], plan=e["plan"])
-           for e in sorted(entries, key=lambda e: e["date"]) if e["week"] in (1, 2, 3)}
+           for e in sorted(entries, key=lambda e: e["date"]) if e["week"] in (1, 2, 3, 4)}
 
     v: dict[str, str] = {
         "mang": (catalog_entry or {}).get("mang_viec") or (ma.rsplit(".", 1)[0] if ma else ""),

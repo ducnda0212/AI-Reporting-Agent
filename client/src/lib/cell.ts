@@ -1,9 +1,11 @@
 /* Giá trị ô, nguồn ô và tìm kiếm. Port từ prototype v4 (cellValue, locked, optsFor, sourceValue, displayText, refOf, spillCls, mapNorm). */
-import { FIELDS, MAN3, PROG_MAP, PROG_VALUES, STAGES, STATUS_MAP, STATUS_VALUES, TODAY } from '@/data/constants';
-import type { AppState, Field, FieldId, Row } from '@/types';
+import { FIELDS, GRP, MAN3, PROG_MAP, PROG_VALUES, STAGES, STATUS_MAP, STATUS_VALUES, TODAY, WEEKS } from '@/data/constants';
+import type { AppState, Field, FieldGroup, FieldId, FieldKind, Row, WeekKey } from '@/types';
 
-/** Phần state mà cellValue cần: bảng quy đổi Phase → bước. */
-export type CellCtx = Pick<AppState, 'phaseBucket'>;
+/** Các tuần của kỳ đang mở (không có thì đọc `WEEKS` toàn cục do `setCycle` cập nhật). */
+export type WeeksCtx = Partial<Pick<AppState, 'weeks'>>;
+/** Phần state mà cellValue cần: bảng quy đổi Phase → bước, và các tuần của kỳ. */
+export type CellCtx = Pick<AppState, 'phaseBucket'> & WeeksCtx;
 
 const OVR_RAW = { tt: 'rawStatus', td: 'rawProgress' } as const;
 
@@ -34,8 +36,33 @@ export function mapNorm(map: Record<string, string>, raw: string): string | unde
   return k === undefined ? undefined : map[k];
 }
 
-export const locked = (f: Field): boolean =>
-  !!f.key || f.kind === 'cfg' || ['future', 'none', 'past'].includes(f.kind) || f.grp === 'w1' || f.grp === 'w2';
+/** Tuần đang làm của kỳ (`cur`); chưa có kỳ thì tuần 3. */
+export const activeWkOf = (s?: WeeksCtx): WeekKey => (s?.weeks?.find((w) => w.cur)?.k ?? WEEKS.find((w) => w.cur)?.k ?? 'w3') as WeekKey;
+
+type WeekState = 'cur' | 'past' | 'future';
+/** Trạng thái của khối tuần theo kỳ; `undefined` khi chưa biết kỳ (bảng chưa nạp) để dùng loại cột gốc. */
+function weekState(grp: string, s?: WeeksCtx): WeekState | undefined {
+  if (s?.weeks?.length) { const w = s.weeks.find((x) => x.k === grp); return w ? (w.future ? 'future' : w.cur ? 'cur' : 'past') : undefined; }
+  if (WEEKS.length) { const w = WEEKS.find((x) => x.k === grp); return w ? (w.cur ? 'cur' : 'past') : 'future'; }
+  return undefined;
+}
+
+/** Loại cột theo kỳ: khối tuần đang làm sửa được (`report`, hoặc `ai` nếu cột gốc là AI), tuần chưa tới là `future`, tuần đã qua là `past`. */
+export function effectiveKind(f: Field, s?: WeeksCtx): FieldKind {
+  const st = /^w[1-4]$/.test(f.grp) ? weekState(f.grp, s) : undefined;
+  return !st ? f.kind : st === 'future' ? 'future' : st === 'cur' ? (f.kind === 'ai' ? 'ai' : 'report') : 'past';
+}
+
+/** Nhãn ngắn của tuần trên nút khối cột / Cấu hình mẫu: T01/11, T02/11, T3/11, T4/11 (tháng theo mã kỳ `YYYY_MM_wN`). */
+export const wkShort = (k: string, cycleId: string): string => 'T' + (+k[1] < 3 ? '0' + k[1] : k[1]) + '/' + (cycleId.slice(5, 7) || '11');
+
+/** Tên khối cột: khối tuần lấy tên tuần của kỳ (bỏ phần ngày), khối khác theo `GRP`. */
+export function grpName(g: FieldGroup, s?: WeeksCtx): string {
+  return /^w[1-4]$/.test(g) ? (s?.weeks?.find((w) => w.k === g)?.name ?? GRP[g]).split(' · ')[0] : GRP[g];
+}
+
+export const locked = (f: Field, s?: WeeksCtx): boolean =>
+  !!f.key || ['cfg', 'future', 'none', 'past'].includes(effectiveKind(f, s)) || ((f.grp === 'w1' || f.grp === 'w2') && !weekState(f.grp, s));
 
 export function optsFor(f: Field): readonly string[] | null {
   if (f.opts) return f.opts;
@@ -100,7 +127,8 @@ export function cellValue(r: Row, f: Field, ctx: CellCtx): string | null {
     /* kh / vd: nháp AI nếu có, không thì nội dung máy chủ bóc từ Progress Report / Risk Notes */
     case 'kh': case 'vd': return r.ai[f.id]?.text ?? text;
   }
-  if (f.kind === 'none' || f.kind === 'future') return null;
+  const k = effectiveKind(f, ctx);
+  if (k === 'none' || k === 'future') return null;
   return text;
 }
 
@@ -112,7 +140,8 @@ export function sourceValue(r: Row, f: Field, ctx: CellCtx): string | null {
 
 /** Chữ hiển thị/tìm kiếm trong ô; nháp AI chưa duyệt vẫn đọc được. */
 export function displayText(r: Row, f: Field, ctx: CellCtx): string {
-  if (f.kind === 'future' || f.kind === 'none') return '';
+  const k = effectiveKind(f, ctx);
+  if (k === 'future' || k === 'none') return '';
   let v = cellValue(r, f, ctx);
   if (v === null && f.kind === 'ai' && r.ai[f.id as 'rui']) v = r.ai[f.id as 'rui']!.text;
   return v === null ? '' : String(v);

@@ -1,7 +1,7 @@
 /* Menu chuột phải #ctxm (prototype ctxHtml L7375 + handleXl ctx* L7421-7427; đóng khi bấm ra ngoài L7437, cuộn L7304).
    Lớp nổi đặt ngoài .gridwrap. */
 import { useEffect, useRef } from 'react';
-import { ck, displayText, fieldById, locked, refOf } from '@/lib/cell';
+import { ck, displayText, effectiveKind, fieldById, locked, refOf } from '@/lib/cell';
 import { filterKey } from '@/lib/grid';
 import { useAppState } from '@/store';
 import { autofitCol, ctxClear, ctxClose, ctxFilterVal, ctxJira, fillDown, sortCol, startEdit, toggleWrap } from '@/store/actions/grid';
@@ -22,7 +22,7 @@ export function ContextMenu(): JSX.Element | null {
   }, [C]);
 
   if (!C || s.view !== 'grid') return null;
-  const f = fieldById(C.f)!, r = s.allRows[C.i], lk = locked(f) || ['calc', 'none', 'future', 'past'].includes(f.kind), v = displayText(r, f, s), fk = filterKey(r, f, s);
+  const f = fieldById(C.f)!, r = s.allRows[C.i], lk = locked(f, s) || ['calc', 'none', 'future', 'past'].includes(effectiveKind(f, s)), v = displayText(r, f, s), fk = filterKey(r, f, s);
   const it = (label: string, kbd: string, dis: boolean, run: () => void): JSX.Element => (
     <button className="ctxi" disabled={dis} onClick={run}><span>{label}</span>{kbd && <kbd>{kbd}</kbd>}</button>
   );

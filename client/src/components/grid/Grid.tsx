@@ -207,7 +207,7 @@ export function Grid(): JSX.Element {
                       const key = ck(r.i, f.id), isSel = !!s.sel && s.sel.i === r.i && s.sel.f === f.id;
                       return (
                         <Cell key={f.id} r={r} f={f} w={colWidth(s, f)} pb={s.phaseBucket} stick={stick(f)} sel={isSel} rng={!isSel && picked.has(key)}
-                          findQ={findQ} findCs={F.cs} findWhole={F.whole} inScope={!!findQ && scopeHas(f, F, s.sel?.f)}
+                          findQ={findQ} findCs={F.cs} findWhole={F.whole} inScope={!!findQ && scopeHas(f, F, s.sel?.f, s)}
                           fmt={s.fmt[key]} wrap={!!s.wrap[key]} touched={!!s.touched[key]} pend={pend[key]} flash={s.svflash.includes(key)} pulse={pulse === key} />
                       );
                     })}

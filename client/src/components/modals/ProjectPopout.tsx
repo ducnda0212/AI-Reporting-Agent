@@ -2,7 +2,7 @@
    phải = Tổng quan (Mục tiêu / KPI rút 3 dòng, Milestone dạng dòng thời gian) và Báo cáo tuần dạng thẻ. Vách kéo .pa-split, cỡ chữ A / A, tìm #poQ. */
 import { Fragment, useEffect, useRef } from 'react';
 import { FIELDS, PA_LONG } from '@/data/constants';
-import { cellValue, displayText, fieldById, spillCls } from '@/lib/cell';
+import { activeWkOf, cellValue, displayText, effectiveKind, fieldById, spillCls } from '@/lib/cell';
 import { PO_SECS, parseMilestones, poNm, poWeeks } from '@/lib/popout';
 import { rowsOf, useAppState } from '@/store';
 import { poClose, poNavMatch, poNavProject, poSetFontSize, poSetQuery, poSetSideW, poToggleExp, poToggleGroup, poToggleWeek, poToggleWkSort } from '@/store/actions/popout';
@@ -51,7 +51,7 @@ function Popout({ s }: { s: AppState }): JSX.Element | null {
     if (t && !cur && !hit && fid === 'rui' && !pend) return <div className="pv" data-pf={fid}><LvlPill v={t} /></div>;
     return (
       <div className={'pv' + (pend ? ' pend' : '') + (cur ? ' cur' : hit ? ' hit' : '')} data-pf={fid}>
-        {t ? <Mark text={t} q={P.q} cur={cur} /> : <span className="nil">{f.kind === 'future' ? 'chưa tới tuần' : '—'}</span>}{pend && <em>nháp AI chưa duyệt</em>}
+        {t ? <Mark text={t} q={P.q} cur={cur} /> : <span className="nil">{effectiveKind(f, s) === 'future' ? 'chưa tới tuần' : '—'}</span>}{pend && <em>nháp AI chưa duyệt</em>}
       </div>
     );
   };
@@ -124,8 +124,8 @@ function Popout({ s }: { s: AppState }): JSX.Element | null {
               <div className="pa-ovc wide"><div className="pa-wl">Milestone</div>{milestone()}</div>
             </section>
             <div className="pa-mh"><h3>Báo cáo tuần</h3><button className="po-chip" data-po="wksort" onClick={poToggleWkSort}>{(P.wkDesc ? 'Mới nhất trước' : 'Cũ nhất trước') + ' ⇅'}</button></div>
-            {poWeeks(P.wkDesc, s.weeks).filter((w) => w[0] !== 'w4').map((w) => {
-              const now = w[0] === 'w3', hit = !!q && w[3].some((fid) => poNm(txt(fid)).includes(poNm(q))), open = !!P.wkOpen[w[0]] || hit, range = w[2].replace(' · tuần này', '');
+            {poWeeks(P.wkDesc, s.weeks).filter((w) => effectiveKind(fieldById(w[3][0])!, s) !== 'future').map((w) => {
+              const now = w[0] === activeWkOf(s), hit = !!q && w[3].some((fid) => poNm(txt(fid)).includes(poNm(q))), open = !!P.wkOpen[w[0]] || hit, range = w[2].replace(' · tuần này', '');
               if (!open) {
                 const sum = (txt(w[3][0]) || txt(w[3][2]) || 'Chưa có báo cáo').replace(/\s+/g, ' ');
                 return <button key={w[0]} className="pa-wk pa-wkc" data-pa="wk" data-w={w[0]} onClick={() => poToggleWeek(w[0])}><span className="pa-wcv">▸</span><b>{w[1]}</b><span className="pa-wd">{range}</span><span className="pa-ws">{sum}</span></button>;

@@ -2,8 +2,8 @@
    Không có lỗi chặn (blockers() trống), chỉ xuất Excel 49 cột. Chốt bằng doLock, xuất từ ĐÚNG bản đã chốt bằng doExport (tải file khi chạy trên trình duyệt).
    Chỉ vẽ khi state.modal === 'export'. */
 import { useState } from 'react';
-import { FIELDS } from '@/data/constants';
-import { cellValue } from '@/lib/cell';
+import { FIELDS, WK_TXT } from '@/data/constants';
+import { activeWkOf, cellValue, effectiveKind } from '@/lib/cell';
 import { diffSnap, snapshot } from '@/lib/versions';
 import { exFields } from '@/lib/xlsx';
 import { rowsOf, useAppState } from '@/store';
@@ -11,9 +11,11 @@ import { startReview, pendingList } from '@/store/actions/ai';
 import { goStep, setModal, setView } from '@/store/actions/flow';
 import { fixGo } from '@/store/actions/grid';
 import { doExport, doLock, setExCols, wkName } from '@/store/actions/versions';
-import type { AppState } from '@/types';
+import type { AppState, FieldId, WeekKey } from '@/types';
 
-const FILE_DEFAULT = '20261121_DAN_Bao-cao-PMO.xlsx';
+const fileDefault = (s: AppState): string => (s.activeToday || '2026-11-21').replace(/-/g, '') + '_DAN_Bao-cao-PMO.xlsx';
+/** Ba cột của khối tuần trong file mẫu. */
+const WK_COLS: Record<WeekKey, string> = { w1: 'AL–AN', w2: 'AO–AQ', w3: 'AR–AT', w4: 'AU–AW' };
 const KIND_IC = { err: '✕', wrn: '!', ai: 'AI', ok: '✓' } as const;
 
 function Row({ kind, title, desc, children }: { kind: keyof typeof KIND_IC; title: string; desc: string; children?: React.ReactNode }): JSX.Element {
@@ -21,13 +23,13 @@ function Row({ kind, title, desc, children }: { kind: keyof typeof KIND_IC; titl
 }
 
 function Body({ s }: { s: AppState }): JSX.Element {
-  const [by, setBy] = useState(s.lockBy || ''), [note, setNote] = useState(''), [fn, setFn] = useState(FILE_DEFAULT);
-  const rows = rowsOf(s), wk = s.editWk && s.editWk !== 'w3' ? s.editWk : 'w3', lc = s.versions.find((v) => v.wk === wk);
+  const [by, setBy] = useState(s.lockBy || ''), [note, setNote] = useState(''), [fn, setFn] = useState(fileDefault(s)), [onlyWk, setOnlyWk] = useState(true), [noteRaw, setNoteRaw] = useState(true);
+  const rows = rowsOf(s), cur = activeWkOf(s), wk = s.editWk && s.editWk !== cur ? s.editWk : cur, lc = s.versions.find((v) => v.wk === wk);
   const ch = lc && lc.snap ? diffSnap(lc.snap, snapshot(rows, s)) : null, locked = !!lc && !!ch && !ch.length, nextV = (lc ? lc.v : 0) + 1;
   const stage = locked ? 3 : 2, wn = wkName(wk, true);
   const empty = rows.reduce((n, r) => n + FIELDS.filter((f) => f.required && cellValue(r, f, s) === null).length, 0);
-  const opt = rows.reduce((n, r) => n + FIELDS.filter((f) => !f.required && !['none', 'future', 'past'].includes(f.kind) && cellValue(r, f, s) === null).length, 0);
-  const noRep = rows.filter((r) => !r.ht && !r.ovr.ht).length, ai = pendingList(s).length;
+  const opt = rows.reduce((n, r) => n + FIELDS.filter((f) => !f.required && !['none', 'future', 'past'].includes(effectiveKind(f, s)) && cellValue(r, f, s) === null).length, 0);
+  const noRep = rows.filter((r) => !(r as Partial<Record<FieldId, string>>)[WK_TXT[wk][0] as FieldId] && !r.ovr[WK_TXT[wk][0] as FieldId]).length, ai = pendingList(s).length;
   const nVis = exFields('vis', s.hidden).length, hidG: Record<string, number> = {};
   FIELDS.forEach((f) => { if (!f.key && s.hidden[f.id]) { const g = f.grp.charAt(0) === 'w' ? 'Tuần ' + f.grp.slice(1) : f.grp; hidG[g] = (hidG[g] || 0) + 1; } });
   const hg = Object.keys(hidG).map((k) => k + ' (' + hidG[k] + ')').join(', ');
@@ -73,8 +75,8 @@ function Body({ s }: { s: AppState }): JSX.Element {
               {s.exCols !== 'all' && hg && <div className="xhint" style={{ marginTop: 7 }}>{'Không xuất các cột đang ẩn: ' + hg}</div>}</div>
             <div className="xs2"><label className="xt" htmlFor="fn">Tên file báo cáo</label><input className="inp" id="fn" value={fn} onChange={(e) => setFn(e.target.value)} style={{ width: '100%', height: 34, fontFamily: 'var(--mono)', fontSize: 12 }} /></div>
             <details className="xmore"><summary>Tuỳ chọn ghi file</summary>
-              <label><input type="checkbox" defaultChecked /><span>Chỉ ghi khối Tuần 3/11 (cột AR–AT), giữ nguyên các khối tuần khác</span></label>
-              <label><input type="checkbox" defaultChecked /><span>Ghi ô đã sửa tay vào cột Note</span></label></details>
+              <label><input type="checkbox" checked={onlyWk} onChange={(e) => setOnlyWk(e.target.checked)} /><span>{'Chỉ ghi khối ' + wn + ' (cột ' + WK_COLS[wk] + '), giữ nguyên các khối tuần khác'}</span></label>
+              <label><input type="checkbox" checked={noteRaw} onChange={(e) => setNoteRaw(e.target.checked)} /><span>Ghi ô đã sửa tay vào cột Note</span></label></details>
           </>
         ) : (
           <>
@@ -97,8 +99,8 @@ function Body({ s }: { s: AppState }): JSX.Element {
       </div>
       <div className="xfoot">
         <button className="btn" data-act="stepGo" data-n="3" onClick={() => goStep(3)}>← Quay lại bảng</button><div style={{ flex: '1 1 10px' }} />
-        {locked && lc ? <button className="btn pri" data-act="doExport" onClick={() => doExport(fn)}>{'Xuất file từ v' + lc.v}</button>
-          : <button className="btn pri" data-act="doLock" onClick={() => doLock(by, note)}>{'Chốt bản v' + nextV}</button>}
+        {locked && lc ? <button className="btn pri" data-act="doExport" onClick={() => void doExport(fn, { onlyCurrentWeek: onlyWk, appendOverrideNote: noteRaw })}>{'Xuất file từ v' + lc.v}</button>
+          : <button className="btn pri" data-act="doLock" onClick={() => void doLock(by, note)}>{'Chốt bản v' + nextV}</button>}
       </div>
     </div>
   );

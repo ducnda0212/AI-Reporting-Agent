@@ -39,7 +39,7 @@ export interface AiCell {
 
 export type StageState = 'done' | 'doing' | 'todo' | 'miss';
 export interface WeekReport { date: string; done: string; plan: string }
-export type WeekKey = 'w1' | 'w2' | 'w3';
+export type WeekKey = 'w1' | 'w2' | 'w3' | 'w4';
 
 /** Các cột có giá trị chữ nằm thẳng trên dòng (BE đã chuẩn hóa `tt`, `td`, `tt1`, `buoc`, `buocso`, `kh`, `vd`). */
 type RowTextId = Exclude<FieldId, 'ma' | 'viec' | 'x'>;
@@ -157,6 +157,10 @@ export interface PopoutState {
 /* ---------- phiên bản, nhật ký, nhập file ---------- */
 export type VersionChange = [ma: string, col: string, from: string, to: string];
 export interface VersionItem {
+  /** Có khi bản đã lưu trên máy chủ. */
+  id?: string;
+  session_id?: string;
+  cycle_id?: string;
   wk: WeekKey;
   v: number;
   by: string;
@@ -168,6 +172,10 @@ export interface VersionItem {
   snap?: Record<string, string | null>;
   mine?: boolean;
   fileName?: string;
+  /** Định dạng/ngắt dòng/cột ẩn lúc chốt, khoá `mã|cột`. */
+  fmt?: Record<string, CellFormat>;
+  wrap?: Record<string, boolean>;
+  hidden?: Record<string, boolean>;
   /** Các lần sửa ghi lại lúc chốt bản. */
   edits?: VerEdit[];
 }
@@ -259,6 +267,16 @@ export interface SessionDraftIn {
   pin_viec: boolean; ex_cols: 'vis' | 'all'; lock_by: string; log_seq: number; lock_seq: number; audit_logs: LogEntry[];
 }
 export interface SessionDraftOut extends SessionDraftIn { updated_at: string }
+export interface LockReportIn {
+  session_id: string; cycle_id: string; wk: WeekKey; by: string; note: string; file_name: string;
+  snap: Record<string, string | null>; raw_notes: Record<string, string>;
+  fmt: Record<string, CellFormat>; wrap: Record<string, boolean>; hidden: Record<string, boolean>;
+  stats: VersionItem['stats']; edits?: VerEdit[]; log_seq: number;
+}
+export interface ExportExcelIn {
+  version_id: string; file_name?: string; ex_cols?: 'vis' | 'all'; hidden?: Record<string, boolean>;
+  only_current_week?: boolean; append_override_note?: boolean;
+}
 export interface SessionDraftSaveRes { success: boolean; session_id: string; updated_at: string }
 
 /* ---------- lịch sử điều hướng / hoàn tác ---------- */

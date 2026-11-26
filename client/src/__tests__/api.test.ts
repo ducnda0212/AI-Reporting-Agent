@@ -88,3 +88,36 @@ describe('api client (Giai đoạn 1)', () => {
     await expect(api.getDraft('s1')).rejects.toMatchObject({ status: 500 });
   });
 });
+
+describe('api client (Giai đoạn 3: phiên bản và xuất Excel)', () => {
+  it('listVersions, lockReport, exportExcel và downloadVersionExcel gọi đúng /reports', async () => {
+    const lockedItem = { id: 'ver_1', wk: 'w4', v: 1, by: 'Khuê', at: '26/11 12:00', note: '', exported: null, stats: { rows: 1, hand: 0, ai: 0 }, changes: [] };
+    const blobRes = (name: string): Response => ({
+      ok: true, status: 200, headers: new Headers({ 'X-Exported-Filename': encodeURIComponent(name) }), blob: async () => new Blob(['xlsx'])
+    }) as unknown as Response;
+    const spy = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(ok([]))
+      .mockResolvedValueOnce(ok(lockedItem))
+      .mockResolvedValueOnce(blobRes('Báo cáo.xlsx'))
+      .mockResolvedValueOnce(blobRes('Báo cáo.xlsx'));
+    expect(await api.listVersions('2026_11')).toEqual([]);
+    expect(spy.mock.calls[0][0]).toBe('/api/v1/reports/versions?cycle_month=2026_11');
+    const locked = await api.lockReport({ session_id: 's1', cycle_id: '2026_11_w4', wk: 'w4', by: 'Khuê', note: '', file_name: 'a.csv', snap: {}, raw_notes: {}, fmt: {}, wrap: {}, hidden: {}, stats: { rows: 1, hand: 0, ai: 0 }, log_seq: 0 });
+    expect(locked.id).toBe('ver_1');
+    expect(spy.mock.calls[1][0]).toBe('/api/v1/reports/lock');
+    const exp = await api.exportExcel({ version_id: 'ver_1', file_name: 'BaoCao.xlsx', ex_cols: 'vis', only_current_week: true, append_override_note: true });
+    expect(exp.fileName).toBe('Báo cáo.xlsx');
+    expect(exp.blob.size).toBe(4);
+    expect(JSON.parse(spy.mock.calls[2][1]!.body as string).version_id).toBe('ver_1');
+    expect((await api.downloadVersionExcel('ver_1')).fileName).toBe('Báo cáo.xlsx');
+    expect(spy.mock.calls[3][0]).toBe('/api/v1/reports/export-excel?version_id=ver_1');
+  });
+
+  it('lỗi tải file thành ApiError có câu tiếng Việt', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(fail(404, { detail: { code: 'E_VERSION_NOT_FOUND', message: 'x' } }));
+    const e = await api.downloadVersionExcel('nope').catch((x: unknown) => x);
+    expect((e as ApiError).code).toBe('E_VERSION_NOT_FOUND');
+    expect(friendlyError('E_VERSION_NOT_FOUND', 'raw')).not.toBe('raw');
+    expect(friendlyError('E_LOCK_BY_REQUIRED', 'raw')).not.toBe('raw');
+  });
+});

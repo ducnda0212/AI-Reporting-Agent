@@ -1,8 +1,8 @@
 /* Bảng 49 cột: chọn ô, sửa ô (một đường ghi chung), picker 1 chạm, định dạng, cột, lọc/sắp xếp/tìm, menu chuột phải,
    "N ô cần sửa", hoàn tác/làm lại. Port từ prototype v4 (applyEdit, pkOpen R10, setFmt, colPreset, handleXl, fixGo, Ctrl+Z). */
 import { castDraft, type Draft } from 'immer';
-import { AI_IDS, FIELDS, GRP } from '@/data/constants';
-import { cellValue, ck, displayText, fieldById, locked, optsFor, refOf, sourceValue } from '@/lib/cell';
+import { AI_IDS, FIELDS } from '@/data/constants';
+import { activeWkOf, cellValue, ck, displayText, effectiveKind, fieldById, grpName, locked, optsFor, refOf, sourceValue, type WeeksCtx } from '@/lib/cell';
 import { cleanText } from '@/lib/clean';
 import { autofitWidth, filterKey, findMatches, hitCell, needsFix, passColFilters, selKeys, sortRows, visibleFields } from '@/lib/grid';
 import type { AiFieldId, AppState, CellFormat, CellRef, FieldGroup, FieldId, FindState, Row } from '@/types';
@@ -34,7 +34,7 @@ const keysOf = (s: AppState): string[] => selKeys(s.sel, s.range, gridOrder(s), 
 /** Ghi giá trị vào ô trong recipe; `''` = về theo nguồn (cột Jira/rổ gom) hoặc xoá (cột nhập tay/AI). `true` nếu bảng đổi. */
 export function editCell(d: Draft<AppState>, i: number, fid: FieldId, v0: string | null | undefined): boolean {
   const r = d.allRows[i], f = fieldById(fid);
-  if (!r || !f || locked(f)) return false;
+  if (!r || !f || locked(f, d)) return false;
   const v = String(v0 ?? '').trim(), where = r.ma + ' · ' + f.col + ' ' + f.name;
   if (f.kind === 'ai') {
     const k = fid as AiFieldId, a = r.ai[k];
@@ -111,7 +111,7 @@ function fillCells(d: Draft<AppState>, src: number[], dst: number[], cols: Field
     const f = fieldById(fid)!;
     dst.forEach((i, k) => {
       const v = displayText(d.allRows[src[k % src.length]], f, d);
-      if (locked(f) || ['calc', 'none', 'future', 'past'].includes(f.kind)) { skip++; return; }
+      if (locked(f, d) || ['calc', 'none', 'future', 'past'].includes(effectiveKind(f, d))) { skip++; return; }
       if (editCell(d, i, fid, v)) ok++; else if (displayText(d.allRows[i], f, d) !== v) skip++;
     });
   });
@@ -184,7 +184,7 @@ export function startEdit(i: number, fid: FieldId, val?: string): void {
     const f = fieldById(fid)!;
     d.sel = { i, f: fid }; d.range = null;
     if (f.key || f.kind === 'cfg') return;
-    if (locked(f)) return toast(d, f.kind === 'future' ? 'Khối tuần chưa tới — để trống' : f.kind === 'none' ? 'Cột X trong mẫu không dùng' : 'Khối tuần đã chốt — không sửa');
+    if (locked(f, d)) return toast(d, effectiveKind(f, d) === 'future' ? 'Khối tuần chưa tới — để trống' : f.kind === 'none' ? 'Cột X trong mẫu không dùng' : 'Khối tuần đã chốt — không sửa');
     if (optsFor(f)) { d.pk = { i, f: fid }; return; }
     const r = d.allRows[i], cur = f.kind === 'ai' ? r.ai[fid as AiFieldId]?.text || '' : cellValue(r, f, d) || '';
     d.pe = { i, f: fid, val: val ?? cur, raw: false, auto: d.peAuto };
@@ -263,7 +263,7 @@ export function grpTog(g: FieldGroup): void {
   mutate((d) => {
     const anyShown = !fs.every((f) => d.hidden[f.id]);
     fs.forEach((f) => { if (anyShown) d.hidden[f.id] = true; else delete d.hidden[f.id]; });
-    toast(d, (anyShown ? 'Đã ẩn ' : 'Đã hiện ') + 'khối ' + GRP[g].split(' · ')[0] + ' · ' + fs.length + ' cột');
+    toast(d, (anyShown ? 'Đã ẩn ' : 'Đã hiện ') + 'khối ' + grpName(g, d) + ' · ' + fs.length + ' cột');
   });
 }
 
@@ -275,8 +275,8 @@ export function colPreset(p: ColPreset): void {
       if (c.key || c.id === 'viec') { delete d.hidden[c.id]; return; }
       const show = (p === 'all' && c.kind !== 'none')
         || (p === 'jira' && ['jira', 'bucket', 'calc'].includes(c.kind))
-        || (p === 'review' && (c.kind === 'manual' || c.kind === 'ai' || c.grp === 'w3'))
-        || (p === 'week' && (['mang', 'tt', 'td', 'tt1', 'giatri', 'rui', 'action', 'nextstep', 'buoc', 'buocso'].includes(c.id) || c.grp === 'w3'))
+        || (p === 'review' && (c.kind === 'manual' || c.kind === 'ai' || c.grp === activeWkOf(d)))
+        || (p === 'week' && (['mang', 'tt', 'td', 'tt1', 'giatri', 'rui', 'action', 'nextstep', 'buoc', 'buocso'].includes(c.id) || c.grp === activeWkOf(d)))
         || (p === 'info' && ['info', 'org'].includes(c.grp) && c.kind !== 'none')
         || (p === 'info' && ['caitien', 'prio', 'loai', 'link', 'domain', 'market'].includes(c.id));
       if (show) delete d.hidden[c.id]; else d.hidden[c.id] = true;
@@ -294,11 +294,14 @@ function setHid(d: Draft<AppState>, ids: readonly FieldId[], hide: boolean): voi
   dropHiddenSel(d);
 }
 export const tvGrpIds = (g: FieldGroup): FieldId[] => FIELDS.filter((f) => f.grp === g).map((f) => f.id);
-/** Hiện hết / ẩn hết một khối cột, bật / tắt khối Tuần 4/11. */
+const WK_ORDER = ['w1', 'w2', 'w3', 'w4'] as const;
+/** Các khối tuần sau tuần đang làm (khối "Thêm khối tuần sau"). */
+export const tvLaterGrps = (s?: WeeksCtx): FieldGroup[] => WK_ORDER.slice(WK_ORDER.indexOf(activeWkOf(s) as (typeof WK_ORDER)[number]) + 1);
+/** Hiện hết / ẩn hết một khối cột, bật / tắt các khối tuần sau tuần đang làm. */
 export function tvSetHidden(ids: readonly FieldId[], hide: boolean): void { mutate((d) => setHid(d, ids, hide)); colsSave(); }
-/** Số tuần trong báo cáo: 1 = chỉ tuần này, 2 = thêm Tuần 02/11, 3 = thêm Tuần 01/11. */
+/** Số tuần trong báo cáo: 1 = chỉ tuần đang làm, 2 = thêm tuần liền trước, 3 = thêm tuần trước nữa. */
 export function tvSetWeeks(n: 1 | 2 | 3): void {
-  mutate((d) => { setHid(d, tvGrpIds('w1'), n < 3); setHid(d, tvGrpIds('w2'), n < 2); setHid(d, tvGrpIds('w3'), false); });
+  mutate((d) => { const c = WK_ORDER.indexOf(activeWkOf(d) as (typeof WK_ORDER)[number]); WK_ORDER.forEach((g, i) => { if (i <= c) setHid(d, tvGrpIds(g), i < c - n + 1); }); });
   colsSave();
 }
 
@@ -494,13 +497,13 @@ export function escGrid(): void { mutate((d) => { d.range = null; d.menu = null;
 /** Delete / Backspace: xoá ô đang chọn (một ô, không khoá). */
 export function clearCell(): boolean {
   const s = getState(), c = s.sel;
-  return !!c && !s.range && !locked(fieldById(c.f)!) && applyEdit(c.i, c.f, '');
+  return !!c && !s.range && !locked(fieldById(c.f)!, s) && applyEdit(c.i, c.f, '');
 }
 /** Gõ một chữ trên ô đang chọn: ô chữ mở khung soạn với chữ đó, ô danh sách nhảy tới giá trị bắt đầu bằng chữ đó. */
 export function typeKey(k: string): void {
   const s = getState(), c = s.sel; if (!c || s.range) return;
   const f = fieldById(c.f)!, opts = optsFor(f);
-  if (locked(f) || ['calc', 'none', 'future', 'past'].includes(f.kind)) {
+  if (locked(f, s) || ['calc', 'none', 'future', 'past'].includes(effectiveKind(f, s))) {
     return mutate((d) => toast(d, f.kind === 'cfg' ? 'Cột ' + f.col + ' lấy từ Dữ liệu hệ thống — nhấp đúp để gửi yêu cầu sửa' : 'Ô ' + f.col + ' không sửa trên bảng'));
   }
   if (!opts) return startEdit(c.i, c.f, k);

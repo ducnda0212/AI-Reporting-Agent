@@ -1,10 +1,11 @@
 /* Banner "Đang sửa tiếp" khi mở bản cũ trên bảng (prototype editBanner L10891). */
+import { activeWkOf } from '@/lib/cell';
 import { useAppState } from '@/store';
 import { vFind, vlExitEdit, wkName } from '@/store/actions/versions';
 
 export function EditBanner(): JSX.Element | null {
   const s = useAppState((x) => x);
-  if (!s.editWk || s.editWk === 'w3' || s.view !== 'grid') return null;
+  if (!s.editWk || s.editWk === activeWkOf(s) || s.view !== 'grid') return null;
   const v = vFind(s, s.openedVer);
   return (
     <div className="vleb">

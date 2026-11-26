@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import { getState, mutate, resetStore, rowsOf } from '@/store';
-import { loadFixture, seedVersions } from './fixtures';
+import { loadFixture, mockReportApi, seedVersions } from './fixtures';
 import { pnSetWidth, pnToggleBig, pnToggleSec, setModal, setPanel, setView } from '@/store/actions/flow';
 import { askSubmit, startReview, trOpen } from '@/store/actions/ai';
 import { poOpen, poSetFontSize, poSetSideW, poToggleExp, poToggleGroup } from '@/store/actions/popout';
@@ -176,13 +176,15 @@ describe('ExportModal, AiDoneModal', () => {
     for (const w of ['Báo cáo điều hành', 'Word', 'PDF']) expect(h).not.toContain(w);
   });
 
-  it('sau khi chốt: tên file mặc định 20261121_DAN_Bao-cao-PMO.xlsx, nút "Xuất file từ vN", chọn cột xuất', () => {
+  it('sau khi chốt: tên file mặc định theo ngày báo cáo, nút "Xuất file từ vN", chọn cột xuất', async () => {
     fresh();
+    mockReportApi();
     setModal('export');
-    doLock('Khuê', '');
+    await doLock('Khuê', '');
     const h = renderToString(<ExportModal />);
     expect(h).toContain('Xuất báo cáo');
-    expect(h).toContain('20261121_DAN_Bao-cao-PMO.xlsx');
+    expect(h).toContain('20261120_DAN_Bao-cao-PMO.xlsx');
+    expect(h).toContain('cột AR–AT');
     expect(h).toContain('Xuất file từ v');
     expect(h).toContain('Đủ 49 cột theo mẫu');
     expect(h).toContain('Cột đang hiển thị');

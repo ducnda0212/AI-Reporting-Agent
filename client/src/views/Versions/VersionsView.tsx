@@ -2,6 +2,7 @@
    ở trên, danh sách bản đã chốt theo tuần ở dưới; bấm một dòng xổ 5 chỉ số, "Mở trên bảng" mở lại bản đó trên bảng tính. */
 import type { KeyboardEvent, MouseEvent } from 'react';
 import { WEEKS } from '@/data/constants';
+import { activeWkOf } from '@/lib/cell';
 import { vCompare2, vhList, vKey, vSide, type Compare, type CmpOverview } from '@/lib/versions';
 import { rowsOf, useAppState } from '@/store';
 import { vbSetA, vbSetB, vbToggleMore, vFind, vlEdit, vlTogExpand, wkName } from '@/store/actions/versions';
@@ -20,7 +21,7 @@ function overview(s: AppState, k: string): CmpOverview | null {
 }
 const vhFull = (s: AppState, k: string): string => {
   const v = vFind(s, k);
-  return wkName(v ? v.wk : 'w3', true) + ' · ' + (v ? 'Bản ' + v.v : 'Bảng đang làm');
+  return wkName(v ? v.wk : activeWkOf(s), true) + ' · ' + (v ? 'Bản ' + v.v : 'Bảng đang làm');
 };
 
 const M: [k: 'ok' | 'risk' | 'late' | 'high', label: string, upGood: boolean][] = [['ok', 'Đúng tiến độ', true], ['risk', 'Nguy cơ chậm', false], ['late', 'Chậm tiến độ', false], ['high', 'Rủi ro cao', false]];

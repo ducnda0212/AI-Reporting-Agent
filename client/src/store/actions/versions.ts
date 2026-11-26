@@ -2,11 +2,14 @@
    Port từ prototype v4 (doLock L5973/L10611, doExport + exXlsx, stSaveVersions, applySnap/openVersion, vlEdit L10572, vlTable3, vbPair). */
 import type { Draft } from 'immer';
 import { AI_IDS, FIELDS, WEEKS } from '@/data/constants';
-import { locked, sourceValue } from '@/lib/cell';
+import { activeWkOf, locked, sourceValue, type WeeksCtx } from '@/lib/cell';
 import { snapshot, verEditsNow, vKey, vSnap, type Snap } from '@/lib/versions';
-import { exFields, exXlsx, xlsxName } from '@/lib/xlsx';
-import type { AppState, VersionItem, WeekKey } from '@/types';
-import { getState, inBrowser, log, LS, lsJson, lsSet, mutate, nowStr, rowsOf, sortVersions, toast } from '@/store';
+import { api, ApiError } from '@/services/api';
+import type { AppState, CellFormat, VersionItem, WeekKey } from '@/types';
+import { getState, inBrowser, log, mutate, rowsOf, sortVersions, toast, withSuppressedDraftSync } from '@/store';
+import { applyIngest } from './flow';
+
+const errMsg = (e: unknown): string => (e instanceof ApiError ? e.message : 'Có lỗi không mong đợi, thử lại sau.');
 
 export const wkName = (k: WeekKey, short = false): string => {
   const w = WEEKS.find((x) => x.k === k);
@@ -15,72 +18,88 @@ export const wkName = (k: WeekKey, short = false): string => {
 export const vFind = (s: Pick<AppState, 'versions'>, k: string | null): VersionItem | undefined =>
   k && k !== 'cur' ? s.versions.find((v) => vKey(v) === k) : undefined;
 /** Nhãn bản: "Tuần 02/11 · Bản 2" hoặc bảng đang làm. */
-export const vLabel = (s: Pick<AppState, 'versions'>, k: string | null): string => {
+export const vLabel = (s: Pick<AppState, 'versions'> & WeeksCtx, k: string | null): string => {
   const v = vFind(s, k);
-  return v ? wkName(v.wk, true) + ' · Bản ' + v.v : 'Bảng đang làm (tuần 3/11)';
+  return v ? wkName(v.wk, true) + ' · Bản ' + v.v : 'Bảng đang làm (' + wkName(activeWkOf(s), true).toLowerCase() + ')';
 };
 
-/* bản do người dùng chốt được lưu lại trên "hệ thống" (localStorage pmo-proto-store-v1) */
-function saveVersions(s: AppState): void {
-  const o = lsJson<Record<string, unknown>>(LS.store);
-  lsSet(LS.store, JSON.stringify({ ...o, versions: s.versions.filter((v) => v.snap && v.mine), fileName: s.fileName, savedAt: nowStr() }));
-}
+/* Bản đã chốt nằm trên máy chủ; ô định dạng của bản lưu theo "mã|cột" (mã dự án), bảng dùng "chỉ số dòng|cột". */
+const mapKeys = <T,>(src: Record<string, T>, conv: (id: string) => string | undefined): Record<string, T> => {
+  const out: Record<string, T> = {};
+  Object.entries(src).forEach(([k, v]) => { const [id, ...f] = k.split('|'), x = conv(id); if (x !== undefined) out[x + '|' + f.join('|')] = v; });
+  return out;
+};
 
 /* ---------- chốt bản (bước 3 · modal Chốt & xuất) ---------- */
-/** Chốt bảng thành một bản: tuần này, hoặc tuần cũ đang "sửa tiếp". Không có lỗi chặn (bản gọn). */
-export function doLock(by: string, note: string): void {
-  const who = by.trim(), nt = note.trim();
-  mutate((d) => {
-    if (!who) { d.lockMsg = 'Gõ tên người chốt trước.'; return; }
-    const rows = rowsOf(d), wk: WeekKey = d.editWk && d.editWk !== 'w3' ? d.editWk : 'w3', edit = wk !== 'w3';
-    const nv = Math.max(0, ...d.versions.filter((x) => x.wk === wk).map((x) => x.v)) + 1;
-    let hand = 0, aiOk = 0;
-    rows.forEach((r) => { hand += Object.keys(r.ovr).length; AI_IDS.forEach((k) => { if (r.ai[k]?.ok) aiOk++; }); });
-    const v: VersionItem = {
-      wk, v: nv, by: who, at: nowStr(), note: nt || (edit ? 'Sửa tiếp từ ' + vLabel(d, d.openedVer) : ''), exported: null,
-      snap: snapshot(rows, d), stats: { rows: rows.length, hand, ai: aiOk }, changes: [], mine: true, fileName: d.fileName
-    };
-    d.versions.unshift(v);
-    sortVersions(d.versions);
-    d.lockBy = who; d.lockMsg = null; d.verSel = wk + '|' + nv;
-    if (edit) {
-      d.openedVer = wk + '|' + nv;
-      log(d, 'Chốt bản', wkName(wk, true) + ' · v' + nv, who + ' · sửa tiếp từ bản cũ');
-      toast(d, 'Đã chốt Bản ' + nv + ' của ' + wkName(wk, true) + ' — giờ có thể xuất file');
-    } else {
-      log(d, 'Chốt bản', 'Tuần 3/11 · v' + nv, who + (nt ? ' · ' + nt : '') + ' · ' + rows.length + ' dự án');
-      toast(d, 'Đã chốt Bản ' + nv + ' — giờ có thể xuất file');
-    }
-    /* mốc chỉnh sửa của bản: các lần sửa kể từ lần chốt trước */
-    const added = d.versions.find((x) => x.wk === wk && x.v === nv)!;
-    added.edits = verEditsNow(d.log, d.lockSeq);
-    d.lockSeq = d.logSeq;
-  });
-  saveVersions(getState());
+let busy = false;
+/** Chốt bảng thành một bản trên máy chủ: tuần đang làm, hoặc tuần cũ đang "sửa tiếp". Không có lỗi chặn (bản gọn). */
+export async function doLock(by: string, note: string): Promise<VersionItem | null> {
+  const who = by.trim(), nt = note.trim(), s = getState();
+  if (!who) { mutate((d) => { d.lockMsg = 'Gõ tên người chốt trước.'; }); return null; }
+  if (!s.sessionId) { mutate((d) => { d.lockMsg = 'Nhập file Jira của tuần này trước, rồi chốt bản.'; }); return null; }
+  if (busy) return null;
+  const rows = rowsOf(s), cur = activeWkOf(s), wk: WeekKey = s.editWk && s.editWk !== cur ? s.editWk : cur, edit = wk !== cur;
+  let hand = 0, aiOk = 0;
+  rows.forEach((r) => { hand += Object.keys(r.ovr).length; AI_IDS.forEach((k) => { if (r.ai[k]?.ok) aiOk++; }); });
+  const maOf = (i: string): string | undefined => s.allRows[+i]?.ma;
+  busy = true;
+  try {
+    const item = await api.lockReport({
+      session_id: s.sessionId, cycle_id: s.cycleId, wk, by: who, file_name: s.fileName,
+      note: nt || (edit ? 'Sửa tiếp từ ' + vLabel(s, s.openedVer) : ''),
+      snap: snapshot(rows, s), raw_notes: Object.fromEntries(rows.map((r) => [r.ma, r.note ?? ''])),
+      fmt: mapKeys(s.fmt, maOf), wrap: mapKeys(s.wrap, maOf), hidden: s.hidden as Record<string, boolean>,
+      stats: { rows: rows.length, hand, ai: aiOk }, edits: verEditsNow(s.log, s.lockSeq), log_seq: s.logSeq
+    });
+    mutate((d) => {
+      d.versions.unshift(item);
+      sortVersions(d.versions);
+      d.lockBy = who; d.lockMsg = null; d.verSel = vKey(item);
+      if (edit) {
+        d.openedVer = vKey(item);
+        log(d, 'Chốt bản', wkName(wk, true) + ' · v' + item.v, who + ' · sửa tiếp từ bản cũ');
+        toast(d, 'Đã chốt Bản ' + item.v + ' của ' + wkName(wk, true) + ' — giờ có thể xuất file');
+      } else {
+        log(d, 'Chốt bản', wkName(wk, true) + ' · v' + item.v, who + (nt ? ' · ' + nt : '') + ' · ' + rows.length + ' dự án');
+        toast(d, 'Đã chốt Bản ' + item.v + ' — giờ có thể xuất file');
+      }
+      d.lockSeq = d.logSeq;
+    });
+    return item;
+  } catch (e) {
+    mutate((d) => { d.lockMsg = errMsg(e); });
+    return null;
+  } finally { busy = false; }
 }
 
-/* ---------- xuất Excel 49 cột ---------- */
+/* ---------- xuất Excel 49 cột (máy chủ ghi vào file mẫu PMO) ---------- */
 function download(name: string, blob: Blob): void {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
 }
-/** Xuất file .xlsx từ bảng (bản chốt mới nhất của tuần này ghi tên file đã xuất). Trên trình duyệt thì tải về. */
-export function doExport(fname: string): Blob {
-  const s = getState(), rows = rowsOf(s), cols = exFields(s.exCols, s.hidden), name = xlsxName(fname);
-  const blob = exXlsx(rows, cols, s);
-  mutate((d) => {
-    const last = d.versions.find((v) => v.wk === 'w3'), nf = Object.keys(d.fmt).length;
-    d.exported = fname;
-    if (last) last.exported = fname;
-    log(d, 'Xuất báo cáo', fname, 'Từ bản v' + (last ? last.v : '?') + ' · ' + rows.length + ' dòng · ' + cols.length + ' cột'
-      + (nf ? ' · giữ định dạng ' + nf + ' ô' : '') + (d.exCols === 'all' ? ' · gồm cả cột đang ẩn' : ' · chỉ cột đang hiển thị'));
-    if (inBrowser()) toast(d, 'Đã tải ' + name);
-  });
-  saveVersions(getState());
-  if (inBrowser()) download(name, blob);
-  return blob;
+/** Xuất file .xlsx từ ĐÚNG bản chốt mới nhất của tuần đang làm (hoặc tuần đang sửa tiếp). Trên trình duyệt thì tải về. */
+export async function doExport(fname: string, opts: { onlyCurrentWeek?: boolean; appendOverrideNote?: boolean } = {}): Promise<Blob | null> {
+  const s = getState(), cur = activeWkOf(s), wk = s.editWk && s.editWk !== cur ? s.editWk : cur, last = s.versions.find((v) => v.wk === wk);
+  if (!last?.id) { mutate((d) => toast(d, 'Chốt bản trước, rồi mới xuất file')); return null; }
+  try {
+    const res = await api.exportExcel({
+      version_id: last.id, file_name: fname, ex_cols: s.exCols, hidden: s.hidden as Record<string, boolean>,
+      only_current_week: opts.onlyCurrentWeek ?? true, append_override_note: opts.appendOverrideNote ?? true
+    });
+    const rows = rowsOf(s), nf = Object.keys(s.fmt).length;
+    mutate((d) => {
+      d.exported = res.fileName;
+      const v = d.versions.find((x) => x.id === last.id);
+      if (v) v.exported = res.fileName;
+      log(d, 'Xuất báo cáo', res.fileName, 'Từ bản v' + last.v + ' · ' + rows.length + ' dòng'
+        + (nf ? ' · giữ định dạng ' + nf + ' ô' : '') + (d.exCols === 'all' ? ' · gồm cả cột đang ẩn' : ' · chỉ cột đang hiển thị'));
+      if (inBrowser()) toast(d, 'Đã tải ' + res.fileName);
+    });
+    if (inBrowser()) download(res.fileName, res.blob);
+    return res.blob;
+  } catch (e) { mutate((d) => toast(d, errMsg(e))); return null; }
 }
 export function setExCols(v: AppState['exCols']): void { mutate((d) => { d.exCols = v; }); }
 
@@ -95,7 +114,7 @@ function applySnap(d: Draft<AppState>, snap: Snap): void {
       const v = snap[k];
       if (f.kind === 'ai') { const a = f.id as 'rui'; if (v) r.ai[a] = { text: v, ok: true, why: 'bản đã chốt', src: '' }; else delete r.ai[a]; return; }
       if (f.kind === 'manual') { (r as unknown as Record<string, string>)[f.id] = v || ''; return; }
-      if (locked(f)) return;
+      if (locked(f, d)) return;
       const src = sourceValue(r, f, d);
       if ((v || '') !== (src || '') && v) r.ovr[f.id] = v; else delete r.ovr[f.id];
     });
@@ -103,6 +122,11 @@ function applySnap(d: Draft<AppState>, snap: Snap): void {
 }
 function openVersion(d: Draft<AppState>, v: VersionItem, snap: Snap): void {
   applySnap(d, snap);
+  /* định dạng, ngắt dòng và cột ẩn lúc chốt: khoá "mã|cột" → "chỉ số dòng|cột" */
+  const idx = new Map(d.allRows.map((r) => [r.ma, String(r.i)]));
+  if (v.fmt) d.fmt = mapKeys<CellFormat>(v.fmt, (ma) => idx.get(ma));
+  if (v.wrap) d.wrap = mapKeys(v.wrap, (ma) => idx.get(ma));
+  if (v.hidden) d.hidden = { ...v.hidden } as AppState['hidden'];
   d.view = 'grid'; d.modal = null; d.panel = null; d.touched = {};
   d.openedVer = vKey(v);
   log(d, 'Mở lại bản đã chốt', 'v' + v.v + ' · ' + v.at, 'Không cần nhập lại file');
@@ -123,15 +147,22 @@ export function vlEdit(k: string): void {
   });
 }
 /** "Mở →" ở "Bản đã lưu trên hệ thống" (bước 1): mở lại bản đã chốt trên bảng, không cần nhập file. */
-export function verOpen(k: string): void {
-  const s = getState(), v = vFind(s, k);
+export async function verOpen(k: string): Promise<void> {
+  const v = vFind(getState(), k);
   if (!v || !v.snap) return mutate((d) => toast(d, 'Bản này không có dữ liệu để mở lại'));
-  if (!s.loaded) return mutate((d) => toast(d, 'Nhập file Jira của tuần này trước, rồi mở lại bản'));
-  const ver = v, snap = v.snap!;
-  mutate((d) => { openVersion(d, ver, snap); toast(d, 'Đã mở bản v' + ver.v + ' (' + ver.at + ') — sửa tiếp rồi chốt thành bản mới'); });
+  if (!getState().loaded) {
+    if (!v.session_id) return mutate((d) => toast(d, 'Nhập file Jira của tuần này trước, rồi mở lại bản'));
+    try { applyIngest(await api.getSession(v.session_id)); } catch (e) { return mutate((d) => toast(d, errMsg(e))); }
+  }
+  const ver = v, snap = v.snap;
+  withSuppressedDraftSync(() => mutate((d) => {
+    openVersion(d, ver, snap);
+    if (ver.wk !== activeWkOf(d)) d.editWk = ver.wk;
+    toast(d, 'Đã mở bản v' + ver.v + ' (' + ver.at + ') — sửa tiếp rồi chốt thành bản mới');
+  }));
 }
 /** "Về tuần này". */
-export function vlExitEdit(): void { mutate((d) => { d.editWk = null; d.openedVer = null; toast(d, 'Đã về tuần 3/11'); }); }
+export function vlExitEdit(): void { mutate((d) => { d.editWk = null; d.openedVer = null; toast(d, 'Đã về ' + wkName(activeWkOf(d), true).toLowerCase()); }); }
 
 /* ---------- màn Phiên bản ---------- */
 /** Bấm một dòng bản đã chốt: xổ / thu bảng 5 chỉ số. */
@@ -140,9 +171,15 @@ export function vlTogExpand(k: string): void { mutate((d) => { d.vlOpen = d.vlOp
 export function vbSetA(k: string): void { mutate((d) => { d.vbA = k; d.vbMore = false; }); }
 export function vbSetB(k: string): void { mutate((d) => { d.vbB = k; d.vbA = null; d.vbMore = false; }); }
 export function vbToggleMore(): void { mutate((d) => { d.vbMore = !d.vbMore; }); }
-/** Bản "tải lại file đã xuất" (bản thử chỉ ghi nhật ký). */
-export function reExport(k: string): void {
-  mutate((d) => { log(d, 'Tải lại file đã xuất', k.replace('|', ' · v'), 'Lấy đúng file của bản đã chốt'); toast(d, 'Bản thử: file đã xuất được tải lại từ bản đã chốt'); });
+/** "Tải lại file đã xuất": lấy đúng file .xlsx của bản đã chốt từ máy chủ. */
+export async function reExport(k: string): Promise<void> {
+  const v = vFind(getState(), k);
+  if (!v?.id) return mutate((d) => toast(d, 'Bản này chưa có trên máy chủ để tải lại'));
+  try {
+    const res = await api.downloadVersionExcel(v.id);
+    mutate((d) => { log(d, 'Tải lại file đã xuất', k.replace('|', ' · v'), 'Lấy đúng file của bản đã chốt'); toast(d, 'Đã tải ' + res.fileName); });
+    if (inBrowser()) download(res.fileName, res.blob);
+  } catch (e) { mutate((d) => toast(d, errMsg(e))); }
 }
 
 /* ---------- chọn tuần trên thanh trên ---------- */
@@ -150,7 +187,7 @@ export function reExport(k: string): void {
 export function wkOpen(k: WeekKey): void {
   mutate((d) => {
     d.menu = null;
-    if (k === 'w3') return;
+    if (k === activeWkOf(d)) return;
     const vv = d.versions.find((v) => v.wk === k);
     d.view = 'ver'; d.verSel = vv ? vKey(vv) : null;
     toast(d, 'Tuần đã chốt chỉ xem, không sửa — đang mở bản v' + (vv ? vv.v : 1));
