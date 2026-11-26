@@ -11,11 +11,10 @@ import { startReview, pendingList } from '@/store/actions/ai';
 import { goStep, setModal, setView } from '@/store/actions/flow';
 import { fixGo } from '@/store/actions/grid';
 import { doExport, doLock, setExCols, wkName } from '@/store/actions/versions';
-import type { AppState, FieldId, WeekKey } from '@/types';
+import type { AppState, FieldId } from '@/types';
 
 const fileDefault = (s: AppState): string => (s.activeToday || '2026-11-21').replace(/-/g, '') + '_DAN_Bao-cao-PMO.xlsx';
 /** Ba cột của khối tuần trong file mẫu. */
-const WK_COLS: Record<WeekKey, string> = { w1: 'AL–AN', w2: 'AO–AQ', w3: 'AR–AT', w4: 'AU–AW' };
 const KIND_IC = { err: '✕', wrn: '!', ai: 'AI', ok: '✓' } as const;
 
 function Row({ kind, title, desc, children }: { kind: keyof typeof KIND_IC; title: string; desc: string; children?: React.ReactNode }): JSX.Element {
@@ -75,8 +74,8 @@ function Body({ s }: { s: AppState }): JSX.Element {
               {s.exCols !== 'all' && hg && <div className="xhint" style={{ marginTop: 7 }}>{'Không xuất các cột đang ẩn: ' + hg}</div>}</div>
             <div className="xs2"><label className="xt" htmlFor="fn">Tên file báo cáo</label><input className="inp" id="fn" value={fn} onChange={(e) => setFn(e.target.value)} style={{ width: '100%', height: 34, fontFamily: 'var(--mono)', fontSize: 12 }} /></div>
             <details className="xmore"><summary>Tuỳ chọn ghi file</summary>
-              <label><input type="checkbox" checked={onlyWk} onChange={(e) => setOnlyWk(e.target.checked)} /><span>{'Chỉ ghi khối ' + wn + ' (cột ' + WK_COLS[wk] + '), giữ nguyên các khối tuần khác'}</span></label>
-              <label><input type="checkbox" checked={noteRaw} onChange={(e) => setNoteRaw(e.target.checked)} /><span>Ghi ô đã sửa tay vào cột Note</span></label></details>
+              <label><input type="checkbox" checked={onlyWk} onChange={(e) => setOnlyWk(e.target.checked)} /><span>{'Chỉ ghi nhận thay đổi tuần hiện tại'}</span></label>
+              <label><input type="checkbox" checked={noteRaw} onChange={(e) => setNoteRaw(e.target.checked)} /><span>Ghi thay đổi vào Note</span></label></details>
           </>
         ) : (
           <>
