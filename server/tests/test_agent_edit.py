@@ -186,6 +186,14 @@ def test_empty_where_value_means_empty_cell(monkeypatch):
     assert [p['code'] for p in out['proposals']] == ['DA01', 'DA03', 'DA04'] and not out['skipped']
 
 
+@pytest.mark.parametrize('wf,wv', [('rui', 'Chưa có'), ('rui', 'chưa đánh giá'), ('rui', 'trống')])
+def test_only_empty_with_empty_phrase_on_same_field_means_empty_cells(monkeypatch, wf, wv):
+    """Live eval: "dự án nào chưa có rủi ro thì để trung bình" → AI ghi where_value="Chưa có" trên cột rui; phải hiểu là ô rui trống."""
+    ai_returns(monkeypatch, {'ops': [op('rui', 'Trung bình', wf=wf, wv=wv, only_empty=True)], 'unclear': ''})
+    out = agent.ask('dự án nào chưa có rủi ro thì để trung bình', ROWS, FIELDS, None, True)
+    assert [(p['code'], p['to']) for p in out['proposals']] == [('DA02', 'Trung bình'), ('DA04', 'Trung bình')] and not out['skipped']
+
+
 def test_ai_returning_nothing_without_reason_asks_user_to_clarify(monkeypatch):
     ai_returns(monkeypatch, {'ops': [], 'unclear': ''})
     out = agent.ask('đổi tất cả dự án sang đúng tiến độ', ROWS, FIELDS, None, True)

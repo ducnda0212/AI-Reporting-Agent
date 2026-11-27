@@ -31,7 +31,7 @@ TEST_ENV = {
     'VLLM_API_KEY': '', 'VLLM_AUTH_URL': f'http://127.0.0.1:{FAKE_PORT}/oauth/token', 'VLLM_CLIENT_ID': 'cid',
     'VLLM_CLIENT_SECRET': 'secret', 'VLLM_PROJECT_ID': 'p1', 'VLLM_THINKING': '0', 'VLLM_GUARDRAIL': 'low',
     'VLLM_JSON_MODE': 'schema', 'VLLM_CA_BUNDLE': '', 'VLLM_INSECURE': '0', 'VLLM_TIMEOUT': '10',
-    'AI_MASK_NAMES': '1', 'AI_CONCURRENCY': '3',
+    'AI_MASK_NAMES': '1', 'AI_CONCURRENCY': '3', 'AI_EMBED_CACHE': '',  # tắt bộ nhớ đệm trên đĩa: test không để lại file
 }
 os.environ.update(TEST_ENV)
 
@@ -51,6 +51,7 @@ def reset_fake_state():
                             'embed_status': None, 'embed_calls': 0, 'embed_inputs': []})
     from server.app.ai import rag
     rag._CACHE.clear()  # bộ nhớ vector không được rò từ test này sang test khác
+    rag._down.update({'until': 0.0, 'why': ''})
     yield
 
 

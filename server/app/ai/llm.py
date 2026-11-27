@@ -117,11 +117,13 @@ class VllmClient:
         body = {'model': model or self.cfg.embed_model, 'input': texts}
         if not body['model']:
             raise VllmError('Chưa đặt AI_EMBED_MODEL.')
-        url = f'{self.cfg.base_url}/embeddings'
+        ext = bool(self.cfg.embed_base_url)   # dịch vụ embeddings RIÊNG (vd OpenAI): khoá riêng, không dùng token V-LLM
+        url = f'{self.cfg.embed_base_url or self.cfg.base_url}/embeddings'
         last: VllmError | None = None
         refreshed = False
         for attempt in range(3):
-            status, raw = self._http('POST', url, body, headers=self._auth_headers())
+            heads = {'Authorization': 'Bearer ' + self.cfg.embed_api_key} if ext else self._auth_headers()
+            status, raw = self._http('POST', url, body, headers=heads)
             if status == 200:
                 try:
                     data = sorted(json.loads(raw)['data'], key=lambda d: d.get('index', 0))
@@ -131,11 +133,11 @@ class VllmClient:
                 if len(vecs) != len(texts):
                     raise VllmError('Số vector embeddings không khớp số đoạn gửi.', status, raw[:300])
                 return vecs
-            if status == 401 and self.cfg.auth_kind == 'oauth' and not refreshed:
+            if status == 401 and not ext and self.cfg.auth_kind == 'oauth' and not refreshed:
                 self._get_token(force=True)
                 refreshed = True
                 continue
-            last = VllmError(_http_message(status), status, raw[:500])
+            last = VllmError(self._err(status, 'AI_EMBED_API_KEY' if ext else 'OPENAI_API_KEY') if (ext or self.openai) else _http_message(status), status, raw[:500])
             if status in (429, 500, 502, 503, 504):
                 time.sleep(self.backoff * (attempt + 1))
                 continue
@@ -209,19 +211,36 @@ class VllmClient:
             raise VllmError(msg, status, raw[:500])
         raise VllmError('Nhận dạng giọng nói thất bại.')
 
+    @staticmethod
+    def _err(status: int, key: str) -> str:
+        hint = {400: 'sai tên model hoặc tham số', 401: f'khoá {key} sai hoặc hết hạn', 403: 'khoá không có quyền dùng model này', 404: 'sai tên model hoặc đường dẫn',
+                429: 'hết hạn mức hoặc gọi quá nhanh'}.get(status, '')
+        return f'OpenAI báo lỗi HTTP {status}' + (f' ({hint}).' if hint else '.')
+
+    @property
+    def openai(self) -> bool:
+        """Đang trỏ thẳng tới OpenAI (VLLM_BASE_URL=https://api.openai.com/v1): bỏ các tham số riêng của V-LLM, đổi tên tham số theo OpenAI."""
+        return getattr(self.cfg, 'provider', '') == 'openai' or 'api.openai.com' in (self.cfg.base_url or '').lower()
+
     def _body(self, messages: list[dict], schema: dict | None, max_tokens: int | None, temperature: float, model: str | None = None) -> dict:
-        body: dict[str, Any] = {
-            'model': model or self.cfg.model,
-            'messages': messages,
-            'temperature': temperature,
-            'max_tokens': max_tokens or self.cfg.max_tokens,
-            'chat_template_kwargs': {'enable_thinking': self.cfg.thinking},
-        }
-        if self.cfg.guardrail:
-            body['guardrail'] = self.cfg.guardrail
+        name = model or self.cfg.model
+        body: dict[str, Any] = {'model': name, 'messages': messages}
+        if self.openai:
+            reasoning = bool(re.match(r'(gpt-5|o\d)', name.lower()))   # dòng suy luận: không nhận temperature, tốn token cho phần nghĩ
+            body['max_completion_tokens'] = (max_tokens or self.cfg.max_tokens) + (2048 if reasoning else 0)
+            if reasoning:
+                body['reasoning_effort'] = 'low'
+            else:
+                body['temperature'] = temperature
+        else:
+            body.update({'temperature': temperature, 'max_tokens': max_tokens or self.cfg.max_tokens,
+                         'chat_template_kwargs': {'enable_thinking': self.cfg.thinking}})
+            if self.cfg.guardrail:
+                body['guardrail'] = self.cfg.guardrail
         if schema is not None:
             if self._json_mode == 'schema':
-                body['response_format'] = {'type': 'json_schema', 'json_schema': {'name': schema.get('title', 'result'), 'schema': schema, 'strict': True}}
+                sch = _strict_schema(schema) if self.openai else schema
+                body['response_format'] = {'type': 'json_schema', 'json_schema': {'name': schema.get('title', 'result'), 'schema': sch, 'strict': True}}
             elif self._json_mode == 'object':
                 body['response_format'] = {'type': 'json_object'}
         return body
@@ -252,7 +271,7 @@ class VllmClient:
                 # nền tảng không nhận kiểu ép JSON này: hạ một bậc rồi thử lại
                 self._json_mode = 'object' if self._json_mode == 'schema' else 'none'
                 continue
-            last = VllmError(_http_message(status), status, raw[:500])
+            last = VllmError(self._err(status, 'OPENAI_API_KEY') if self.openai else _http_message(status), status, raw[:500])
             if status in (429, 500, 502, 503, 504):
                 time.sleep(self.backoff * (attempt + 1))
                 continue
@@ -260,20 +279,38 @@ class VllmClient:
         raise last or VllmError('Gọi V-LLM thất bại.')
 
     def chat_json(self, messages: list[dict], schema: dict, max_tokens: int | None = None, model: str | None = None,
-                  repair: bool = False) -> dict:
+                  repair: bool = False, temperature: float | None = None) -> dict:
         """Gọi và đọc JSON; nếu đọc không được thì nhắc lại một lần.
         repair=True: JSON bị cắt giữa chừng thì đóng ngoặc cho đủ (chỉ dùng khi code kiểm tra lại toàn bộ kết quả)."""
-        res = self.chat(messages, schema, max_tokens, model=model)
+        kw = {} if temperature is None else {'temperature': temperature}   # temperature=0: cùng một câu hỏi thì V-LLM chọn cùng một cách (dùng cho bước đọc ý định)
+        res = self.chat(messages, schema, max_tokens, model=model, **kw)
         try:
             return {**res, 'data': parse_json(res['content'], repair)}
         except ValueError:
             retry = messages + [{'role': 'assistant', 'content': res['content'][:2000]},
                                 {'role': 'user', 'content': 'Câu trả lời trên không phải JSON hợp lệ. Chỉ trả về đúng một đối tượng JSON theo schema, không giải thích.'}]
-            res2 = self.chat(retry, schema, max_tokens, model=model)
+            res2 = self.chat(retry, schema, max_tokens, model=model, **kw)
             try:
                 return {**res2, 'data': parse_json(res2['content'], repair)}
             except ValueError:
                 raise VllmError('V-LLM không trả về JSON hợp lệ.', 200, res2['content'][:500])
+
+
+_STRICT_DROP = {'minimum', 'maximum', 'minItems', 'maxItems', 'minLength', 'maxLength', 'pattern', 'format', 'default'}
+
+
+def _strict_schema(node: Any) -> Any:
+    """Schema theo chế độ strict của OpenAI: mọi thuộc tính phải nằm trong required, additionalProperties=false, bỏ các ràng buộc số/độ dài
+    (code đã tự kiểm tra lại mọi kết quả AI nên không mất gì)."""
+    if isinstance(node, list):
+        return [_strict_schema(x) for x in node]
+    if not isinstance(node, dict):
+        return node
+    out = {k: _strict_schema(v) for k, v in node.items() if k not in _STRICT_DROP}
+    if out.get('type') == 'object' and isinstance(out.get('properties'), dict):
+        out['additionalProperties'] = False
+        out['required'] = list(out['properties'])
+    return out
 
 
 def _http_message(status: int) -> str:

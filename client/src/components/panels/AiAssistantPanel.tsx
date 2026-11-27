@@ -8,7 +8,9 @@ import { ASKQ } from '@/data/constants';
 import { agExamples } from '@/lib/ai';
 import { activeWkOf, displayText, fieldById } from '@/lib/cell';
 import { now, rowsOf, useAppState } from '@/store';
-import { chatClear, chatDelete, chatHistory, chatNew, chatOpen, chatSearch, askSend, exGo, pendingList, stgApply, stgDrop, stgGo, stgMore, stgShow, stgToggle } from '@/store/actions/ai';
+import { looksLikeEdit } from '@/lib/agentEdit';
+import '@/styles/agent-extra.css';
+import { warmAgent, chatClear, chatDelete, chatHistory, chatNew, chatOpen, chatSearch, askSend, exGo, pendingList, stgApply, stgDrop, stgGo, stgMore, stgShow, stgToggle } from '@/store/actions/ai';
 import { groupChats, previewOf, whenLabel } from '@/lib/chatHistory';
 import { wkName } from '@/store/actions/versions';
 import type { AgStage, AppState } from '@/types';
@@ -71,7 +73,7 @@ function Welcome({ s }: { s: AppState }): JSX.Element {
   return (
     <div className="ai9">
       <div className="ai9hero"><div className="ai9orb" aria-hidden="true"><i /><span>✦</span></div>
-        <h3>Chào Bạn thân yêu, cần gì cho <em>{wkName(activeWkOf(s), true)}</em>?</h3>
+        <h3>Chào bạn, cần gì cho <em>{wkName(activeWkOf(s), true)}</em>?</h3>
         <p>Hỏi về số liệu, hoặc nhờ Agent sửa bảng. Agent gửi bản xem trước, bạn duyệt mới áp dụng.</p>
         <div className="ai9sts">
           {stat(rows.length, 'dự án', '', 'Tóm tắt tuần này')}
@@ -136,6 +138,7 @@ export function AiAssistantPanel(): JSX.Element {
   const s = useAppState((x) => x), [q, setQ] = useState('');
   const scroll = useRef<HTMLDivElement>(null), L = s.askLog, busy = !!L[L.length - 1]?.busy;
   const r0 = s.sel ? s.allRows[s.sel.i] : null;
+  useEffect(() => { void warmAgent(); }, []);   // nạp sẵn embeddings cho bảng: câu hỏi đầu tiên không phải chờ
   /* tin mới: cuộn xuống cuối */
   useEffect(() => { const el = scroll.current; if (el) el.scrollTop = el.scrollHeight; }, [L.length, busy]);
   const send = (t: string): void => { if (t.trim()) { askSend(t); setQ(''); } };
@@ -151,7 +154,7 @@ export function AiAssistantPanel(): JSX.Element {
     try {
       const out = await transcribeAudio(wav);
       if (!out.text) { setMicMsg('Không nhận ra lời nói. Hãy nói rõ hơn.'); }
-      else if (busyRef.current) { setQ((p) => (p.trim() ? p.trim() + ' ' : '') + out.text); setMicMsg('Agent đang trả lời, chữ đã điền vào ô chat.'); taRef.current?.focus(); }
+      else if (busyRef.current || looksLikeEdit(out.text)) { setQ((p) => (p.trim() ? p.trim() + ' ' : '') + out.text); setMicMsg(busyRef.current ? 'Agent đang trả lời, chữ đã điền vào ô chat.' : 'Lệnh sửa bảng: kiểm tra lại chữ trong ô chat rồi bấm Gửi.'); taRef.current?.focus(); }
       else { askSend(out.text); setMicMsg('Đã gửi cho Trợ lý.'); }
     } catch (e) { setMicMsg(e instanceof Error ? e.message : 'Không nhận dạng được giọng nói.'); }
     setMic('idle');

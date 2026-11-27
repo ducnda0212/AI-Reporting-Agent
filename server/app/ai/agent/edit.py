@@ -107,6 +107,9 @@ LAST_WORDS = {'cuoi', 'cuoi cung', 'buoc cuoi', 'buoc cuoi cung', 'giai doan cuo
 FIRST_WORDS = {'dau', 'dau tien', 'buoc dau', 'buoc dau tien', 'giai doan dau', 'first'}
 
 
+_EMPTY_WORDS = {'chua co', 'chua dien', 'chua danh gia', 'chua nhap', 'trong', 'rong', 'bo trong', 'empty', 'none', 'null'}
+
+
 def _match_option(value: str, options: list[str]) -> str | None:
     want = _norm(value)
     for o in options:
@@ -306,6 +309,8 @@ def build_preview(plan: dict, fields: dict, rows: list[dict], question: str = ''
             targets = [by_code[c] for c in codes if c in by_code]
         elif t.get('where_field') and not str(t.get('where_value') or '').strip() and str(t['where_field']) in fields:
             targets = [r for r in rows if not r['values'].get(str(t['where_field']), '').strip()]  # "chưa có note" mà AI ghi thành điều kiện rỗng: hiểu là ô trống
+        elif t.get('only_empty') and t.get('where_field') and (str(t['where_field']) == f['id'] or _norm(str(t.get('where_value') or '')) in _EMPTY_WORDS):
+            targets = rows  # "chưa có rủi ro thì để Trung bình": AI ghi "Chưa có" thành điều kiện lọc trên chính cột đó; hiểu là ô trống, lọc ở bước dưới
         elif t.get('where_field'):
             wf = fields.get(str(t['where_field']))
             wv = str(t.get('where_value') or '')
