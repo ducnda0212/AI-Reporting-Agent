@@ -42,6 +42,9 @@ class Settings:
     port: int
     embed_model: str = ''        # tên model embeddings của V-LLM; trống = RAG chỉ tìm theo từ khoá
     rag_embeddings: bool = True  # tắt hẳn embeddings dù đã đặt model
+    asr_model: str = 'v-llm-v1-asr'  # model nhận dạng giọng nói (/v1/audio/transcriptions)
+    asr_base_url: str = ''           # dịch vụ nhận dạng giọng nói RIÊNG (vd Blaze: https://api.blaze.vn/v1); trống = dùng V-LLM
+    asr_api_key: str = ''            # khoá của dịch vụ giọng nói riêng, chỉ để trong server/.env
 
     @property
     def auth_kind(self) -> str:
@@ -100,6 +103,9 @@ def load(env: dict | None = None) -> Settings:
         port=int(g('PORT', '8000')),
         embed_model=g('AI_EMBED_MODEL', '').strip(),
         rag_embeddings=b('AI_RAG_EMBEDDINGS', '1'),
+        asr_base_url=g('AI_ASR_BASE_URL', '').strip().rstrip('/'),
+        asr_api_key=g('AI_ASR_API_KEY', '').strip(),
+        asr_model=g('AI_ASR_MODEL', '').strip() or ('blaze-stt-1.5' if 'blaze' in g('AI_ASR_BASE_URL', '').lower() else 'v-llm-v1-asr'),
     )
 
 

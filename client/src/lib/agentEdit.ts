@@ -44,7 +44,7 @@ export function editFields(): AgentEditField[] {
 
 /** Giá trị đang hiển thị của mọi cột theo từng dòng, để backend biết "đang trống", "chậm tiến độ"... */
 export function editRows(rows: Row[], ctx: CellCtx): AgentEditRow[] {
-  return rows.map((r) => ({ code: r.ma, values: Object.fromEntries(FIELDS.map((f: Field) => [f.id, displayText(r, f, ctx) || ''])) }));
+  return rows.map((r) => ({ code: r.ma, name: r.viec || '', values: Object.fromEntries(FIELDS.map((f: Field) => [f.id, displayText(r, f, ctx) || ''])) }));
 }
 
 /** Đề xuất của backend → các dòng của bản xem trước. Bỏ đề xuất trỏ tới mã hoặc cột không có, ô không đổi và cột không sửa tay được. */

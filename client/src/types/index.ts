@@ -1,6 +1,6 @@
 /* Kiểu dữ liệu lõi của bản gọn (lite). Nguồn: object `state`, buildRow(), FIELDS trong prototype v4. */
 
-export type ViewType = 'import' | 'grid' | 'ver' | 'log';
+export type ViewType = 'import' | 'grid' | 'ai' | 'ver' | 'log';
 export type PanelType = 'ai' | 'aitrace' | 'tvcfg' | null;
 export type ModalType = 'export' | 'aiDone' | null;
 

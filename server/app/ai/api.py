@@ -7,6 +7,7 @@
   POST /api/ai/draft        gợi ý nháp cho các dòng báo cáo
   POST /api/risk/assess     đánh giá một rủi ro theo bộ tiêu chí
   POST /api/agent/ask       Agent hỏi đáp / đề xuất sửa ô (không tự ghi)
+  POST /api/agent/transcribe  giọng nói -> chữ (V-LLM /v1/audio/transcriptions); thân yêu cầu là file âm thanh thô
   POST /api/import          (cũ) đọc file Jira; đã được /api/v1/ingest/upload thay thế
 """
 from __future__ import annotations
@@ -21,11 +22,12 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from .. import jira_import
-from . import agent, drafts, rag, risk
+from . import agent, drafts, rag, risk, speech
 from .llm import VllmError, client
 from .settings import settings
 
 MAX_UPLOAD = 30 * 1024 * 1024
+MAX_AUDIO = 12 * 1024 * 1024  # ~6 phút WAV 16 kHz mono; câu lệnh chỉ vài giây
 
 
 def err(message: str, status: int = 400, detail: str = '') -> JSONResponse:
@@ -134,6 +136,30 @@ async def agent_ask(request: Request):
         return err(str(e), 502, e.detail)
 
 
+async def agent_transcribe(request: Request):
+    """Nhận file âm thanh (WAV/MP3…) làm thân yêu cầu, trả chữ để điền vào ô chat. Không tự chạy lệnh nào."""
+    if not settings.asr_base_url:  # dùng V-LLM: cần cấu hình V-LLM đầy đủ; dịch vụ giọng nói riêng (AI_ASR_BASE_URL) thì không
+        if settings.mode != 'vllm':
+            return err('Chế độ AI đang là mock nên chưa có nhận dạng giọng nói. Đặt AI_MODE=vllm hoặc AI_ASR_BASE_URL.', 503)
+        if settings.problems():
+            return err('; '.join(settings.problems()), 400)
+    audio = await request.body()
+    if not audio:
+        return err('Không nhận được âm thanh.')
+    if len(audio) > MAX_AUDIO:
+        return err('Đoạn ghi âm quá dài. Hãy nói ngắn hơn (dưới vài phút).', 413)
+    ctype = (request.headers.get('content-type') or 'audio/wav').split(';')[0].strip().lower()
+    ext = {'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/mp4': 'm4a'}.get(ctype)
+    if not ext:
+        return err(f'Định dạng âm thanh {ctype} chưa được hỗ trợ. Dùng WAV hoặc MP3.', 415)
+    lang = (request.query_params.get('lang') or 'vi')[:5]
+    try:
+        out = await run_in_threadpool(client.transcribe, audio, f'speech.{ext}', ctype, lang)
+    except VllmError as e:
+        return err(str(e), 502, e.detail)
+    return JSONResponse({**out, 'text': speech.normalize_codes(out['text']), 'raw': out['text'], 'model': settings.asr_model})
+
+
 async def risk_assess(request: Request):
     body = await _json(request)
     text = (body.get('text') or '').strip()
@@ -156,6 +182,7 @@ routes = [
     Route('/api/ai/draft', ai_draft, methods=['POST']),
     Route('/api/risk/assess', risk_assess, methods=['POST']),
     Route('/api/agent/ask', agent_ask, methods=['POST']),
+    Route('/api/agent/transcribe', agent_transcribe, methods=['POST']),
 ]
 app = Starlette(routes=routes)
 

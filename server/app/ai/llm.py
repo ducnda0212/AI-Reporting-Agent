@@ -15,6 +15,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+import uuid
 from typing import Any
 
 from .settings import Settings, settings as default_settings
@@ -140,6 +141,73 @@ class VllmClient:
                 continue
             raise last
         raise last or VllmError('Gọi embeddings thất bại.')
+
+    def transcribe(self, audio: bytes, filename: str = 'speech.wav', content_type: str = 'audio/wav', language: str = 'vi', model: str | None = None) -> dict:
+        """/v1/audio/transcriptions (chuẩn OpenAI, multipart). Trả {'text', 'language', 'duration'}."""
+        if not audio:
+            raise VllmError('Không có âm thanh để nhận dạng.')
+        boundary = 'pmo' + uuid.uuid4().hex
+        parts: list[bytes] = []
+
+        def field(name: str, value: str) -> None:
+            parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'.encode('utf-8'))
+        ext = bool(self.cfg.asr_base_url)  # dịch vụ giọng nói riêng (vd Blaze): xác thực bằng khoá riêng, không gửi kèm response_format
+        field('model', model or self.cfg.asr_model)
+        if language:
+            field('language', language)
+        if not ext:
+            field('response_format', 'json')
+        safe = re.sub(r'[^A-Za-z0-9._-]', '_', filename)[:60] or 'speech.wav'
+        parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{safe}"\r\nContent-Type: {content_type}\r\n\r\n'.encode('utf-8') + audio + b'\r\n')
+        parts.append(f'--{boundary}--\r\n'.encode('utf-8'))
+        data = b''.join(parts)
+        base = self.cfg.asr_base_url or self.cfg.base_url
+        url = f'{base}/audio/transcriptions'
+        who = 'dịch vụ giọng nói' if ext else 'V-LLM'
+        refreshed = False
+        for attempt in range(2):
+            req = urllib.request.Request(url, data=data, method='POST')
+            req.add_header('Content-Type', f'multipart/form-data; boundary={boundary}')
+            req.add_header('Accept', 'application/json')
+            heads = {'Authorization': 'Bearer ' + self.cfg.asr_api_key} if ext and self.cfg.asr_api_key else self._auth_headers(force=refreshed)
+            for k, v in heads.items():
+                req.add_header(k, v)
+            try:
+                with urllib.request.urlopen(req, timeout=self.cfg.timeout, context=self._ssl()) as res:
+                    status, raw = res.status, res.read().decode('utf-8', 'replace')
+            except urllib.error.HTTPError as e:
+                status, raw = e.code, e.read().decode('utf-8', 'replace') if e.fp else ''
+            except urllib.error.URLError as e:
+                raise VllmError(f'Không kết nối được {who} ({getattr(e, "reason", e)}).', None, str(e))
+            except TimeoutError as e:
+                raise VllmError('Nhận dạng giọng nói quá lâu (hết giờ chờ).', None, str(e))
+            if status == 202 and ext:  # job chạy lâu hơn thời gian chờ: hỏi lại vài lần
+                try:
+                    jid = json.loads(raw).get('id')
+                except ValueError:
+                    jid = None
+                for _ in range(10):
+                    if not jid:
+                        break
+                    time.sleep(1.5)
+                    st, rw = self._http('GET', f'{base}/audio/transcriptions/jobs/{jid}', headers=heads)
+                    if st == 200 and json.loads(rw).get('status') == 'completed':
+                        status, raw = 200, rw
+                        break
+                    if st != 200 or json.loads(rw).get('status') == 'failed':
+                        break
+            if status == 200:
+                try:
+                    d = json.loads(raw)
+                except ValueError:
+                    raise VllmError('Phản hồi nhận dạng giọng nói không phải JSON.', status, raw[:300])
+                return {'text': str(d.get('text') or '').strip(), 'language': d.get('language') or language, 'duration': d.get('duration')}
+            if status == 401 and self.cfg.auth_kind == 'oauth' and not refreshed:
+                refreshed = True
+                continue
+            msg = _http_message(status) if status != 404 else f'Chưa có model nhận dạng giọng nói trên {who} (HTTP 404). Kiểm tra AI_ASR_MODEL và AI_ASR_BASE_URL.'
+            raise VllmError(msg, status, raw[:500])
+        raise VllmError('Nhận dạng giọng nói thất bại.')
 
     def _body(self, messages: list[dict], schema: dict | None, max_tokens: int | None, temperature: float, model: str | None = None) -> dict:
         body: dict[str, Any] = {

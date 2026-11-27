@@ -120,4 +120,21 @@ describe('Lịch sử trò chuyện · hành động trong store', () => {
     AI.chatDelete(id);
     expect(getState().chats.map((c) => c.id)).toContain(id);
   });
+
+  it('xoá tất cả lịch sử: cả cuộc đang mở về trang trống; không đổi khi Agent đang trả lời', () => {
+    AI.askSubmit('Tóm tắt tuần này');
+    AI.chatNew();
+    AI.askSubmit('Dự án nào chậm?');
+    expect(getState().chats).toHaveLength(2);
+    const busy = { q: 'đang hỏi', a: { html: '', act: [] }, busy: true };
+    mutate((d) => { d.askLog.push(busy); }, { track: false });
+    AI.chatClear();
+    expect(getState().chats).toHaveLength(2);
+    mutate((d) => { d.askLog = d.askLog.filter((m) => !m.busy); }, { track: false });
+    AI.chatClear();
+    const s = getState();
+    expect(s.chats).toEqual([]);
+    expect(s.askLog).toEqual([]);
+    expect(s.chatId).toBe('');
+  });
 });

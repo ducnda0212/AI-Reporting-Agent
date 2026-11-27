@@ -91,7 +91,14 @@ class H(BaseHTTPRequestHandler):
         self._send(404, {})
 
     def do_POST(self):
-        body = json.loads(self.rfile.read(int(self.headers.get('Content-Length', 0))) or b'{}')
+        raw = self.rfile.read(int(self.headers.get('Content-Length', 0)))
+        if self.path.endswith('/v1/audio/transcriptions'):  # multipart: không đọc như JSON
+            if not self._auth_ok():
+                return self._send(401, {'error': 'unauthorized'})
+            STATE['asr_calls'] = STATE.get('asr_calls', 0) + 1
+            STATE['asr_raw'] = raw
+            return self._send(200, {'text': STATE.get('asr_text') or 'cho i chấm a chấm một chấm một rủi ro cao', 'language': 'vi', 'duration': 2.5})
+        body = json.loads(raw or b'{}')
         if self.path.endswith('/oauth/token'):
             if body.get('client_secret') != 'secret':
                 return self._send(401, {'error': 'bad secret'})

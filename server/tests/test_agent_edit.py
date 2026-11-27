@@ -232,3 +232,69 @@ def test_previous_codes_are_not_allowed_without_a_reference_word(monkeypatch):
     ai_returns(monkeypatch, {'ops': [op('ghichu', 'chờ', codes=['DA04'])], 'unclear': ''})
     out = agent_edit.propose('ghi chú chờ', ROWS, FIELDS, history=hist)
     assert not out['proposals']  # câu không nhắc dự án nào: AI không được tự lấy mã cũ
+
+
+# ---------- cột AI chọn để lọc đang trống: tìm cột khác có đúng giá trị đó ----------
+F2 = [{'id': 'td', 'name': 'Tiến độ', 'options': ['Đúng tiến độ', 'Có nguy cơ chậm', 'Chậm tiến độ']},
+      {'id': 'mang', 'name': 'Mảng việc'},
+      {'id': 'domain', 'name': 'Domain', 'options': ['Food', 'Ride', 'Express']}]
+R2 = [{'code': 'A1', 'values': {'td': 'Đúng tiến độ', 'mang': 'I.A.4.Tối ưu Food & Express', 'domain': ''}},
+      {'code': 'A2', 'values': {'td': 'Đúng tiến độ', 'mang': 'I.A.4.Tối ưu Food & Express', 'domain': ''}},
+      {'code': 'B1', 'values': {'td': 'Đúng tiến độ', 'mang': 'I.C.1.Điều phối Ride', 'domain': ''}}]
+
+
+def test_empty_domain_column_falls_back_to_group_column(monkeypatch):
+    ai_returns(monkeypatch, {'ops': [op('td', 'Chậm tiến độ', wf='domain', wv='Food')], 'unclear': ''})
+    out = agent_edit.propose('đổi dự án food & express sang chậm tiến độ nhé', R2, F2)
+    assert {p['code'] for p in out['proposals']} == {'A1', 'A2'} and not out['skipped']
+
+
+def test_ambiguous_fallback_is_not_guessed_and_message_is_clear(monkeypatch):
+    rows = [*R2, {'code': 'C1', 'values': {'td': 'Đúng tiến độ', 'mang': 'II.F.1.An toàn Food Safety', 'domain': ''}}]
+    ai_returns(monkeypatch, {'ops': [op('td', 'Chậm tiến độ', wf='domain', wv='Food')], 'unclear': ''})
+    out = agent_edit.propose('đổi dự án food sang chậm tiến độ nhé', rows, F2)
+    assert out['proposals'] == [] and 'đang trống' in out['skipped'][0]['reason'] and 'Giá trị hiện có: .' not in out['skipped'][0]['reason']
+
+
+def test_group_name_given_as_condition_on_wrong_nonempty_column(monkeypatch):
+    f = [{'id': 'note', 'name': 'Note'}, {'id': 'loai', 'name': 'Loại dự án'}, {'id': 'mang', 'name': 'Mảng việc'}]
+    g = 'I.A.6. An toàn & Cá nhân hóa thống nhất & nâng cao'
+    rows = [{'code': 'I.A.6.1', 'values': {'note': '', 'loai': 'KHHĐ 2026', 'mang': g}}, {'code': 'I.A.6.2', 'values': {'note': '', 'loai': 'KHHĐ 2026', 'mang': g}},
+            {'code': 'I.A.3.1', 'values': {'note': '', 'loai': 'KHHĐ 2026', 'mang': 'I.A.3.PAI - Cá nhân hóa trải nghiệm cho từng khách'}}]
+    ai_returns(monkeypatch, {'ops': [op('note', 'chờ CBLĐ', wf='loai', wv='An toàn & cá nhân hóa')], 'unclear': ''})
+    out = agent_edit.propose('đổi note của các dự án thuộc An toàn & cá nhân hóa sang chờ CBLĐ', rows, f)
+    assert [p['code'] for p in out['proposals']] == ['I.A.6.1', 'I.A.6.2'] and not out['skipped']
+
+
+def test_condition_split_by_comma_matches_group_with_ampersand(monkeypatch):
+    rows = [{**r, 'values': {**r['values'], 'domain': 'Food' if r['code'] == 'B1' else ''}} for r in R2]  # Domain có giá trị, nhưng không khớp "Food, Express"
+    ai_returns(monkeypatch, {'ops': [op('td', 'Chậm tiến độ', wf='domain', wv='Food, Express')], 'unclear': ''})
+    out = agent_edit.propose('đổi dự án food & express sang chậm tiến độ nhé', rows, F2)
+    assert {p['code'] for p in out['proposals']} == {'A1', 'A2'} and not out['skipped']
+
+
+# ---------- gọi dự án bằng TÊN, không nêu mã ----------
+NAMED = [dict(r, name=n) for r, n in zip(ROWS, ['Nhận diện và xác thực khuôn mặt', 'Trợ lý giọng nói', 'Điều phối tài xế', 'Chấm điểm tín dụng'])]
+FN = FIELDS + [{'id': 'lc', 'name': 'AI Lifecycle', 'options': ['Bước 1', 'Bước 5', 'Bước 8', 'Bước 10']}]
+for _r in NAMED:
+    _r['values']['lc'] = 'Bước 8'
+
+
+def test_project_named_without_code_is_resolved_by_ai_and_names_are_sent(monkeypatch):
+    seen = ai_returns(monkeypatch, {'ops': [op('lc', 'Bước 1', codes=['DA01'])], 'unclear': ''})
+    out = agent_edit.propose('Đổi bước AI lifecycle trong dự án nhận diện và xác thực khuôn mặt, từ bước 8 thành bước 1', NAMED, FN)
+    assert [(p['code'], p['to']) for p in out['proposals']] == [('DA01', 'Bước 1')]
+    assert 'Nhận diện và xác thực khuôn mặt' in seen['user']  # V-LLM được đưa tên dự án
+
+
+def test_name_said_loosely_still_matches_but_unrelated_code_added_by_ai_is_dropped(monkeypatch):
+    ai_returns(monkeypatch, {'ops': [op('lc', 'Bước 1', codes=['DA01', 'DA03'])], 'unclear': ''})
+    out = agent_edit.propose('chuyển ai lifecycle dự án nhan dien xac thuc khuon mat sang bước 1', NAMED, FN)
+    assert [p['code'] for p in out['proposals']] == ['DA01']  # DA03 không được nhắc bằng mã hay tên
+
+
+def test_missing_code_suggests_code_with_same_numbers(monkeypatch):
+    rows = [{'code': 'I.A.2.6.1', 'name': 'x', 'values': {'lc': 'Bước 5'}}]
+    ai_returns(monkeypatch, {'ops': [op('lc', 'Bước 10', codes=['I.2.6.1'])], 'unclear': ''})
+    out = agent_edit.propose('đổi cột AI lifecycle của dự án I.2.6.1 từ bước 5 thành bước 10', rows, FN)
+    assert not out['proposals'] and 'I.A.2.6.1' in out['answer']

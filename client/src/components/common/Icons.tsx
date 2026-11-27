@@ -34,6 +34,7 @@ export const IcTheme = ({ dark }: { dark: boolean }): JSX.Element => dark ? (
 const rail = (children: ReactNode): JSX.Element => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">{children}</svg>;
 export const RAIL_ICONS = {
   grid: rail(<><rect x="3.5" y="4.5" width="17" height="15" rx="2" /><path d="M3.5 9.5h17M9 9.5v10" /></>),
+  ai: rail(<><path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9z" /><path d="M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z" /></>),
   ver: rail(<><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></>),
   log: rail(<path d="M5 6h14M5 12h14M5 18h9" />)
 };
