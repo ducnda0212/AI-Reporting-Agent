@@ -333,3 +333,8 @@
 @keyframes aifab-spark{0%{transform:rotate(0) scale(1)}50%{transform:rotate(25deg) scale(1.2)}100%{transform:rotate(0) scale(1)}}
 @media (max-width:640px){.aifab{right:14px;bottom:56px;padding:0 6px}.aifab-t{display:none}}
 @media (prefers-reduced-motion:reduce){.aifab,.aifab:hover{animation:none}.aifab:hover .aifab-i svg{animation:none}.askai .hp .fx-fu button::after{transition:none}}
+
+/* Hiệu ứng Agent trên ô có danh sách chọn (select.cellsel): giống ô chữ */
+.cellsel.aiwalk{animation:agPulse .9s ease-out 2;box-shadow:inset 0 0 0 2px var(--ai)}
+.cellsel.aiflash{animation:cellFlash 1.6s ease-out both}
+@media (prefers-reduced-motion:reduce){.cellsel.aiwalk,.cellsel.aiflash{animation:none}}

@@ -8,7 +8,8 @@ import { fxTipClose } from '@/store/actions/grid';
 import { cursorTag } from '@/lib/agentRun';
 import '@/styles/agent-fx.css';
 
-const cellAt = (i: number, f: string): HTMLElement | null => document.querySelector('.cell[data-i="' + i + '"][data-f="' + f + '"]');
+/* ô chữ / số là .cell, ô có danh sách chọn (Domain, Tiến độ, Rủi ro…) là select.cellsel: Agent phải tìm được cả hai loại */
+const cellAt = (i: number, f: string): HTMLElement | null => document.querySelector('.cell[data-i="' + i + '"][data-f="' + f + '"], .cellsel[data-i="' + i + '"][data-f="' + f + '"]');
 /** Chạy lại hiệu ứng CSS của một lớp trên ô. */
 const replay = (el: Element, cls: string): void => { el.classList.remove(cls); void (el as HTMLElement).offsetWidth; el.classList.add(cls); };
 
@@ -25,21 +26,34 @@ export function AgentCursor(): JSX.Element {
       if (k >= L.length) { t = window.setTimeout(() => c.classList.remove('on'), 700); return; }
       const e = L[k++], x = e.x, el = cellAt(x[0], x[1]); if (!el) return step();
       try { el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' }); } catch { /* trình duyệt cũ */ }
-      t = window.setTimeout(() => {
+      /* chờ bảng cuộn xong mới đặt con trỏ: cuộn mượt tới cột xa (vd Note) lâu hơn 320ms, đặt sớm thì con trỏ bay ra ngoài màn hình và không thấy gì */
+      settle(el, () => {
         const e2 = cellAt(x[0], x[1]); if (!e2) return step();
         const r = e2.getBoundingClientRect();
-        c.style.left = r.left + 6 + 'px'; c.style.top = r.top - 22 + 'px'; c.classList.add('on');
+        c.style.left = Math.min(window.innerWidth - 140, Math.max(4, r.left + 6)) + 'px'; c.style.top = Math.max(4, r.top - 22) + 'px'; c.classList.add('on');
         if (lab) lab.textContent = cursorTag(e.tag, walk.cls === 'aiflash');
         replay(e2, walk.cls);
         t = window.setTimeout(step, 520);
-      }, 320);
+      });
+    };
+    const settle = (el: HTMLElement, done: () => void): void => {
+      let last = '', same = 0, n = 0;
+      const poll = (): void => {
+        const r = el.getBoundingClientRect(), key = Math.round(r.left) + ',' + Math.round(r.top);
+        same = key === last ? same + 1 : 0; last = key;
+        if (same >= 2 || ++n > 30) return done();
+        t = window.setTimeout(poll, 50);
+      };
+      t = window.setTimeout(poll, 80);
     };
     /* áp dụng / xem lại: nháy tím mọi ô ngay, con trỏ đi qua tối đa 6 ô */
     /* ô có thể chưa được vẽ (bảng vừa cuộn tới): thử lại vài lần trước khi bỏ */
     const start = (): void => {
       L = all.filter((e) => cellAt(e.x[0], e.x[1])).slice(0, walk.n || 6);
       if (!L.length) { if (tries++ < 6) { t = window.setTimeout(start, 250); } else c.classList.remove('on'); return; }
+      /* nhiều ô (vd điền Note cho cả bảng): nháy mọi ô đang vẽ, con trỏ chỉ đi qua vài ô đầu */
       if (walk.cls === 'aiflash') walk.list.forEach((x) => cellAt(x[0], x[1])?.classList.add('aiflash'));
+      else if (walk.list.length > L.length) walk.list.forEach((x) => { const el = cellAt(x[0], x[1]); if (el) replay(el, walk.cls); });
       step();
     };
     const t0 = window.setTimeout(start, 60);

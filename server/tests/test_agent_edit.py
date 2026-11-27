@@ -51,7 +51,7 @@ def test_filter_and_only_empty_via_ai(monkeypatch):
     out = agent_edit.propose('Điền Mức độ rủi ro = Trung bình cho các dự án Food còn trống', ROWS, FIELDS)
     assert [(p['code'], p['from'], p['to']) for p in out['proposals']] == [('DA02', '', 'Trung bình')]
     assert out['by'] == 'm' and out['timing']['parseMs'] == 500 and seen['schema']['title'] == 'agent_edit'
-    assert 'In Progress' not in seen['user'] and 'Chậm tiến độ' in seen['user']   # AI không thấy dữ liệu dòng, chỉ thấy danh sách giá trị cho phép
+    assert 'Chậm tiến độ' in seen['user'] and '"ok"' not in seen['user']   # AI không thấy ô nhập tay (ghi chú…), chỉ thấy danh sách giá trị cho phép
 
 
 def test_locked_field_invalid_value_unknown_code_are_skipped(monkeypatch):
@@ -244,7 +244,7 @@ def test_previous_codes_are_not_allowed_without_a_reference_word(monkeypatch):
 
 # ---------- cột AI chọn để lọc đang trống: tìm cột khác có đúng giá trị đó ----------
 F2 = [{'id': 'td', 'name': 'Tiến độ', 'options': ['Đúng tiến độ', 'Có nguy cơ chậm', 'Chậm tiến độ']},
-      {'id': 'mang', 'name': 'Mảng việc'},
+      {'id': 'mang', 'name': 'Mảng việc', 'editable': False},
       {'id': 'domain', 'name': 'Domain', 'options': ['Food', 'Ride', 'Express']}]
 R2 = [{'code': 'A1', 'values': {'td': 'Đúng tiến độ', 'mang': 'I.A.4.Tối ưu Food & Express', 'domain': ''}},
       {'code': 'A2', 'values': {'td': 'Đúng tiến độ', 'mang': 'I.A.4.Tối ưu Food & Express', 'domain': ''}},
@@ -255,6 +255,13 @@ def test_empty_domain_column_falls_back_to_group_column(monkeypatch):
     ai_returns(monkeypatch, {'ops': [op('td', 'Chậm tiến độ', wf='domain', wv='Food')], 'unclear': ''})
     out = agent_edit.propose('đổi dự án food & express sang chậm tiến độ nhé', R2, F2)
     assert {p['code'] for p in out['proposals']} == {'A1', 'A2'} and not out['skipped']
+
+
+def test_part_of_group_name_scopes_edit_when_ai_returns_no_scope(monkeypatch):
+    """"dự án liên quan đến food & express" chỉ là MỘT PHẦN tên mảng việc; V-LLM không nêu phạm vi thì code tự tìm đúng một nhóm khớp."""
+    ai_returns(monkeypatch, {'ops': [op('domain', 'Food')], 'unclear': ''})
+    out = agent_edit.propose('tôi muốn chỉnh cột Domain của dự án liên quan đến food & express thành Food', R2, F2)
+    assert {p['code'] for p in out['proposals']} == {'A1', 'A2'} and all(p['to'] == 'Food' and p['field'] == 'domain' for p in out['proposals']) and not out['skipped']
 
 
 def test_ambiguous_fallback_is_not_guessed_and_message_is_clear(monkeypatch):
@@ -373,3 +380,51 @@ def test_only_empty_wins_when_ai_misreads_pronoun_as_project_code(monkeypatch):
 
 def test_pronoun_rule_and_empty_synonyms_are_in_edit_prompt():
     assert 'còn thiếu' in agent_edit.SYSTEM and 'KHÔNG BAO GIỜ là mã dự án' in agent_edit.SYSTEM
+
+
+def test_ai_is_given_group_values_to_resolve_a_vague_group_name(monkeypatch):
+    seen = ai_returns(monkeypatch, {'ops': [op('domain', 'Food', wf='mang', wv='I.A.4.Tối ưu Food & Express')], 'unclear': ''})
+    out = agent_edit.propose('tôi muốn chỉnh cột Domain của dự án liên quan đến food & express thành Food', R2, F2)
+    assert 'gia_tri_cac_cot_chu' in seen['user'] and 'I.A.4.Tối ưu Food & Express' in seen['user']
+    assert {p['code'] for p in out['proposals']} == {'A1', 'A2'}
+
+
+def test_short_group_name_from_ai_matches_the_single_full_value_in_same_column(monkeypatch):
+    """V-LLM trả where_value "Food & Express" (gọn) cho cột Mảng việc: tìm được đúng một giá trị đầy đủ nên không báo "không tìm thấy"."""
+    ai_returns(monkeypatch, {'ops': [op('domain', 'Food', wf='mang', wv='Food & Express')], 'unclear': ''})
+    out = agent_edit.propose('tôi muốn chỉnh domain của dự án food & express thành Food', R2, F2)
+    assert {p['code'] for p in out['proposals']} == {'A1', 'A2'} and not out['skipped']
+
+
+def test_not_found_condition_lists_only_a_few_close_values(monkeypatch):
+    ai_returns(monkeypatch, {'ops': [op('domain', 'Food', wf='mang', wv='Logistics kho')], 'unclear': ''})
+    out = agent_edit.propose('đổi domain của dự án logistics kho thành Food', R2, F2)
+    r = out['skipped'][0]['reason']
+    assert 'Không tìm thấy điều kiện' in r and 'Gần nhất:' in r and len(r) < 260
+
+
+# ---------- gọi dự án bằng một đoạn tên ----------
+F3 = [{'id': 'domain', 'name': 'Domain', 'options': ['Food', 'Driver', 'Express']}]
+R3 = [{'code': 'I.A.5.1', 'name': 'Nền tảng thực nghiệm khuyến mại A/B (Experimentation Platform)', 'values': {'domain': ''}},
+      {'code': 'I.A.6.1', 'name': 'Hệ thống cảnh báo sớm hành vi lái xe nguy hiểm', 'values': {'domain': ''}},
+      {'code': 'I.A.6.2', 'name': 'Nhận diện và xác thực khuôn mặt tài xế', 'values': {'domain': ''}}]
+
+
+@pytest.mark.parametrize('q,code,val', [('chỉnh cột Domain của dự án liên quan đến Nền tảng thực nghiệm thành Driver', 'I.A.5.1', 'Driver'),
+                                         ('chỉnh cột Domain của Công việc liên quan đến Hệ thống cảnh báo sớm thành Express', 'I.A.6.1', 'Express')])
+def test_project_called_by_part_of_its_name_when_ai_returns_no_scope(monkeypatch, q, code, val):
+    ai_returns(monkeypatch, {'ops': [op('domain', val)], 'unclear': 'Bạn muốn sửa dự án nào?'})
+    out = agent_edit.propose(q, R3, F3)
+    assert [(p['code'], p['to']) for p in out['proposals']] == [(code, val)] and not out['skipped']
+
+
+def test_code_chosen_by_ai_from_a_name_fragment_is_kept(monkeypatch):
+    seen = ai_returns(monkeypatch, {'ops': [op('domain', 'Driver', codes=['I.A.5.1'])], 'unclear': ''})
+    out = agent_edit.propose('chỉnh domain của dự án liên quan đến nền tảng thực nghiệm thành Driver', R3, F3)
+    assert [p['code'] for p in out['proposals']] == ['I.A.5.1'] and 'du_an_gan_nghia_voi_cau' in seen['user'] and 'I.A.5.1' in seen['user']
+
+
+def test_vague_name_does_not_guess_a_project(monkeypatch):
+    ai_returns(monkeypatch, {'ops': [op('domain', 'Driver')], 'unclear': ''})
+    out = agent_edit.propose('chỉnh domain của dự án liên quan đến khuôn thành Driver', R3, F3)
+    assert out['proposals'] == []   # "khuôn" chỉ 1 từ: không đủ căn cứ chọn dự án

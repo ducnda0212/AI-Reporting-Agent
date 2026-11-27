@@ -63,8 +63,13 @@ export function toStageItems(res: Pick<AgentEditAnswer, 'proposals'>, rows: Row[
 /** Câu trả lời hiện trong khung chat: câu tóm tắt của backend và lý do các phần bị bỏ qua. */
 export function editHtml(res: Pick<AgentEditAnswer, 'answer' | 'skipped'>, n: number): string {
   const skipped = (res.skipped || []).map((s) => s.reason).filter(Boolean);
-  const head = n
-    ? 'V-LLM đã đọc ý lệnh và soạn <b>' + n + ' thay đổi</b>. Xem lại bên dưới, bỏ tick dòng không muốn, rồi bấm <b>Áp dụng</b> — bảng chỉ đổi sau khi bạn duyệt.'
-    : esc(res.answer || 'Agent chưa đề xuất thay đổi nào.');
-  return head + (skipped.length ? '<ul>' + skipped.slice(0, 4).map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>' : '');
+  if (n) {
+    return 'VLLM đã đọc ý lệnh và soạn <b>' + n + ' thay đổi</b>. Xem lại bên dưới, bỏ tick dòng không muốn, rồi bấm <b>Áp dụng</b> — bảng chỉ đổi sau khi bạn duyệt.'
+      + (skipped.length ? '<ul>' + skipped.slice(0, 4).map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>' : '');
+  }
+  /* không có đề xuất: một dòng tiêu đề, lý do nằm trong danh sách (không lặp lại cùng câu ở cả hai chỗ) */
+  const pre = 'Agent chưa đề xuất thay đổi nào.';
+  const body = (res.answer || '').replace(pre, '').trim();
+  const items = [...new Set([...(body && !skipped.includes(body) ? [body] : []), ...skipped])].slice(0, 4);
+  return '<b>' + pre + '</b>' + (items.length ? '<ul>' + items.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>' : '');
 }

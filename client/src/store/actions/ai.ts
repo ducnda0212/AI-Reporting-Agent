@@ -18,6 +18,12 @@ import { goStep } from './flow';
 /* ---------- con trỏ ✦ Agent: UI đọc `walk` (đổi `seq` mỗi lần) để cuộn bảng và nháy ô ---------- */
 function walk(d: Draft<AppState>, items: (Pick<AgStageItem, 'i' | 'f' | 'off'> & Partial<Pick<AgStageItem, 'to' | 'kind'>>)[], cls: 'aiflash' | 'aiwalk', n: number): void {
   const on = items.filter((x) => !x.off);
+  /* cột đang ẩn thì ô không có trên bảng, con trỏ Agent không có chỗ để đi: hiện lại các cột Agent sắp sửa / soạn */
+  const shown = [...new Set(on.map((x) => x.f))].filter((f) => d.hidden[f]);
+  if (shown.length) {
+    shown.forEach((f) => { delete d.hidden[f]; });
+    if (cls === 'aiwalk') toast(d, 'Đã hiện cột ' + shown.map((f) => '“' + (fieldById(f)?.name.split(' (')[0] ?? f) + '”').join(', ') + ' để xem Agent sửa', 3200);
+  }
   /* `tags`: chữ hiện trên con trỏ ✦ Agent, cùng thứ tự với `list` ("Indo", "Duyệt") */
   d.walk = { list: on.map((x) => [x.i, x.f]), cls, n, seq: (d.walk ? d.walk.seq : 0) + 1, tags: on.map((x) => (x.kind === 'approve' ? 'Duyệt nháp' : x.to ? String(x.to) : '')) };
 }
