@@ -3,11 +3,11 @@
 import type { Draft } from 'immer';
 import { AI_IDS } from '@/data/constants';
 import { aiDrafts, askAnswer, exTT, isLate, trDraft, trInputs, trText, type TrVariant } from '@/lib/ai';
-import { agentAsk, agentEdit, aiStatus, draftRemote, type AgentAnswer, type AgentRow, type AiStatus } from '@/lib/api';
+import { agentAsk, agentEdit, aiStatus, draftRemote, type AgentAnswer, type AgentRow, type AgentTurn, type AiStatus } from '@/lib/api';
 import { editFields, editHtml, editRows, looksLikeEdit, toStageItems } from '@/lib/agentEdit';
 import { DRAFT_CHUNK, draftRequestRow, mergeRemote, type RemoteDrafts } from '@/lib/draftRemote';
 import { fromRec, toRec, upsert } from '@/lib/chatHistory';
-import { REMOTE_MAX_QUESTION, REMOTE_MAX_ROWS, agentHtml, historyOf, intentCommand, keepLocal, textColumns } from '@/lib/agentRemote';
+import { REMOTE_MAX_QUESTION, REMOTE_MAX_ROWS, agentHtml, intentCommand, keepLocal, textColumns } from '@/lib/agentRemote';
 import { ck, displayText, fieldById } from '@/lib/cell';
 import { groupedRows } from '@/lib/grid';
 import type { AgStageItem, AiFieldId, AppState, ChatRec, FieldId, Row, TraceTarget } from '@/types';
@@ -53,6 +53,15 @@ export function chatHistory(on: boolean): void { mutate((d) => { d.chatView = on
 export function chatSearch(q: string): void { mutate((d) => { d.chatQ = q; }, { track: false }); }
 
 /* ---------- hỏi đáp / Agent ---------- */
+/** Trí nhớ hội thoại gửi backend: vài câu gần nhất, kèm mã dự án đã nêu hoặc đã được Agent đề xuất sửa, và tóm tắt câu trả lời. */
+function memoryOf(s: AppState, n = 4): AgentTurn[] {
+  return s.askLog.filter((m) => !m.busy).slice(-n).map((m) => {
+    const st = m.stage ? s.stages[m.stage] : undefined;
+    const staged = st ? [...new Set(st.items.map((x) => s.allRows[x.i]?.ma).filter((c): c is string => !!c))].slice(0, 20) : [];
+    return { q: m.q.slice(0, 200), codes: m.scope?.length ? m.scope : staged, a: m.a.html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200) };
+  });
+}
+
 function answer(q: string, replaceBusy: boolean, cmd?: string | string[]): string | null {
   const s = getState();
   const ctx = { rows: rowsOf(s), allRows: s.allRows, sel: s.sel, phaseBucket: s.phaseBucket };
@@ -121,7 +130,7 @@ async function remoteAsk(q: string): Promise<AgentAnswer | null> {
   if (!(await backendReady())) return null;
   /* dòng đang chọn trên bảng là "dự án này" cho câu nối tiếp; đặt trước các câu đã hỏi nên câu hỏi gần nhất vẫn ưu tiên */
   const sel = s.sel ? s.allRows[s.sel.i] : null;
-  const hist = historyOf(s.askLog);
+  const hist = memoryOf(s);
   const history = sel && rows.some((r) => r.ma === sel.ma) ? [{ q: '(dòng đang chọn trên bảng)', codes: [sel.ma] }, ...hist] : hist;
   try { return await agentAsk(q, rows.map((r) => agentRow(r, s)), history); } catch { return null; }
 }
@@ -132,7 +141,7 @@ async function remoteEdit(q: string): Promise<RemoteEdit | null> {
   const s = getState(), rows = rowsOf(s);
   if (!rows.length || rows.length > REMOTE_MAX_ROWS) return null;
   try {
-    const res = await agentEdit(q, editRows(rows, s), editFields());
+    const res = await agentEdit(q, editRows(rows, s), editFields(), memoryOf(s));
     const items = toStageItems(res, rows);
     return { html: editHtml(res, items.length), items };
   } catch { return null; }
@@ -161,11 +170,14 @@ type Decision =
   | { kind: 'edit'; edit: RemoteEdit }
   | { kind: 'local'; cmd: string | string[] }
   | { kind: 'say'; html: string }
+  | { kind: 'draft' }
   | { kind: 'fallback' };
 
 const EDIT_DOWN = 'Mình hiểu đây là lệnh sửa bảng nhưng chưa đọc được ý vì V-LLM đang lỗi, nên mình chưa sửa gì. Bạn thử lại sau ít phút, hoặc gõ theo mẫu: <i>Đổi Note "Chờ họp" cho các dự án chậm tiến độ</i> hoặc <i>Đổi Tiến độ của I.A.3.1, I.A.4.1 thành Chậm tiến độ</i>.';
 
 /** V-LLM đọc ý định trước, rồi gọi đúng chức năng. Không đoán ý bằng từ khóa khi V-LLM đang chạy. */
+/** Câu chỉ xác nhận ("ok", "đồng ý"…): không có việc mới để làm. */
+const ACK = /^(ok|oke|okay|ok nhé|được|đồng ý|ừ|ừm|vâng|dạ|cảm ơn|thanks?)[\s.!]*$/i;
 async function decide(q: string): Promise<Decision> {
   const res = await remoteAsk(q);
   if (!res) return { kind: 'fallback' };
@@ -173,7 +185,8 @@ async function decide(q: string): Promise<Decision> {
     const edit = await remoteEdit(q);
     return edit ? { kind: 'edit', edit } : { kind: 'say', html: EDIT_DOWN };
   }
-  if (res.intent === 'view' || res.intent === 'draft' || res.intent === 'approve') {
+  if (res.intent === 'draft') return { kind: 'draft' };
+  if (res.intent === 'view' || res.intent === 'approve') {
     const cmd = intentCommand(res);
     return cmd ? { kind: 'local', cmd } : { kind: 'say', html: 'Mình hiểu bạn muốn đổi cách xem bảng nhưng chưa rõ cột nào. Bạn nói tên hoặc ký hiệu cột nhé, ví dụ: <i>Ẩn cột Note</i>.' };
   }
@@ -183,7 +196,7 @@ async function decide(q: string): Promise<Decision> {
 /** Hiện câu trả lời sau tối thiểu 650ms + 8ms/ký tự (như hiệu ứng gõ cũ); backend tắt/lỗi thì rơi về luật tại chỗ. */
 async function respond(q: string): Promise<void> {
   const t0 = Date.now(), min = 650 + Math.min(q.length * 8, 450);
-  const d0 = await decide(q);
+  const d0: Decision = ACK.test(q.trim()) ? { kind: 'say', html: 'Mình sẵn sàng. Bạn muốn hỏi số liệu, hay nhờ mình sửa/soạn nháp ô nào trong bảng?' } : await decide(q);
   const wait = min - (Date.now() - t0);
   if (wait > 0) await new Promise((res) => setTimeout(res, wait));
   const say = (html: string): void => mutate((d) => {
@@ -194,6 +207,10 @@ async function respond(q: string): Promise<void> {
   if (d0.kind === 'edit') { answerEdit(q, d0.edit); return; }
   if (d0.kind === 'local') { answer(q, true, d0.cmd); return; }
   if (d0.kind === 'say') { say(d0.html); return; }
+  if (d0.kind === 'draft') {
+    say('Mình đang nhờ AI soạn nháp các ô còn trống (Mức độ rủi ro, Vấn đề &amp; rủi ro, Progress Report). Nháp chưa ghi vào báo cáo cho tới khi bạn duyệt từng ô.');
+    aiStart(); return;
+  }
   if (d0.kind === 'html') {
     mutate((d) => {
       if (d.askLog.length && d.askLog[d.askLog.length - 1].busy) d.askLog.pop();

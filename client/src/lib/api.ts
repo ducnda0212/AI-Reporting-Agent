@@ -76,7 +76,7 @@ export interface AgentAnswer {
   target?: string[];
 }
 /** Một câu trước đó gửi kèm để backend hiểu câu nối tiếp. */
-export interface AgentTurn { q: string; codes: string[] }
+export interface AgentTurn { q: string; codes: string[]; a?: string }
 
 export const agentAsk = (question: string, rows: AgentRow[], history: AgentTurn[] = []) =>
   req<AgentAnswer>('/api/agent/ask', { method: 'POST', body: JSON.stringify({ question, rows, history }) }, 60000);
@@ -88,6 +88,6 @@ export interface AgentProposal { code: string; field: string; fieldName: string;
 export interface AgentEditAnswer {
   intent: 'edit'; answer: string; proposals: AgentProposal[]; skipped: { reason: string; field?: string }[]; unclear?: string; by: string; model?: string; mode?: string;
 }
-export const agentEdit = (question: string, rows: AgentEditRow[], fields: AgentEditField[]) =>
-  req<AgentEditAnswer>('/api/agent/ask', { method: 'POST', body: JSON.stringify({ question, rows, fields, edit: true }) }, 60000);
+export const agentEdit = (question: string, rows: AgentEditRow[], fields: AgentEditField[], history: AgentTurn[] = []) =>
+  req<AgentEditAnswer>('/api/agent/ask', { method: 'POST', body: JSON.stringify({ question, rows, fields, history, edit: true }) }, 60000);
 

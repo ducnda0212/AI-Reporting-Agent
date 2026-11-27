@@ -49,9 +49,14 @@ CASES = [
     ('đổi lại thì dự án nào đang chậm?', ASK, None),
     ('sửa xong chưa, còn bao nhiêu dự án rủi ro cao', ASK, None),
     ('ghi chú của I.C.1.2 là gì', ('search', 'project'), None),
+    ('KPI dự án tối ưu thu nhập tài xế như nào', ('search', 'project'), None),
+    ('mục tiêu của dự án định giá động là gì', ('search', 'project'), None),
     # soạn nháp / duyệt
     ('soạn giúp mình mấy ô còn trống', ('draft',), None),
     ('nhờ AI viết nháp các ô chưa có nội dung đi', ('draft',), None),
+    ('điền hết các ô còn trống cho t', ('draft',), None),
+    ('điền hết các ô vấn đề rủi ro', ('draft',), None),
+    ('điền các ô rủi ro còn thiếu giúp mình', ('draft',), None),
     ('ok các nháp AI đi', ('approve',), None),
     ('duyệt nháp của I.A.1.1', ('approve',), None),
     # đổi cách xem bảng

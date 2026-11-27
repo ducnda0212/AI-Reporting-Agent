@@ -433,8 +433,8 @@ def test_follow_up_without_history_or_with_code_is_not_guessed(mock_mode):
 
 def test_history_is_sanitized(mock_mode):
     hist = [{'q': 'x', 'codes': ['DA99', 5, 'DA02']}, 'rác', {'codes': 'DA01'}]
-    assert agent._clean_history(hist, agent._clean_rows(ROWS)) == [{'q': 'x', 'codes': ['DA02']}, {'q': '', 'codes': []}]
-    assert len(agent._clean_history([{'q': str(i), 'codes': []} for i in range(10)], agent._clean_rows(ROWS))) == 3
+    assert agent._clean_history(hist, agent._clean_rows(ROWS)) == [{'q': 'x', 'codes': ['DA02'], 'a': ''}, {'q': '', 'codes': [], 'a': ''}]
+    assert len(agent._clean_history([{'q': str(i), 'codes': []} for i in range(10)], agent._clean_rows(ROWS))) == 4
 
 
 def test_follow_up_is_recognised_by_ai_from_meaning(monkeypatch):
@@ -540,3 +540,10 @@ def test_question_about_one_code_field_reads_that_field_even_if_ai_says_search(m
     fake_ai(monkeypatch, route={'query': 'search'})
     spec, by = agent.route('KPI của DA02 là gì', agent._clean_rows(ROWS))
     assert spec == {'query': 'search', 'field': '', 'value': '', 'code': 'DA02', 'fields': ['kpi']} and by == 'm'
+
+
+def test_thu_nhap_is_not_draft(mock_mode):
+    rows = [{**ROWS[0], 'name': 'Tư vấn tối ưu thu nhập tài xế'}, *ROWS[1:]]
+    assert agent._mock_route('KPI dự án thu nhập tài xế', agent._clean_rows(rows))['query'] != 'pending'
+    assert agent._mock_route('còn nháp nào chờ duyệt', agent._clean_rows(rows))['query'] == 'pending'
+    assert agent._mock_route('con nhap nao cho duyet', agent._clean_rows(rows))['query'] == 'pending'

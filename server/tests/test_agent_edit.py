@@ -217,3 +217,18 @@ def test_nothing_empty_in_scope_says_so(monkeypatch):
     ai_returns(monkeypatch, {'ops': [op('ghichu', 'Chờ họp khối', only_empty=True)], 'unclear': ''})
     out = agent_edit.propose('Điền Ghi chú "Chờ họp khối" cho các dự án đang trống', rows, FIELDS)
     assert out['proposals'] == [] and 'cả 5 dự án' in out['answer'] and 'đã có nội dung' in out['answer']
+
+
+def test_follow_up_edit_may_reuse_codes_from_previous_turn(monkeypatch):
+    hist = [{'q': 'mấy dự án trễ thì ghi note chờ họp', 'codes': ['DA01', 'DA03'], 'a': 'Mình đã soạn 2 thay đổi'}]
+    seen = ai_returns(monkeypatch, {'ops': [op('rui', 'Cao', codes=['DA01', 'DA03'])], 'unclear': ''})
+    out = agent_edit.propose('đặt rủi ro cao cho mấy dự án đó luôn', ROWS, FIELDS, history=hist)
+    assert [p['code'] for p in out['proposals']] == ['DA03']  # DA01 đã Cao
+    assert 'cau_truoc' in seen['user'] and 'DA01' in seen['user']  # AI được đưa các câu trước
+
+
+def test_previous_codes_are_not_allowed_without_a_reference_word(monkeypatch):
+    hist = [{'q': 'x', 'codes': ['DA04'], 'a': ''}]
+    ai_returns(monkeypatch, {'ops': [op('ghichu', 'chờ', codes=['DA04'])], 'unclear': ''})
+    out = agent_edit.propose('ghi chú chờ', ROWS, FIELDS, history=hist)
+    assert not out['proposals']  # câu không nhắc dự án nào: AI không được tự lấy mã cũ
