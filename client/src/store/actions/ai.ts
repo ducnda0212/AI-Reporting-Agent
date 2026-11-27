@@ -48,17 +48,22 @@ export function chatDelete(id: string): void {
   if (answering()) return;
   mutate((d) => { d.chats = d.chats.filter((x: ChatRec) => x.id !== id); if (d.chatId === id) { d.askLog = []; d.chatId = ''; } }, { track: false });
 }
+/** Xoá toàn bộ lịch sử; cuộc đang mở cũng về trang trống. Không đổi khi Agent đang trả lời. */
+export function chatClear(): void {
+  if (answering()) return;
+  mutate((d) => { d.chats = []; d.askLog = []; d.chatId = ''; d.chatQ = ''; }, { track: false });
+}
 /** Bật/tắt màn lịch sử trong khung Trợ lý AI. */
 export function chatHistory(on: boolean): void { mutate((d) => { d.chatView = on ? 'history' : 'chat'; if (!on) d.chatQ = ''; }, { track: false }); }
 export function chatSearch(q: string): void { mutate((d) => { d.chatQ = q; }, { track: false }); }
 
 /* ---------- hỏi đáp / Agent ---------- */
 /** Trí nhớ hội thoại gửi backend: vài câu gần nhất, kèm mã dự án đã nêu hoặc đã được Agent đề xuất sửa, và tóm tắt câu trả lời. */
-function memoryOf(s: AppState, n = 4): AgentTurn[] {
+function memoryOf(s: AppState, n = 8): AgentTurn[] {
   return s.askLog.filter((m) => !m.busy).slice(-n).map((m) => {
     const st = m.stage ? s.stages[m.stage] : undefined;
     const staged = st ? [...new Set(st.items.map((x) => s.allRows[x.i]?.ma).filter((c): c is string => !!c))].slice(0, 20) : [];
-    return { q: m.q.slice(0, 200), codes: m.scope?.length ? m.scope : staged, a: m.a.html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200) };
+    return { q: m.q.slice(0, 300), codes: m.scope?.length ? m.scope : staged, a: m.a.html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 400) };
   });
 }
 

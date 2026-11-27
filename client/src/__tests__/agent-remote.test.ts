@@ -92,6 +92,15 @@ describe('Câu trả lời gọn: câu dẫn ngắn + danh sách dựng từ s�
     expect(h).toContain('Hạn 15/11/2026');
   });
 
+  it('đếm theo nhóm kèm danh sách: mỗi nhóm một khối có tiêu đề, số dự án và từng dự án', () => {
+    const h = agentHtml(ans({ answer: 'Có 4 dự án.', facts: facts({ kieu: 'analyze', so_luong: 4, phan_nhom: { truong: 'Tiến độ', theo: { 'Đúng tiến độ': 3, 'Chậm tiến độ': 1 } },
+      du_an_theo_nhom: [{ nhom: 'Đúng tiến độ', so_luong: 3, du_an: [P('I.A.1.1', { tien_do: 'Đúng tiến độ' }), P('II.B.2.4', { tien_do: 'Đúng tiến độ' })], con_lai: 1 }, { nhom: 'Chậm tiến độ', so_luong: 1, du_an: [P('IX.Z.1.1')] }] }) }), rows);
+    expect(h).toContain('<div class="sh">Đúng tiến độ (3)</div>');
+    expect(h).toContain('<div class="sh">Chậm tiến độ (1)</div>');
+    expect(h.match(/<li class="pi">/g)).toHaveLength(3);
+    expect(h).toContain('Còn 1 dự án khác chưa hiện');
+  });
+
   it('quá 6 dự án thì phần còn lại gập vào "Xem thêm", và nói rõ số dự án chưa hiện', () => {
     const many = Array.from({ length: 9 }, (_, k) => P('IX.Z.' + k + '.1'));
     const h = agentHtml(ans({ answer: 'Có 30 dự án.', facts: facts({ kieu: 'filter', so_luong: 30, du_an: many }) }), rows);
@@ -171,9 +180,118 @@ describe('Câu trả lời gọn: câu dẫn ngắn + danh sách dựng từ s�
     expect(rule).toContain('<details class="srcs" open>');
   });
 
+  it('phân tích: thẻ số, nhận xét, thanh phân bố và ma trận được vẽ từ số liệu backend, danh sách dự án vẫn còn', () => {
+    const phan_tich = {
+      so_du_an: 4,
+      the_so: [{ nhan: 'Dự án', so: 4, muc: '' }, { nhan: 'Chậm tiến độ', so: 2, muc: 'e' }, { nhan: 'Quá hạn', so: 1, muc: 'e' }],
+      phan_bo: { 'Tiến độ': { 'Chậm tiến độ': 2, 'Đúng tiến độ': 2 }, 'Mức độ rủi ro': { Cao: 1, 'Chưa đánh giá': 3 }, 'Trạng thái': { 'In Progress': 4 } },
+      ma_tran: { tien_do: ['Chậm tiến độ', 'Đúng tiến độ'], rui_ro: ['Chưa đánh giá', 'Cao'], so: [[1, 1], [2, 0]] },
+      nhan_xet: [{ muc: 'e', noi_dung: '1/4 dự án đang chạy đã quá hạn.' }, { muc: 'w', noi_dung: '3 dự án chưa đánh giá mức độ rủi ro.' }],
+    };
+    const f: AgentFacts = { kieu: 'analyze', muc_chi_tiet: 'day_du', so_luong: 4, tong: 10, phan_tich, du_an: [{ code: 'I.A.1.1', name: 'A', tien_do: 'Chậm tiến độ' }] };
+    const h = agentHtml(ans({ answer: 'Có 4/10 dự án.', facts: f }), rows);
+    expect(h).toContain('<b>4<small>/10</small></b>');
+    expect(h).toContain('class="ax-k e"');
+    expect(h).toContain('<div class="ax-h">Điều cần chú ý</div>');
+    expect(h).toContain('1/4 dự án đang chạy đã quá hạn.');
+    expect(h).toContain('<title>Chậm tiến độ · 2 (50%)</title>');   // vành khuyên Tiến độ
+    expect(h).toContain('class="ax-mx"');
+    expect(h).toContain('title="Chậm tiến độ × Cao: 1 dự án"');
+    expect(h).not.toContain('aria-label="Trạng thái"');   // chỉ một giá trị: không vẽ thanh
+    expect(h).toContain('<li class="pi">');
+  });
+
+  it('phân tích: vòng đúng tiến độ, cột theo hạn và thanh từng nhóm', () => {
+    const phan_tich = {
+      so_du_an: 10, ty_le_dung_tien_do: 70, the_so: [{ nhan: 'Dự án', so: 10 }],
+      lich_han: [{ nhan: 'Quá hạn', so: 2, muc: 'e' }, { nhan: '0–7 ngày', so: 0, muc: 'w' }, { nhan: 'Chưa có hạn', so: 1, muc: 'n' }],
+      theo_nhom: [{ nhom: 'I.A.3.PAI - Voice', tong: 6, cham: 3, nguy_co: 1, dung: 2 }, { nhom: 'II.E.1Nền tảng', tong: 4, cham: 0, nguy_co: 0, dung: 4 }], con_lai_nhom: 2,
+    };
+    const h = agentHtml(ans({ answer: 'x', facts: { kieu: 'filter', muc_chi_tiet: 'day_du', so_luong: 10, tong: 10, phan_tich, du_an: [] } }), rows);
+    expect(h).toContain('aria-label="Đúng tiến độ 70%"');
+    expect(h).toContain('stroke-dasharray="70 30"');
+    expect(h).toContain('class="ax-col e"');
+    expect(h).toContain('title="Quá hạn: 2 dự án"');
+    expect(h).toContain('Tình hình từng nhóm');
+    expect(h).toContain('title="Chậm tiến độ: 3"');
+    expect(h).toContain('và 2 nhóm khác');
+    const grouped = agentHtml(ans({ answer: 'x', facts: { kieu: 'analyze', muc_chi_tiet: 'day_du', so_luong: 10, phan_tich, phan_nhom: { truong: 'Nhóm', theo: { A: 6, B: 4 } } } }), rows);
+    expect(grouped).not.toContain('Tình hình từng nhóm');
+  });
+
+  it('mức chi tiết do V-LLM chọn: ngắn chỉ thẻ số, vừa (mặc định) thêm nhận xét và biểu đồ chính, đầy đủ vẽ hết', () => {
+    const phan_tich = {
+      so_du_an: 10, ty_le_dung_tien_do: 70, the_so: [{ nhan: 'Dự án', so: 10 }, { nhan: 'Chậm tiến độ', so: 3, muc: 'e' }],
+      phan_bo: { 'Tiến độ': { A: 6, B: 4 }, 'Mức độ rủi ro': { Cao: 5, Thấp: 5 }, 'Trạng thái': { X: 6, Y: 4 } },
+      lich_han: [{ nhan: 'Quá hạn', so: 2, muc: 'e' }], theo_nhom: [{ nhom: 'G1', tong: 6, cham: 1, nguy_co: 0, dung: 5 }, { nhom: 'G2', tong: 4, cham: 0, nguy_co: 0, dung: 4 }],
+      ma_tran: { tien_do: ['A', 'B'], rui_ro: ['Cao', 'Thấp'], so: [[1, 5], [4, 0]] }, nhan_xet: [{ muc: 'e', noi_dung: '2/10 dự án quá hạn.' }],
+    };
+    const html = (lv?: 'ngan' | 'vua' | 'day_du'): string => agentHtml(ans({ answer: 'x', facts: { kieu: 'filter', so_luong: 10, tong: 10, phan_tich, du_an: [], ...(lv ? { muc_chi_tiet: lv } : {}) } }), rows);
+    const short = html('ngan');
+    expect(short).toContain('class="ax-kp"');
+    ['ax-hero', 'Điều cần chú ý', 'ax-dn', 'ax-cols', 'ax-mx', 'Tình hình từng nhóm'].forEach((c) => expect(short, c).not.toContain(c));
+    const mid = html();
+    expect(mid).toContain('Điều cần chú ý'); expect(mid).toContain('ax-hero'); expect(mid).toContain('ax-dn'); expect(mid).toContain('aria-label="Tiến độ"');
+    expect(mid).not.toContain('aria-label="Mức độ rủi ro"');   // mặc định chỉ một biểu đồ chính
+    expect(mid).not.toContain('aria-label="Trạng thái"');
+    ['ax-cols', 'ax-mx', 'Tình hình từng nhóm'].forEach((c) => expect(mid, c).not.toContain(c));
+    const full = html('day_du');
+    ['ax-cols', 'ax-mx', 'Tình hình từng nhóm', 'aria-label="Trạng thái"'].forEach((c) => expect(full, c).toContain(c));
+  });
+
+  it('phân tích: tóm tắt dùng khối phân tích thay cho chip; không có phan_tich thì vẫn dùng chip như cũ; đếm theo cột không vẽ lại thanh của cột đó', () => {
+    const base: AgentFacts = { kieu: 'summary', tong: 4, theo_tien_do: { 'Chậm tiến độ': 2 }, theo_muc_do_rui_ro: { Cao: 1 } };
+    expect(agentHtml(ans({ answer: 'x', facts: base }), rows)).toContain('<div class="sh">Tiến độ</div>');
+    const pt = { so_du_an: 4, the_so: [{ nhan: 'Dự án', so: 4 }], phan_bo: { 'Tiến độ': { A: 3, B: 1 }, 'Mức độ rủi ro': { Cao: 2, Thấp: 2 } } };
+    const withPt = agentHtml(ans({ answer: 'x', facts: { ...base, phan_tich: pt } }), rows);
+    expect(withPt).toContain('class="ax"');
+    expect(withPt).not.toContain('<div class="sh">Tiến độ</div>');
+    const grouped = agentHtml(ans({ answer: 'x', facts: { kieu: 'analyze', so_luong: 4, phan_tich: pt, phan_nhom: { truong: 'Tiến độ', theo: { A: 3, B: 1 } } } }), rows);
+    expect(grouped).not.toContain('aria-label="Tiến độ"');
+    expect(grouped).toContain('aria-label="Mức độ rủi ro"');
+  });
+
   it('backend cũ không gửi facts/lead: vẫn hiện câu trả lời như trước', () => {
     const h = agentHtml(ans({ by: 'rule', answer: 'Có 3 dự án.' }), rows);
     expect(h).toContain('<p>Có 3 dự án.</p>');
     expect(h).not.toContain('class="pl"');
+  });
+});
+
+
+describe('Báo cáo chi tiết một dự án và gợi ý ưu tiên', () => {
+  const P = { code: 'I.A.1.1', name: 'Điều phối tài xế', tien_do: 'Chậm tiến độ', rui_ro: 'Thấp', trang_thai: 'Đang thực hiện', han: '10/12/2026' };
+  it('mỗi ô nội dung là một khối riêng, gộp đoạn, tách ý theo số thứ tự và không lặp mã dự án', () => {
+    const doan = [
+      { code: 'I.A.1.1', truong: 'Vấn đề, rủi ro và đề xuất', noi_dung: 'Rủi ro: dự án chậm.' },
+      { code: 'I.A.1.1', truong: 'Vấn đề, rủi ro và đề xuất', noi_dung: 'Đề xuất: cập nhật kế hoạch.' },
+      { code: 'I.A.1.1', truong: 'KPI', noi_dung: '1. Tỉ lệ chuyển đổi >= 12% 2. Độ trễ P95 <= 250ms' },
+      { code: 'I.A.1.1', truong: 'Công việc đã hoàn thành trong tuần', noi_dung: '[2026-11-19] - Đánh giá mở rộng phạm vi' },
+    ];
+    const h = agentHtml(ans({ intent: 'project', answer: 'ok', facts: { kieu: 'project', tim_thay: true, du_an: P, doan } as AgentFacts }), rows);
+    expect(h).toContain('class="rpt"');
+    expect(h).toContain('Vấn đề, rủi ro và đề xuất');
+    expect(h).toContain('Rủi ro: dự án chậm. Đề xuất: cập nhật kế hoạch.');   // hai đoạn của cùng một ô được gộp
+    expect(h).toContain('<b class="rpt-dt">19/11</b>');
+    expect((h.match(/data-act="exGo"/g) || []).length).toBe(1);   // mã dự án chỉ xuất hiện ở tiêu đề
+    expect(h.indexOf('Việc đã làm tuần này')).toBeGreaterThan(h.indexOf('Vấn đề'));
+    expect(h).toContain('<details class="rpt-g"><summary>KPI</summary>');
+  });
+  it('ô dài có nút xem đầy đủ, chữ trong báo cáo bị thoát HTML', () => {
+    const long = 'a'.repeat(60) + ' ' + 'từ '.repeat(150);
+    const h = agentHtml(ans({ answer: 'ok', facts: { kieu: 'project', tim_thay: true, du_an: P, doan: [{ code: 'I.A.1.1', truong: 'Kế hoạch tuần sau', noi_dung: long + '<img src=x>' }] } as AgentFacts }), rows);
+    expect(h).toContain('Xem đầy đủ');
+    expect(h).not.toContain('<img');
+  });
+  it('gợi ý ưu tiên: ba nhóm kèm lý do, cách xếp và lưu ý', () => {
+    const facts = { kieu: 'prioritize', dang_chay: 5, nen_giu: { so: 1, du_an: [{ ...P, code: 'I.A.1.1', tien_do: 'Đúng tiến độ', ly_do: 'đúng tiến độ, hạn còn 10 ngày' }] },
+      can_xem_lai: { so: 1, du_an: [{ ...P, code: 'II.B.2.4', rui_ro: 'Cao', ly_do: 'chậm tiến độ, rủi ro cao, quá hạn 5 ngày' }] }, co_the_hoan: { so: 0, du_an: [] },
+      tieu_chi: ['Nên giữ: sắp về đích.'], luu_y: 'Bảng không có ngân sách.' } as AgentFacts;
+    const h = agentHtml(ans({ intent: 'prioritize', answer: 'Gợi ý.', facts }), rows);
+    expect(h).toContain('Nên giữ (1)');
+    expect(h).toContain('Cần xem lại (1)');
+    expect(h).not.toContain('Có thể hoãn');
+    expect(h).toContain('quá hạn 5 ngày');
+    expect(h).toContain('Bảng không có ngân sách.');
   });
 });

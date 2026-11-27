@@ -434,7 +434,7 @@ def test_follow_up_without_history_or_with_code_is_not_guessed(mock_mode):
 def test_history_is_sanitized(mock_mode):
     hist = [{'q': 'x', 'codes': ['DA99', 5, 'DA02']}, 'rác', {'codes': 'DA01'}]
     assert agent._clean_history(hist, agent._clean_rows(ROWS)) == [{'q': 'x', 'codes': ['DA02'], 'a': ''}, {'q': '', 'codes': [], 'a': ''}]
-    assert len(agent._clean_history([{'q': str(i), 'codes': []} for i in range(10)], agent._clean_rows(ROWS))) == 4
+    assert len(agent._clean_history([{'q': str(i), 'codes': []} for i in range(10)], agent._clean_rows(ROWS))) == agent.MAX_HISTORY == 8
 
 
 def test_follow_up_is_recognised_by_ai_from_meaning(monkeypatch):
@@ -547,3 +547,346 @@ def test_thu_nhap_is_not_draft(mock_mode):
     assert agent._mock_route('KPI dự án thu nhập tài xế', agent._clean_rows(rows))['query'] != 'pending'
     assert agent._mock_route('còn nháp nào chờ duyệt', agent._clean_rows(rows))['query'] == 'pending'
     assert agent._mock_route('con nhap nao cho duyet', agent._clean_rows(rows))['query'] == 'pending'
+
+
+# ---------- câu nhiều điều kiện: hoặc / phủ định / nội dung / phần trăm / mở rộng người đứng đầu ----------
+def _an(**spec):
+    rows = agent._clean_rows(ROWS)
+    return agent.compute({'query': 'analyze', 'filters': [], 'group_by': '', 'sort': '', 'limit': 0, 'due': '', **spec}, rows, '', agent._masker(rows))
+
+
+def test_same_field_filters_are_or():
+    f = _an(filters=[{'field': 'tien_do', 'value': 'Chậm tiến độ'}, {'field': 'tien_do', 'value': 'Có nguy cơ chậm'}])
+    assert {x['code'] for x in f['du_an']} == {'DA01', 'DA03', 'DA04'}
+    assert f['dieu_kien'][0]['gia_tri'] == 'Chậm tiến độ hoặc Có nguy cơ chậm'
+
+
+def test_different_fields_are_and():
+    f = _an(filters=[{'field': 'tien_do', 'value': 'Chậm tiến độ'}, {'field': 'mang', 'value': 'Voice'}])
+    assert [x['code'] for x in f['du_an']] == ['DA03']
+
+
+def test_negate_filter():
+    f = _an(filters=[{'field': 'tien_do', 'value': 'Đúng tiến độ', 'negate': True}])
+    assert {x['code'] for x in f['du_an']} == {'DA01', 'DA03', 'DA04'}
+    assert f['dieu_kien'][0]['gia_tri'].startswith('khác ')
+    assert 'Tiến độ khác Đúng tiến độ' in agent.template(f)
+
+
+def test_negate_combined_with_other_field():
+    f = _an(filters=[{'field': 'trang_thai', 'value': 'Done', 'negate': True}, {'field': 'tien_do', 'value': 'Đúng tiến độ', 'negate': True}])
+    assert {x['code'] for x in f['du_an']} == {'DA01', 'DA03'}
+
+
+def test_text_filter_intersects_filters():
+    rows = [{**r, 'done': 'Chờ API hệ thống vệ tinh' if r['code'] in ('DA01', 'DA02') else ''} for r in ROWS]
+    cl = agent._clean_rows(rows)
+    f = agent.compute({'query': 'analyze', 'filters': [{'field': 'tien_do', 'value': 'Chậm tiến độ'}], 'text': 'api', 'group_by': '', 'sort': '', 'limit': 0, 'due': ''}, cl, '', agent._masker(cl))
+    assert [x['code'] for x in f['du_an']] == ['DA01']
+    assert any(c['truong'] == 'Nội dung nhắc tới' for c in f['dieu_kien'])
+
+
+def test_percent_is_computed_by_code():
+    f = _an(filters=[{'field': 'tien_do', 'value': 'Đúng tiến độ'}])
+    assert f['ty_le_phan_tram'] == 25
+    rows = agent._clean_rows(ROWS)
+    flt = agent.compute({'query': 'filter', 'field': 'tien_do', 'value': 'Chậm tiến độ'}, rows, '', agent._masker(rows))
+    assert flt['ty_le_phan_tram'] == 50
+    ok = agent.check_answer('Có 25% dự án đúng tiến độ.', [], f, rows)
+    assert not any('25' in p for p in ok)
+    assert any('73' in p for p in agent.check_answer('Có 73% dự án đúng tiến độ.', [], f, rows))
+
+
+def test_expand_top_lists_projects_of_leader():
+    rows = [{**r, 'pic': 'Lê Quang Huy' if r['code'] in ('DA01', 'DA02') else r['pic']} for r in ROWS]  # DA01, DA02, DA03 cùng một người
+    cl = agent._clean_rows(rows)
+    f = agent.compute({'query': 'analyze', 'filters': [], 'group_by': 'phu_trach', 'expand_top': True, 'sort': '', 'limit': 0, 'due': ''}, cl, '', agent._masker(cl))
+    assert {x['code'] for x in f['du_an']} == {'DA01', 'DA02', 'DA03'} and f['so_luong_mo_rong'] == 3
+    assert f['mo_rong_nhom'] in f['phan_nhom']['theo']
+    assert 'Lê Quang Huy' not in json.dumps(f, ensure_ascii=False)  # tên người đã được ẩn
+    f2 = _an(group_by='mang', expand_top=True)  # Food và Voice đồng hạng: lấy cả hai
+    assert {x['code'] for x in f2['du_an']} == {'DA01', 'DA02', 'DA03', 'DA04'}
+    assert 'Dự án của' in agent.template(f2)
+
+
+def test_expand_top_ignores_empty_bucket():
+    f = _an(group_by='phu_trach', expand_top=True)  # DA04 không có người phụ trách: không được coi là "người đứng đầu"
+    assert 'DA04' not in {x['code'] for x in f['du_an']} and 'Chưa có' not in f['mo_rong_nhom']
+
+
+def test_route_from_ai_keeps_new_fields_and_clamps():
+    rows = agent._clean_rows(ROWS)
+    spec = agent._from_ai({'query': 'analyze', 'filters': [{'field': 'tien_do', 'value': 'Đúng tiến độ', 'negate': True}, {'field': 'bậy', 'value': 'x'}],
+                           'group_by': 'phu_trach', 'expand_top': True, 'text': '  API   vệ tinh ' + 'x' * 200}, rows, 'q')
+    assert spec['filters'] == [{'field': 'tien_do', 'value': 'Đúng tiến độ', 'negate': True}]
+    assert spec['expand_top'] is True and spec['text'].startswith('API vệ tinh') and len(spec['text']) <= 60
+    assert 'expand_top' not in agent._from_ai({'query': 'analyze', 'filters': [{'field': 'tien_do', 'value': 'Chậm tiến độ'}], 'expand_top': True}, rows, 'q')
+    only_text = agent._from_ai({'query': 'analyze', 'text': 'GPU'}, rows, 'q')
+    assert only_text['query'] == 'analyze' and only_text['text'] == 'GPU'
+    assert agent._from_ai({'query': 'analyze'}, rows, 'q')['query'] == 'summary'
+
+
+def test_route_schema_requires_new_fields():
+    req = agent.ROUTE_SCHEMA['required']
+    assert {'text', 'expand_top'} <= set(req)
+    assert 'negate' in agent.ROUTE_SCHEMA['properties']['filters']['items']['required']
+
+
+def test_filter_with_negation_becomes_negated_analyze():
+    rows = agent._clean_rows(ROWS)
+    sp = agent._from_ai({'query': 'filter', 'field': 'tien_do', 'value': 'Đúng tiến độ'}, rows, 'dự án nào không phải đúng tiến độ')
+    assert sp['query'] == 'analyze' and sp['filters'] == [{'field': 'tien_do', 'value': 'Đúng tiến độ', 'negate': True}]
+    sp = agent._from_ai({'query': 'filter', 'field': 'trang_thai', 'value': 'Done'}, rows, 'bao nhiêu dự án chưa done')
+    assert sp['query'] == 'analyze' and sp['filters'][0]['negate'] is True
+    plain = agent._from_ai({'query': 'filter', 'field': 'tien_do', 'value': 'Chậm tiến độ'}, rows, 'dự án nào chậm tiến độ')
+    assert plain['query'] == 'filter'
+
+
+def test_filter_with_or_becomes_union():
+    rows = agent._clean_rows(ROWS)
+    sp = agent._from_ai({'query': 'filter', 'field': 'tien_do', 'value': 'Chậm tiến độ'}, rows, 'dự án chậm hoặc có nguy cơ chậm là những dự án nào')
+    assert sp['query'] == 'analyze' and [f['value'] for f in sp['filters']] == ['Chậm tiến độ', 'Có nguy cơ chậm']
+    only_risk = agent._from_ai({'query': 'filter', 'field': 'tien_do', 'value': 'Có nguy cơ chậm'}, rows, 'dự án có nguy cơ chậm')
+    assert only_risk['query'] == 'filter'
+
+
+def test_text_that_is_a_person_or_a_column_value_is_dropped():
+    rows = agent._clean_rows(ROWS)
+    sp = agent._from_ai({'query': 'analyze', 'filters': [], 'text': 'Lê Quang Huy'}, rows, 'Lê Quang Huy phụ trách bao nhiêu dự án')
+    assert 'text' not in sp and sp['filters'] == [{'field': 'phu_trach', 'value': 'Lê Quang Huy'}]
+    sp = agent._from_ai({'query': 'analyze', 'filters': [{'field': 'tien_do', 'value': 'Chậm tiến độ'}], 'text': 'Chậm tiến độ'}, rows, 'dự án chậm')
+    assert 'text' not in sp
+    assert agent._from_ai({'query': 'analyze', 'filters': [], 'text': 'API'}, rows, 'nhắc tới API')['text'] == 'API'
+
+
+def test_group_name_in_text_becomes_group_filter():
+    rows = agent._clean_rows(ROWS)
+    sp = agent._from_ai({'query': 'analyze', 'filters': [{'field': 'tien_do', 'value': 'Chậm tiến độ'}], 'text': 'food'}, rows, 'dự án food nào chậm tiến độ')
+    assert 'text' not in sp
+    assert {(f['field'], f['value']) for f in sp['filters']} == {('tien_do', 'Chậm tiến độ'), ('mang', 'Food')}
+    f = agent.compute(sp, rows, '', agent._masker(rows))
+    assert [x['code'] for x in f['du_an']] == ['DA01']
+
+
+def test_single_filter_missing_second_condition_is_completed():
+    rows = agent._clean_rows(ROWS)
+    sp = agent._from_ai({'query': 'filter', 'field': 'mang', 'value': 'Food'}, rows, 'dự án Food nào chậm tiến độ')
+    assert sp['query'] == 'analyze' and {(f['field'], f['value']) for f in sp['filters']} == {('mang', 'Food'), ('tien_do', 'Chậm tiến độ')}
+    assert agent._from_ai({'query': 'filter', 'field': 'mang', 'value': 'Food'}, rows, 'dự án Food nào')['query'] == 'filter'
+    assert agent._from_ai({'query': 'filter', 'field': 'tien_do', 'value': 'Chậm tiến độ'}, rows, 'dự án chậm tiến độ')['query'] == 'filter'
+
+
+def test_group_filter_not_mentioned_in_question_is_dropped():
+    """AI tự thêm điều kiện nhóm vào câu hỏi chỉ nói về người: bỏ, nếu không kết quả bị co lại sai."""
+    d = {'query': 'analyze', 'filters': [{'field': 'mang', 'value': 'Voice'}, {'field': 'phu_trach', 'value': 'Lê Quang Huy'}]}
+    spec = agent._from_ai(d, ROWS, 'Lê Quang Huy đang phụ trách bao nhiêu dự án')
+    assert [f['field'] for f in spec['filters']] == ['phu_trach']
+
+
+def test_group_filter_mentioned_in_question_is_kept():
+    d = {'query': 'analyze', 'filters': [{'field': 'mang', 'value': 'Voice'}, {'field': 'tien_do', 'value': 'Chậm tiến độ'}]}
+    spec = agent._from_ai(d, ROWS, 'nhóm Voice có dự án nào chậm')
+    assert {f['field'] for f in spec['filters']} == {'mang', 'tien_do'}
+
+
+def test_group_code_prefix_counts_as_mention():
+    rows = [{**ROWS[0], 'group': 'I.A.3.PAI – Cá nhân hóa trải nghiệm'}, {**ROWS[1], 'group': 'II.B.1.Khác'}]
+    d = {'query': 'analyze', 'filters': [{'field': 'mang', 'value': 'I.A.3.PAI – Cá nhân hóa trải nghiệm'}]}
+    assert agent._from_ai(d, rows, 'nhóm I.A.3 có mấy dự án')['filters']
+
+
+def test_group_synonym_with_group_cue_word_is_kept():
+    d = {'query': 'analyze', 'filters': [{'field': 'mang', 'value': 'Voice'}]}
+    assert agent._from_ai(d, ROWS, 'mảng giọng nói có bao nhiêu dự án')['filters']
+    assert agent._from_ai(d, ROWS, 'có bao nhiêu dự án')['query'] == 'summary'
+
+
+def test_group_with_list_cue_returns_projects_per_group():
+    """"Ghi rõ dự án nào đúng tiến độ, dự án nào chậm": đếm theo nhóm kèm danh sách từng dự án của mỗi nhóm."""
+    spec = {'query': 'analyze', 'filters': [], 'group_by': 'tien_do', 'sort': '', 'limit': 0, 'due': ''}
+    m = agent._masker(ROWS)
+    f = agent.compute(spec, ROWS, 'Ghi rõ dự án nào đúng tiến độ, dự án nào chậm tiến độ', m)
+    by = {g['nhom']: g for g in f['du_an_theo_nhom']}
+    assert {x['code'] for x in by['Chậm tiến độ']['du_an']} == {'DA01', 'DA03'} and by['Đúng tiến độ']['so_luong'] == 1
+    assert 'DA02' in agent._codes_of(f) and 'bên dưới' in agent.template(f)
+    plain = agent.compute(spec, ROWS, 'bao nhiêu dự án mỗi tiến độ', m)
+    assert 'du_an_theo_nhom' not in plain
+
+
+# ---------- phân tích kèm câu trả lời: phân bố, hạn, ma trận, nhận xét do code tính ----------
+def test_analysis_block_is_computed_by_code(mock_mode, today):
+    out = agent.ask('Dự án nào chậm?', ROWS)
+    pt = out['facts']['phan_tich']
+    assert pt['so_du_an'] == 2 and pt['phan_bo']['Tiến độ'] == {'Chậm tiến độ': 2}
+    assert pt['phan_bo']['Mức độ rủi ro'] == {'Cao': 1, 'Trung bình': 1}
+    assert pt['han'] == {'qua_han': 1, 'sap_han': 1, 'so_ngay_sap_han': 14, 'chua_co_han': 0, 'dang_chay': 2}
+    kpi = {x['nhan']: x['so'] for x in pt['the_so']}
+    assert kpi == {'Dự án': 2, 'Chậm tiến độ': 2, 'Rủi ro cao': 1, 'Quá hạn': 1}
+    assert pt['ma_tran']['tien_do'] == ['Chậm tiến độ'] and sorted(pt['ma_tran']['rui_ro']) == ['Cao', 'Trung bình'] and pt['ma_tran']['so'] == [[1, 1]]
+    texts = [n['noi_dung'] for n in pt['nhan_xet']]
+    assert '1/2 dự án đang chạy đã quá hạn.' in texts and '1 dự án vừa chậm tiến độ vừa có rủi ro cao.' in texts and '1 dự án đến hạn trong 14 ngày tới.' in texts
+
+
+def test_analysis_counts_unrated_and_undated_and_skips_finished(mock_mode, today):
+    pt = agent.ask('Tóm tắt tuần này', ROWS)['facts']['phan_tich']
+    assert pt['so_du_an'] == 4 and pt['han']['dang_chay'] == 3 and pt['han']['qua_han'] == 1
+    assert pt['phan_bo']['Mức độ rủi ro']['Chưa đánh giá'] == 1
+    assert {x['nhan']: x['so'] for x in pt['the_so']}['Chưa đánh giá rủi ro'] == 1 and {x['nhan']: x['so'] for x in pt['the_so']}['Có nguy cơ chậm'] == 1
+    assert any('chưa đánh giá mức độ rủi ro' in n['noi_dung'] for n in pt['nhan_xet'])
+
+
+def test_analysis_empty_selection_has_no_block(mock_mode):
+    f = agent.ask('Dự án nào chậm mà rủi ro thấp?', ROWS)['facts']
+    assert f['so_luong'] == 0 and 'phan_tich' not in f
+
+
+def test_ai_may_quote_a_number_from_analysis_but_not_invent_one(monkeypatch, today):
+    fake_ai(monkeypatch, route=route_data(query='summary'), answer={'answer': 'Tuần này có 4 dự án, 1 dự án đã quá hạn.', 'codes': []})
+    ok = agent.ask('tuần này sao', ROWS)
+    assert ok['grounded'] and ok['by'] != 'rule'
+    fake_ai(monkeypatch, route=route_data(query='summary'), answer={'answer': 'Có 9 dự án đã quá hạn.', 'codes': []})
+    bad = agent.ask('tuần này sao', ROWS)
+    assert not bad['grounded'] and any('9' in w for w in bad['warnings'])
+
+
+def test_ai_decides_whether_to_list_projects_per_group_not_keywords(monkeypatch):
+    """V-LLM đọc ý định: muốn biết dự án nào → list_each; chỉ cần số → không, dù câu có/không có từ khoá."""
+    fake_ai(monkeypatch, route=dict(query='analyze', group_by='tien_do', list_each=True), answer={'answer': 'ok', 'codes': []})
+    got = agent.ask('cho mình biết tình hình các dự án theo tiến độ nhé', ROWS)   # không chứa từ khoá nào trong LIST_CUE
+    assert got['route']['list_each'] is True and {g['nhom'] for g in got['facts']['du_an_theo_nhom']} == {'Chậm tiến độ', 'Đúng tiến độ', 'Có nguy cơ chậm'}
+    fake_ai(monkeypatch, route=dict(query='analyze', group_by='tien_do', list_each=False), answer={'answer': 'ok', 'codes': []})
+    got = agent.ask('liệt kê tên số lượng dự án mỗi tiến độ', ROWS)               # có từ khoá nhưng AI hiểu chỉ cần số
+    assert got['route']['list_each'] is False and 'du_an_theo_nhom' not in got['facts']
+
+
+def test_keywords_only_when_ai_is_down(ai_down):
+    got = agent.ask('ghi rõ dự án nào theo từng tiến độ', ROWS)
+    assert 'list_each' not in got['route'] and got['facts'].get('du_an_theo_nhom')
+
+
+def test_analysis_deadline_buckets_group_rows_and_health(mock_mode, today):
+    pt = agent.ask('Tóm tắt tuần này', ROWS)['facts']['phan_tich']
+    lich = {x['nhan']: x['so'] for x in pt['lich_han']}
+    assert lich == {'Quá hạn': 1, '0–7 ngày': 1, '8–14 ngày': 0, '15–30 ngày': 1, 'Sau 30 ngày': 0, 'Chưa có hạn': 0}
+    assert sum(lich.values()) == pt['han']['dang_chay']
+    g = {x['nhom']: x for x in pt['theo_nhom']}
+    assert g['Food'] == {'nhom': 'Food', 'tong': 2, 'cham': 1, 'nguy_co': 0, 'dung': 1} and g['Voice']['nguy_co'] == 1 and pt['con_lai_nhom'] == 0
+    assert pt['ty_le_dung_tien_do'] == 25
+    one = agent.ask('Dự án nào chậm ở nhóm Food?', ROWS)['facts'].get('phan_tich', {})
+    assert not one.get('theo_nhom')   # chỉ một nhóm: không vẽ thanh từng nhóm
+
+
+def test_question_about_assistant_abilities_gets_capabilities_not_unknown(monkeypatch):
+    fake_ai(monkeypatch, route=dict(query='help'), answer={'answer': 'AI không được viết câu này', 'codes': []})
+    out = agent.ask('Bạn có tạo được các biểu đồ hay thanh ma trận tóm tắt, hay là các dự án không?', ROWS)
+    assert out['intent'] == 'help' and out['facts'] == {'kieu': 'help'} and out['answer'].startswith('Có.') and 'ma trận' in out['answer']
+    assert 'chưa hiểu' not in out['answer']
+
+
+def test_abilities_question_without_ai_uses_rule_fallback(ai_down):
+    out = agent.ask('bạn có vẽ được biểu đồ không', ROWS)
+    assert out['intent'] == 'help'
+    assert agent.ask('Dự án nào chậm?', ROWS)['intent'] != 'help'
+
+
+def test_ai_picks_which_text_cell_is_asked_without_keywords(monkeypatch):
+    rows = [{**ROWS[0], 'goal': 'Tăng tỷ lệ chuyển đổi đơn hàng', 'issue': 'Chờ GPU từ hạ tầng'}, *ROWS[1:]]
+    fake_ai(monkeypatch, route=dict(query='search', fields=['issue']), answer={'answer': 'ok', 'codes': []})
+    out = agent.ask('DA01 đang bị kẹt chỗ nào vậy?', rows)   # không có từ khoá "vấn đề / vướng mắc" nào
+    assert [x['truong'] for x in out['facts']['doan']] == ['Vấn đề, rủi ro và đề xuất']
+    fake_ai(monkeypatch, route=dict(query='project', fields=[]), answer={'answer': 'ok', 'codes': []})
+    plain = agent.ask('cho mình xem vấn đề của DA01 nhé', rows)   # có từ khoá nhưng V-LLM hiểu chỉ hỏi chung về dự án
+    assert plain['facts']['kieu'] == 'project'
+
+
+def test_ai_chooses_detail_level_from_what_user_wants(monkeypatch, today):
+    fake_ai(monkeypatch, route=dict(query='summary', detail='ngan'), answer={'answer': 'Tuần này có 4 dự án.', 'codes': []})
+    assert agent.ask('cho mình bản tóm tắt dễ đọc thôi', ROWS)['facts']['muc_chi_tiet'] == 'ngan'
+    fake_ai(monkeypatch, route=dict(query='summary', detail='day_du'), answer={'answer': 'Tuần này có 4 dự án.', 'codes': []})
+    assert agent.ask('tóm tắt', ROWS)['facts']['muc_chi_tiet'] == 'day_du'   # chọn theo ý hiểu, không theo chữ "tóm tắt"
+    fake_ai(monkeypatch, route=dict(query='summary'), answer={'answer': 'Tuần này có 4 dự án.', 'codes': []})
+    assert agent.ask('tình hình tuần', ROWS)['facts']['muc_chi_tiet'] == 'vua'
+
+
+def test_detail_level_defaults_to_medium_without_ai(mock_mode):
+    assert agent.ask('Tóm tắt tuần này', ROWS)['facts']['muc_chi_tiet'] == 'vua'
+
+
+def test_history_keeps_projects_named_in_agent_reply_so_followup_edit_knows_which(monkeypatch):
+    rows = [{**ROWS[0], 'code': 'I.A.3.1'}, {**ROWS[1], 'code': 'I.A.3.12'}]
+    hist = [{'q': 'đổi bước AI Lifecycle trong dự án IA 3.1', 'codes': [],
+             'a': 'Agent chưa đề xuất thay đổi nào. Bạn muốn đổi bước AI Lifecycle của dự án I.A.3.1 sang bước nào?'}]
+    out = agent._clean_history(hist, rows)
+    assert out[0]['codes'] == ['I.A.3.1']   # không nhầm với I.A.3.12 và không mất mã khi Agent mới hỏi lại
+    from server.app.ai.agent import edit
+    assert edit._prev_codes(out) == ['I.A.3.1']
+
+
+def test_history_keeps_eight_recent_turns_with_longer_text():
+    hist = [{'q': f'câu {i} ' + 'x' * 400, 'codes': [], 'a': 'y' * 500} for i in range(10)]
+    out = agent._clean_history(hist, ROWS)
+    assert len(out) == 8 and out[-1]['q'].startswith('câu 9') and out[0]['q'].startswith('câu 2')
+    assert len(out[0]['q']) == 300 and len(out[0]['a']) == 400
+
+
+def test_detailed_report_of_one_project_includes_its_content_cells(monkeypatch):
+    rows = [dict(ROWS[0], goal='Giảm thời gian chờ xe', plan='Thử nghiệm tháng 12', issue='Thiếu GPU')] if 'ROWS' in globals() else None
+    if rows is None:
+        pytest.skip('không có ROWS mẫu')
+    spec = {'query': 'project', 'field': '', 'value': rows[0]['code'], 'detail': 'day_du'}
+    out = agent.compute(spec, rows, 'báo cáo chi tiết', agent.Masker(False))
+    labels = [d['truong'] for d in out['doan']]
+    assert len(labels) >= 3 and any('Thiếu GPU' in d['noi_dung'] for d in out['doan'])
+    short = agent.compute({**spec, 'detail': 'vua'}, rows, 'x', agent.Masker(False))
+    assert 'doan' not in short
+
+
+# ---------- gợi ý ưu tiên / tạm hoãn khi bị cắt kinh phí ----------
+PRIO_Q = 'bây giờ tôi bị rút bớt kinh phí, nên không thể chạy được hết tất cả dự án hiện tại, tôi nên pending dự án nào và ưu tiên cái nào'
+
+
+def _prio_rows(today):
+    from datetime import timedelta
+    d = lambda n: (today + timedelta(days=n)).strftime('%d/%m/%Y')
+    base = {'group': 'Food', 'pic': '', 'pending': False}
+    return [
+        dict(base, code='K1', name='Sắp xong', status='In Progress', progress='Đúng tiến độ', risk='Thấp', end=d(10)),
+        dict(base, code='R1', name='Chậm và rủi ro', status='In Progress', progress='Chậm tiến độ', risk='Cao', end=d(-5)),
+        dict(base, code='H1', name='Hạn xa', status='In Progress', progress='Đúng tiến độ', risk='Thấp', end=d(120)),
+        dict(base, code='H2', name='Chưa hạn', status='In Progress', progress='Đúng tiến độ', risk='', end=''),
+        dict(base, code='X1', name='Đã xong', status='Done', progress='Đúng tiến độ', risk='Thấp', end=d(5)),
+        dict(base, code='M1', name='Ở giữa', status='In Progress', progress='Có nguy cơ chậm', risk='Trung bình', end=d(45)),
+    ]
+
+
+def test_prioritize_buckets_are_computed_by_code(monkeypatch):
+    from datetime import date
+    monkeypatch.setattr(agent, '_today', lambda: date(2026, 11, 27))
+    rows = _prio_rows(date(2026, 11, 27))
+    out = agent.compute({'query': 'prioritize'}, rows, PRIO_Q, agent.Masker(False))
+    assert out['kieu'] == 'prioritize' and out['dang_chay'] == 5   # dự án đã xong không đưa vào cân nhắc
+    assert [x['code'] for x in out['nen_giu']['du_an']] == ['K1']
+    assert [x['code'] for x in out['can_xem_lai']['du_an']] == ['R1'] and 'quá hạn 5 ngày' in out['can_xem_lai']['du_an'][0]['ly_do']
+    assert [x['code'] for x in out['co_the_hoan']['du_an']] == ['H2', 'H1']   # chưa có hạn rồi tới hạn xa nhất
+    assert out['con_lai'] == 1 and 'không có ngân sách' in out['luu_y']
+    assert 'X1' not in agent._codes_of(out)
+
+
+def test_ai_routes_budget_cut_question_to_prioritize_not_help(monkeypatch):
+    from datetime import date
+    monkeypatch.setattr(agent, '_today', lambda: date(2026, 11, 27))
+    fake_ai(monkeypatch, route=route_data(query='prioritize'), answer={'answer': 'Trong 5 dự án đang chạy có 1 dự án nên giữ.', 'codes': []})
+    out = agent.ask(PRIO_Q, _prio_rows(date(2026, 11, 27)))
+    assert out['intent'] == 'prioritize' and out['facts']['kieu'] == 'prioritize' and out['facts']['nen_giu']['so'] == 1
+
+
+@pytest.mark.parametrize('q', [PRIO_Q, 'thiếu người nên tạm dừng dự án nào', 'cắt ngân sách thì giữ dự án nào', 'ưu tiên dự án nào trước'])
+def test_budget_and_priority_wording_falls_back_to_prioritize_when_ai_is_down(ai_down, q):
+    from datetime import date
+    out = agent.ask(q, _prio_rows(date.today()))
+    assert out['intent'] == 'prioritize'
+
+
+def test_prioritize_with_nothing_running_says_so(mock_mode):
+    out = agent.compute({'query': 'prioritize'}, [dict(ROWS[3])], 'x', agent.Masker(False))
+    assert out['dang_chay'] == 0 and 'Không có dự án nào đang chạy' in agent.template(out)

@@ -1,7 +1,7 @@
 /* Nối Trợ lý AI với backend (/api/agent/ask). Hàm thuần, không ghi state.
    Quy tắc: mọi câu chat đi qua V-LLM (backend) trước để đọc Ý ĐỊNH (hỏi gì, sửa bảng, soạn nháp, duyệt, đổi cách xem); sau đó giao diện gọi đúng chức năng
    (`intentCommand` đổi ý định thành lệnh chuẩn cho lib/ai.ts). Luật từ khóa (`keepLocal`, lib/ai.ts) chỉ còn là dự phòng khi V-LLM tắt hoặc lỗi. */
-import type { AgentAnswer, AgentFacts, AgentRow, AgentTurn, FactPassage, FactProject } from './api';
+import type { AgentAnswer, AgentFacts, AgentRow, AgentTurn, FactAnalysis, FactBucket, FactPassage, FactProject } from './api';
 import type { AskMessage, Row } from '@/types';
 
 /** Backend nhận tối đa 300 dòng và câu hỏi tối đa 500 ký tự. */
@@ -81,14 +81,64 @@ function textBlock(text: string, byCode: Map<string, number>): string {
   return out.join('');
 }
 
-function projectCard(p: FactProject, byCode: Map<string, number>): string {
-  const chips = [
+function projChips(p: FactProject): string {
+  return [
     p.tien_do ? chip(p.tien_do, progressTone(p.tien_do)) : '',
     p.rui_ro ? chip('Rủi ro: ' + p.rui_ro, riskTone(p.rui_ro)) : chip('Rủi ro: chưa đánh giá', '', true),
     p.trang_thai ? chip(p.trang_thai) : '',
     p.han ? chip('Hạn ' + p.han, '', true) : '',
   ].join('');
-  return '<li class="pi"><div class="pt">' + codeLink(p.code, byCode) + (p.name ? '<span class="pn">' + esc(p.name) + '</span>' : '') + '</div><div class="pp">' + chips + '</div></li>';
+}
+
+function projectCard(p: FactProject, byCode: Map<string, number>): string {
+  const chips = projChips(p);
+  return '<li class="pi"><div class="pt">' + codeLink(p.code, byCode) + (p.name ? '<span class="pn">' + esc(p.name) + '</span>' : '') + '</div><div class="pp">' + chips + '</div>' + (p.ly_do ? '<div class="px">' + esc(p.ly_do) + '</div>' : '') + '</li>';
+}
+
+/** Báo cáo chi tiết một dự án: tiêu đề + chip, rồi mỗi ô nội dung là một khối riêng (gộp đoạn, tách ý theo số thứ tự / ngày, phần dài có "Xem đầy đủ"). */
+const RP_OPEN: [string, string, string][] = [   // [nhãn từ backend, tiêu đề hiển thị, tông màu]
+  ['Vấn đề, rủi ro và đề xuất', 'Vấn đề, rủi ro và đề xuất', 'w'], ['Công việc đã hoàn thành trong tuần', 'Việc đã làm tuần này', 'o'],
+  ['Kế hoạch tuần sau', 'Kế hoạch tuần sau', 'b'], ['Ghi chú', 'Ghi chú', 'n'],
+];
+const RP_FOLD: [string, string][] = [['Mục tiêu', 'Mục tiêu'], ['KPI', 'KPI'], ['Milestone', 'Mốc quan trọng'], ['Báo cáo các tuần trước', 'Các tuần trước'], ['Comment', 'Comment']];
+const RP_SPLIT = /\s+(?=(?:\d{1,2}\.\s)|(?:\[\d{4}-\d{2}-\d{2}\]))/;
+const rpInline = (s: string): string => esc(s).replace(/\[(\d{4})-(\d{2})-(\d{2})\]\s*-?\s*/g, (_m, _y, mo, d) => '<b class="rpt-dt">' + d + '/' + mo + '</b>');
+
+function rpBody(raw: string): string {
+  const text = raw.replace(/\s+/g, ' ').trim();
+  const items = text.split(RP_SPLIT).map((x) => x.replace(/^\d{1,2}\.\s+/, '').trim()).filter(Boolean);
+  const li = (xs: string[]): string => '<ul class="rpt-l">' + xs.map((x) => '<li>' + rpInline(x) + '</li>').join('') + '</ul>';
+  if (items.length > 1) {
+    return items.length > 4 ? li(items.slice(0, 3)) + '<details class="rpt-x"><summary>Xem thêm ' + (items.length - 3) + ' ý</summary>' + li(items.slice(3)) + '</details>' : li(items);
+  }
+  if (text.length <= 320) return '<p>' + rpInline(text) + '</p>';
+  const cut = text.lastIndexOf(' ', 280);
+  return '<p>' + rpInline(text.slice(0, cut > 120 ? cut : 280)) + '…</p><details class="rpt-x"><summary>Xem đầy đủ</summary><p>' + rpInline(text) + '</p></details>';
+}
+
+function reportCard(p: FactProject, doan: FactPassage[], byCode: Map<string, number>): string {
+  const by = new Map<string, string>();
+  for (const x of doan) by.set(x.truong || '', ((by.get(x.truong || '') || '') + ' ' + (x.noi_dung || '')).trim());   // gộp các đoạn cắt nhỏ của cùng một ô
+  let n = 0;
+  const open = RP_OPEN.filter(([k]) => by.get(k)).map(([k, title, tone]) =>
+    '<section class="rpt-s ' + tone + '" style="--d:' + n++ + '"><h4>' + esc(title) + '</h4>' + rpBody(by.get(k)!) + '</section>').join('');
+  const fold = RP_FOLD.filter(([k]) => by.get(k)).map(([k, title]) =>
+    '<details class="rpt-g"><summary>' + esc(title) + '</summary><div class="rpt-gb">' + rpBody(by.get(k)!) + '</div></details>').join('');
+  return '<div class="rpt"><div class="rpt-h">' + codeLink(p.code, byCode) + '<strong>' + esc(p.name || '') + '</strong><div class="pp">' + projChips(p) + '</div></div>'
+    + open + (fold ? '<div class="rpt-f">' + fold + '</div>' : '') + '</div>';
+}
+
+/** Gợi ý ưu tiên khi cắt giảm: ba nhóm dự án kèm lý do, tiêu chí và lưu ý. Mọi số liệu do backend tính từ bảng. */
+function prioritize(f: AgentFacts, byCode: Map<string, number>): string {
+  const blocks: [string, string, FactBucket | undefined, string][] = [   // [tiêu đề, (dự phòng màu), nhóm, gợi ý]
+    ['Nên giữ', 'o', f.nen_giu, 'Sắp về đích và đang ổn: dừng lúc này thì phí công đã bỏ ra.'],
+    ['Cần xem lại', 'e', f.can_xem_lai, 'Vừa chậm tiến độ vừa rủi ro cao: cân nhắc cứu, thu hẹp phạm vi hoặc dừng.'],
+    ['Có thể hoãn', 'w', f.co_the_hoan, 'Chưa gấp: hạn còn xa hoặc chưa có hạn.'],
+  ];
+  const html = blocks.filter(([, , b]) => b && b.so > 0).map(([title, , b, hint]) =>
+    '<div class="st"><div class="sh">' + title + ' (' + b!.so + ')</div><div class="pm">' + hint + '</div>' + projectList(b!.du_an, b!.so, byCode) + '</div>').join('');
+  const crit = (f.tieu_chi || []).length ? '<details class="more"><summary>Cách xếp</summary><ul class="pl">' + (f.tieu_chi || []).map((c) => '<li class="pi"><div class="px">' + esc(c) + '</div></li>').join('') + '</ul></details>' : '';
+  return html + crit + (f.luu_y ? '<div class="pm">' + esc(f.luu_y) + '</div>' : '');
 }
 
 function projectList(list: FactProject[], total: number | undefined, byCode: Map<string, number>): string {
@@ -116,15 +166,22 @@ function groupName(k: string): string {
 function groupBars(g: NonNullable<AgentFacts['phan_nhom']>): string {
   const keys = Object.keys(g.theo), max = Math.max(1, ...keys.map((k) => g.theo[k]));
   let h = '<div class="st"><div class="sh">Theo ' + esc(g.truong.toLowerCase()) + '</div>';
-  h += keys.map((k) => '<div class="br' + (g.theo[k] === max ? ' top' : '') + '" title="' + esc(k) + '"><span class="bn">' + groupName(k) + '</span><b>' + g.theo[k]
+  const gt = DIM_TONE[g.truong];
+  h += keys.map((k) => '<div class="br' + (g.theo[k] === max ? ' top' : '') + (gt ? ' t-' + toneOf(gt(k)) : '') + '" title="' + esc(k) + '"><span class="bn">' + groupName(k) + '</span><b>' + g.theo[k]
     + '</b><span class="bb"><i style="width:' + Math.max(4, Math.round((g.theo[k] / max) * 100)) + '%"></i></span></div>').join('');
   if (g.con_lai_nhom) h += '<div class="pm">Và ' + g.con_lai_nhom + ' nhóm khác.</div>';
   return h + '</div>';
 }
 
-function passages(list: FactPassage[], open: boolean, byCode: Map<string, number>): string {
+/** Danh sách dự án của từng nhóm (mỗi nhóm một khối có tiêu đề và số dự án). */
+function groupLists(list: NonNullable<AgentFacts['du_an_theo_nhom']>, byCode: Map<string, number>): string {
+  return list.filter((g) => g.du_an.length).map((g) => '<div class="st"><div class="sh">' + groupName(g.nhom) + ' (' + g.so_luong + ')</div>'
+    + projectList(g.du_an, g.so_luong, byCode) + '</div>').join('');
+}
+
+function passages(list: FactPassage[], open: boolean, byCode: Map<string, number>, max = SHOW_PASSAGES): string {
   if (!list.length) return '';
-  const shown = list.slice(0, SHOW_PASSAGES);
+  const shown = list.slice(0, max);
   const items = shown.map((x) => {
     const t = (x.noi_dung || '').replace(/\s+/g, ' ').trim();
     return '<li class="pi"><div class="pt">' + codeLink(x.code, byCode) + (x.ten ? '<span class="pn">' + esc(x.ten) + '</span>' : '') + '</div>'
@@ -133,10 +190,127 @@ function passages(list: FactPassage[], open: boolean, byCode: Map<string, number
   return '<details class="srcs"' + (open ? ' open' : '') + '><summary>Nguồn trong bảng (' + shown.length + ' đoạn)</summary><ul class="pl">' + items + '</ul></details>';
 }
 
+/** Phân tích bằng hình: thẻ số, nhận xét, thanh phân bố, ma trận tiến độ × rủi ro. Mọi con số do backend tính; ở đây chỉ vẽ.
+ *  `skip` = tên cột đang được đếm theo nhóm ở khối khác (không vẽ lại thanh phân bố của cột đó). */
+const statusTone = (v?: string): Tone => (/hoàn thành|done|đóng|closed/i.test(v || '') ? 'o' : '');
+const DIM_TONE: Record<string, (v?: string) => Tone> = { 'Tiến độ': progressTone, 'Mức độ rủi ro': riskTone, 'Trạng thái': statusTone };
+const toneOf = (m?: string): string => (m === 'e' || m === 'w' || m === 'o' ? m : 'n');
+const pct = (n: number, t: number): number => (t > 0 ? Math.round((100 * n) / t) : 0);
+
+const ICON = (d: string): string => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>';
+const ICONS: Record<string, string> = {
+  'Dự án': ICON('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'),
+  'Chậm tiến độ': ICON('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+  'Có nguy cơ chậm': ICON('<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>'),
+  'Rủi ro cao': ICON('<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>'),
+  'Quá hạn': ICON('<path d="M3 5h18v16H3zM3 10h18M8 3v4M16 3v4M10 14l4 4M14 14l-4 4"/>'),
+  'Chưa đánh giá rủi ro': ICON('<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 1-1 1.7M12 17h.01"/>'),
+};
+
+/** Thẻ nổi bật đầu câu trả lời: vòng % đúng tiến độ, nhận định một dòng, số dự án. Màu theo mức khoẻ (>=80% xanh, >=50% vàng, còn lại đỏ). */
+function hero(a: FactAnalysis): string {
+  const v = a.ty_le_dung_tien_do;
+  if (v === undefined) return '';
+  const tone = v >= 80 ? 'o' : v >= 50 ? 'w' : 'e';
+  const msg = tone === 'o' ? 'Đang đi đúng hướng' : tone === 'w' ? 'Cần theo dõi sát' : 'Cần can thiệp sớm';
+  const on = Object.entries(a.phan_bo?.['Tiến độ'] || {}).filter(([k]) => progressTone(k) === 'o').reduce((n, [, c]) => n + c, 0);
+  return '<div class="ax-hero ' + tone + '"><div class="ax-hr"><svg viewBox="0 0 42 42" role="img" aria-label="Đúng tiến độ ' + v + '%"><circle class="ax-rt" cx="21" cy="21" r="15.9155"/><circle class="ax-rv" cx="21" cy="21" r="15.9155" pathLength="100" stroke-dasharray="' + v + ' ' + (100 - v) + '"/></svg>'
+    + '<b>' + v + '<small>%</small></b></div><div class="ax-ht"><span class="ax-eb">Đúng tiến độ</span><strong>' + msg + '</strong><em>' + (on ? on + '/' : '') + (a.so_du_an || 0) + ' dự án</em></div></div>';
+}
+
+function kpiTiles(a: FactAnalysis, total?: number, withFirst = false): string {
+  const tiles = (a.the_so || []).slice(1);   // thẻ đầu (số dự án) đã nằm ở thẻ nổi bật
+  const first = (a.the_so || [])[0];
+  const n = a.so_du_an || 0;
+  const list = (a.ty_le_dung_tien_do === undefined || withFirst) && first ? [first, ...tiles] : tiles;
+  if (!list.length) return '';
+  return '<div class="ax-kp">' + list.map((t, i) => {
+    const main = t === first && total && total > t.so ? t.so + '<small>/' + total + '</small>' : String(t.so);
+    const share = t === first ? '' : '<em>' + pct(t.so, n) + '%</em>';
+    return '<div class="ax-k ' + toneOf(t.muc) + '" style="--d:' + (i * 70 + 120) + 'ms"><i class="ax-ic">' + (ICONS[t.nhan] || ICONS['Dự án']) + '</i><b>' + main + '</b><span>' + esc(t.nhan) + '</span>' + share
+      + (t === first ? '' : '<span class="ax-kb"><i style="width:' + Math.max(4, pct(t.so, n)) + '%"></i></span>') + '</div>';
+  }).join('') + '</div>';
+}
+
+function insights(list: NonNullable<FactAnalysis['nhan_xet']>): string {
+  if (!list.length) return '';
+  return '<div class="ax-in"><div class="ax-h">Điều cần chú ý</div><ul>' + list.map((x, i) => '<li class="' + toneOf(x.muc) + '" style="--d:' + (i * 80 + 200) + 'ms"><i class="ax-ic">' + (x.muc === 'e' ? ICON('<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>') : x.muc === 'w' ? ICON('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>') : ICON('<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/>')) + '</i><span>' + esc(x.noi_dung) + '</span></li>').join('') + '</ul></div>';
+}
+
+/** Biểu đồ vành khuyên: tổng ở giữa, chú thích bên cạnh. */
+function donut(dim: string, counts: Record<string, number>, keys: string[], total: number, tone: (v?: string) => Tone): string {
+  let off = 0;
+  const arcs = keys.map((k, i) => {
+    const p = (100 * counts[k]) / total, len = Math.max(0.5, p - (keys.length > 1 ? 0.8 : 0));
+    const h = '<circle class="ax-ar ' + toneOf(tone(k)) + ' s' + (i % 4) + '" cx="21" cy="21" r="15.9155" pathLength="100" stroke-dasharray="' + len.toFixed(2) + ' ' + (100 - len).toFixed(2) + '" stroke-dashoffset="' + (-off).toFixed(2) + '"><title>' + esc(k) + ' · ' + counts[k] + ' (' + pct(counts[k], total) + '%)</title></circle>';
+    off += p;
+    return h;
+  }).join('');
+  const legend = keys.map((k, i) => '<span><i class="ax-dt ' + toneOf(tone(k)) + ' s' + (i % 4) + '"></i>' + esc(k) + ' <b>' + counts[k] + '</b><em>' + pct(counts[k], total) + '%</em></span>').join('');
+  return '<div class="ax-ds"><div class="ax-h">' + esc(dim) + '</div><div class="ax-dn"><div class="ax-dw"><svg viewBox="0 0 42 42" role="img" aria-label="' + esc(dim) + '"><g transform="rotate(-90 21 21)">' + arcs + '</g></svg><b>' + total + '<small>dự án</small></b></div><div class="ax-lg col">' + legend + '</div></div></div>';
+}
+
+/** Cột theo hạn: số dự án đang chạy rơi vào từng khoảng thời gian tới hạn. */
+function deadlines(list: NonNullable<FactAnalysis['lich_han']>): string {
+  const max = Math.max(1, ...list.map((x) => x.so));
+  if (!list.some((x) => x.so > 0)) return '';
+  return '<div class="ax-ds"><div class="ax-h">Dự án đang chạy theo hạn</div><div class="ax-cols">' + list.map((x, i) => '<div class="ax-col ' + toneOf(x.muc) + '" style="--d:' + i * 50 + 'ms" title="' + esc(x.nhan) + ': ' + x.so + ' dự án"><b>' + x.so + '</b><span class="ax-cb"><i style="height:' + (x.so ? Math.max(6, Math.round((x.so / max) * 100)) : 2) + '%"></i></span><em>' + esc(x.nhan) + '</em></div>').join('') + '</div></div>';
+}
+
+/** Từng nhóm: thanh xếp chồng chậm / nguy cơ / còn lại, nhóm chậm nhiều nhất lên đầu. */
+function byGroup(list: NonNullable<FactAnalysis['theo_nhom']>, rest?: number): string {
+  if (list.length < 2) return '';
+  const max = Math.max(1, ...list.map((g) => g.tong));
+  const seg = (n: number, c: string, name: string, tong: number): string => (n ? '<i class="ax-sg ' + c + '" style="width:' + (100 * n / tong).toFixed(2) + '%" title="' + name + ': ' + n + '"></i>' : '');
+  return '<div class="ax-ds"><div class="ax-h">Tình hình từng nhóm</div>' + list.map((g) => '<div class="ax-gr" title="' + esc(g.nhom) + '"><span class="ax-gn">' + groupName(g.nhom) + '</span>'
+    + '<span class="ax-gb" style="width:' + Math.max(8, Math.round((g.tong / max) * 100)) + '%"><span class="ax-sb">' + seg(g.cham, 'e', 'Chậm tiến độ', g.tong) + seg(g.nguy_co, 'w', 'Có nguy cơ chậm', g.tong) + seg(g.dung, 'o', 'Còn lại', g.tong) + '</span></span><b>' + g.tong + '</b></div>').join('')
+    + '<div class="ax-lg"><span><i class="ax-dt e"></i>Chậm</span><span><i class="ax-dt w"></i>Nguy cơ chậm</span><span><i class="ax-dt o"></i>Còn lại</span>' + (rest ? '<span class="pm">và ' + rest + ' nhóm khác</span>' : '') + '</div></div>';
+}
+
+function distribution(bo: NonNullable<FactAnalysis['phan_bo']>, skip: string, max = 9): string {
+  const out: string[] = [];
+  for (const dim of Object.keys(bo)) {
+    if (dim === skip) continue;
+    const counts = bo[dim] || {}, keys = Object.keys(counts).sort((a, b) => counts[b] - counts[a] || a.localeCompare(b));
+    const total = keys.reduce((s, k) => s + counts[k], 0);
+    if (keys.length < 2 || !total || out.length >= max) continue;
+    const tone = DIM_TONE[dim] || (() => '' as Tone);
+    if (dim === 'Tiến độ') { out.push(donut(dim, counts, keys, total, tone)); continue; }
+    out.push('<div class="ax-ds"><div class="ax-h">' + esc(dim) + '</div><div class="ax-sb" role="img" aria-label="' + esc(dim) + '">'
+      + keys.map((k, i) => '<i class="ax-sg ' + toneOf(tone(k)) + ' s' + (i % 4) + '" style="width:' + (100 * counts[k] / total).toFixed(2) + '%" title="' + esc(k) + ' · ' + counts[k] + ' (' + pct(counts[k], total) + '%)"></i>').join('')
+      + '</div><div class="ax-lg">' + keys.map((k, i) => '<span><i class="ax-dt ' + toneOf(tone(k)) + ' s' + (i % 4) + '"></i>' + esc(k) + ' <b>' + counts[k] + '</b><em>' + pct(counts[k], total) + '%</em></span>').join('') + '</div></div>');
+  }
+  return out.join('');
+}
+
+function matrix(m: NonNullable<FactAnalysis['ma_tran']>): string {
+  if (m.tien_do.length < 2 || m.rui_ro.length < 2) return '';
+  const max = Math.max(1, ...m.so.flat());
+  const head = '<tr><th></th>' + m.rui_ro.map((c) => '<th class="' + toneOf(riskTone(c)) + '">' + esc(c) + '</th>').join('') + '</tr>';
+  const body = m.tien_do.map((r, i) => '<tr><th class="' + toneOf(progressTone(r)) + '">' + esc(r) + '</th>' + m.rui_ro.map((_, j) => {
+    const n = m.so[i]?.[j] ?? 0;
+    return n ? '<td class="ax-c ' + toneOf(progressTone(r)) + '" style="--k:' + (0.18 + 0.82 * n / max).toFixed(2) + '" title="' + esc(r) + ' × ' + esc(m.rui_ro[j]) + ': ' + n + ' dự án">' + n + '</td>' : '<td class="ax-c z">·</td>';
+  }).join('') + '</tr>').join('');
+  return '<div class="ax-ds"><div class="ax-h">Tiến độ × mức độ rủi ro</div><div class="ax-mxw"><table class="ax-mx"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div></div>';
+}
+
+function analytics(f: AgentFacts): string {
+  const a = f.phan_tich;
+  if (!a || !a.so_du_an) return '';
+  const lv = f.muc_chi_tiet || 'vua';   // V-LLM chọn theo ý người dùng: ngan / vua / day_du
+  if (lv === 'ngan') { const k = kpiTiles(a, f.tong, true); return k ? '<div class="ax">' + k + '</div>' : ''; }
+  const top = hero(a) + kpiTiles(a, f.tong);
+  const dist = distribution(a.phan_bo || {}, f.phan_nhom?.truong || '', lv === 'day_du' ? 9 : 1);
+  const inner = (top ? '<div class="ax-top">' + top + '</div>' : '') + insights(lv === 'day_du' ? a.nhan_xet || [] : (a.nhan_xet || []).slice(0, 2)) + (lv === 'day_du' ? deadlines(a.lich_han || []) : '') + dist
+    + (lv === 'day_du' && f.phan_nhom?.truong !== 'Nhóm' ? byGroup(a.theo_nhom || [], a.con_lai_nhom) : '')
+    + (lv === 'day_du' ? matrix(a.ma_tran || { tien_do: [], rui_ro: [], so: [] }) : '');
+  return inner ? '<div class="ax">' + inner + '</div>' : '';
+}
+
 /** Phần "chi tiết" dưới câu dẫn, dựng từ số liệu backend: danh sách dự án, thống kê, đoạn nguồn. Rỗng khi không có gì để hiện. */
 function details(f: AgentFacts, byCode: Map<string, number>, aiText: boolean): string {
   if (f.kieu === 'summary') {
-    let h = statRow('Tiến độ', f.theo_tien_do || {}, progressTone) + statRow('Mức độ rủi ro', f.theo_muc_do_rui_ro || {}, riskTone);
+    let h = f.phan_tich?.so_du_an ? analytics(f) : statRow('Tiến độ', f.theo_tien_do || {}, progressTone) + statRow('Mức độ rủi ro', f.theo_muc_do_rui_ro || {}, riskTone);
     const cham = f.du_an_cham || [];
     if (cham.length) h += '<div class="st"><div class="sh">Chậm tiến độ (' + (f.so_du_an_cham ?? cham.length) + ')</div><div class="pp">'
       + cham.slice(0, 8).map((c) => codeLink(c, byCode)).join(' ') + (cham.length > 8 ? '<span class="pm">và ' + (cham.length - 8) + ' dự án khác</span>' : '') + '</div></div>';
@@ -144,10 +318,11 @@ function details(f: AgentFacts, byCode: Map<string, number>, aiText: boolean): s
     return h;
   }
   if (f.kieu === 'search') return passages(f.doan || [], !aiText, byCode);
-  if (f.phan_nhom) return groupBars(f.phan_nhom);
+  if (f.kieu === 'prioritize') return prioritize(f, byCode);
+  if (f.phan_nhom) return analytics(f) + groupBars(f.phan_nhom) + groupLists(f.du_an_theo_nhom || [], byCode);
   const d = f.du_an;
-  if (Array.isArray(d)) return projectList(d, f.so_luong, byCode);
-  if (d && typeof d === 'object') return '<ul class="pl">' + projectCard(d, byCode) + '</ul>';
+  if (Array.isArray(d)) return analytics(f) + projectList(d, f.so_luong, byCode);
+  if (d && typeof d === 'object') return f.doan?.length ? reportCard(d, f.doan, byCode) : '<ul class="pl">' + projectCard(d, byCode) + '</ul>';   // báo cáo chi tiết: khối riêng cho từng ô nội dung
   return '';
 }
 

@@ -41,7 +41,7 @@ ROUTE_ASK = [
     ('dự án nào còn nháp', [], ('pending',), None), ('con nhap nao cho duyet ko', [], ('pending',), None),
     # nối tiếp
     ('còn nhóm Voice thì sao', H_ASK, Q, None), ('vậy dự án đúng tiến độ?', H_ASK, Q, None),
-    ('trong đó có dự án nào Food', H_ASK, ('analyze', 'filter'), None), ('ai phụ trách mấy dự án đó', H_ASK, ('analyze', 'project', 'summary', 'filter', 'search'), None),
+    ('trong đó có dự án nào Food', H_ASK, ('analyze', 'filter'), None), ('ai phụ trách mấy dự án đó', H_ASK, ('analyze', 'project', 'projects', 'summary', 'filter', 'search'), None),
     ('còn gì nữa không', H_ASK, ('unknown', 'summary', 'filter', 'analyze'), None),
     # lạc đề / không liên quan
     ('bạn là ai', [], ('unknown',), None), ('kể chuyện cười đi', [], ('unknown',), None),
@@ -101,6 +101,6 @@ EDITS_MORE = [
     ('đổi tiến độ của I.Z.9.9 thành chậm', [], [op('td', 'Chậm tiến độ', codes=['I.Z.9.9'])], {}),                  # mã không có trong bảng
     ('cũng làm vậy cho I.C.1.2', H_EDIT, [op('ghichu', 'chờ họp', codes=['I.C.1.2'])], {('I.C.1.2', 'ghichu'): 'chờ họp'}),
     ('đổi thành "chờ họp khối" nhé', H_EDIT, [op('ghichu', 'chờ họp khối', codes=['I.A.1.1', 'I.A.2.1', 'II.A.1.1'])], {(c, 'ghichu'): 'chờ họp khối' for c in ['I.A.1.1', 'I.A.2.1', 'II.A.1.1']}),
-    ('thêm I.C.1.2 vào luôn', H_EDIT, [op('ghichu', 'chờ họp', codes=['I.A.1.1', 'I.A.2.1', 'II.A.1.1', 'I.C.1.2'])], {(c, 'ghichu'): 'chờ họp' for c in ['I.A.1.1', 'I.A.2.1', 'II.A.1.1', 'I.C.1.2']}),
+    ('thêm I.C.1.2 vào luôn', H_EDIT, [op('ghichu', 'chờ họp', codes=['I.C.1.2'])], {('I.C.1.2', 'ghichu'): 'chờ họp'}),
     ('ghi chú chờ họp', H_EDIT, [op('ghichu', 'chờ họp', codes=['I.A.1.1'])], {}),                                   # không nhắc dự án, không từ nối: không lấy mã cũ
 ]

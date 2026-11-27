@@ -11,7 +11,7 @@ import { wkHist, wkOpen } from '@/store/actions/versions';
 import type { AppState, NavSnap, WeekKey } from '@/types';
 import { IcCal, IcChevDown, IcHelp, IcNav, IcTheme, IcWkChev } from '@/components/common/Icons';
 
-const NAV_NAME: Record<string, string> = { import: 'Nhập file', grid: 'Bảng', log: 'Nhật ký' };
+const NAV_NAME: Record<string, string> = { import: 'Nhập file', grid: 'Bảng', ai: 'Trợ lý AI', log: 'Nhật ký' };
 function navName(sn: NavSnap): string {
   if (sn.view === 'ver') return sn.vlView === 'cmp' ? 'So sánh 2 bản' : sn.vlView === 'one' ? 'Xem một phiên bản' : 'Phiên bản';
   return NAV_NAME[sn.view] || 'màn trước';

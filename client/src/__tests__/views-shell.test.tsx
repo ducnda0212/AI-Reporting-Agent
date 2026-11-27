@@ -50,7 +50,8 @@ describe('Layout Shell & Views SSR', () => {
     expect(rail).not.toContain('Điều hành');
     expect(rail).not.toContain('Rủi ro');
     expect(rail).not.toContain('Mẫu BC');
-    expect(rail.match(/class="ri/g)).toHaveLength(3);
+    expect(rail).toContain('Trợ lý');
+    expect(rail.match(/class="ri/g)).toHaveLength(4);
   });
 
   it('ImportView, VersionsView (kèm SVG chart) và LogView render sạch', () => {

@@ -32,6 +32,7 @@ import { TplConfigPanel } from '@/components/panels/TplConfigPanel';
 import { ImportView } from '@/views/Import/ImportView';
 import { VersionsView } from '@/views/Versions/VersionsView';
 import { LogView } from '@/views/Log/LogView';
+import { AssistantView } from '@/views/Assistant/AssistantView';
 
 /** Bấm ra ngoài menu thì đóng menu (prototype L5966); nút mở menu tự bật/tắt nên bỏ qua. */
 export function onOutsideClick(ev: MouseEvent): void {
@@ -58,10 +59,11 @@ export function App(): JSX.Element {
   }, [s.view, step]);
 
   const grid = s.view === 'grid' && s.loaded;
-  const panel = s.panel === 'ai' ? <AiAssistantPanel /> : s.panel === 'aitrace' ? <AiTracePanel /> : s.panel === 'tvcfg' ? <TplConfigPanel /> : null;
+  /* màn Trợ lý đã là AI toàn trang: không mở thêm khung AI bên phải */
+  const panel = s.view === 'ai' && s.panel === 'ai' ? null : s.panel === 'ai' ? <AiAssistantPanel /> : s.panel === 'aitrace' ? <AiTracePanel /> : s.panel === 'tvcfg' ? <TplConfigPanel /> : null;
   const main = (
     <main>
-      {s.restoringSession ? <div className="restoring" role="status" aria-live="polite">Đang khôi phục phiên làm việc…</div> : onImp ? <ImportView /> : s.view === 'ver' ? <VersionsView /> : s.view === 'log' ? <LogView /> : <Grid />}
+      {s.restoringSession ? <div className="restoring" role="status" aria-live="polite">Đang khôi phục phiên làm việc…</div> : onImp ? <ImportView /> : s.view === 'ver' ? <VersionsView /> : s.view === 'log' ? <LogView /> : s.view === 'ai' ? <AssistantView /> : <Grid />}
       {panel}
     </main>
   );

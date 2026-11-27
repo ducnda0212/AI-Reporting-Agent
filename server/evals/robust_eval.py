@@ -61,11 +61,20 @@ ROUTE = [
     # nối tiếp / nhớ hội thoại
     ('còn rủi ro cao thì sao', H_ASK, ('filter', 'analyze'), None),
     ('trong số đó cái nào rủi ro cao', H_ASK, ('analyze', 'filter'), None),
-    ('mấy dự án này ai phụ trách', H_ASK, ('analyze', 'project', 'summary', 'filter', 'search'), None),
+    ('mấy dự án này ai phụ trách', H_ASK, ('analyze', 'project', 'projects', 'summary', 'filter', 'search'), None),
     ('cũng ghi vậy cho I.A.1.2', H_EDIT, ('edit',), None),
     ('đổi lại thành Cao', [{'q': 'cho I.A.1.1 rủi ro thấp', 'codes': ['I.A.1.1'], 'a': 'Mình đã soạn 1 thay đổi'}], ('edit',), None),
     ('thêm I.C.1.1 nữa', [{'q': 'cho I.A.1.1 rủi ro thấp', 'codes': ['I.A.1.1'], 'a': 'Mình đã soạn 1 thay đổi'}], ('edit',), None),
     ('làm tiếp đi', H_DRAFT, ('draft', 'unknown'), None),
+    # xin gợi ý ưu tiên / tạm hoãn khi bị cắt giảm
+    ('bây giờ tôi bị rút bớt kinh phí, nên không thể chạy được hết tất cả dự án hiện tại, tôi nên pending dự án nào và ưu tiên cái nào', [], ('prioritize',), None),
+    ('thiếu người nên tạm dừng dự án nào', [], ('prioritize',), None),
+    ('cắt ngân sách thì giữ dự án nào', [], ('prioritize',), None),
+    ('nen uu tien du an nao truoc', [], ('prioritize',), None),
+    ('dự án nào nên dừng trước nếu phải cắt giảm', [], ('prioritize',), None),
+    # hỏi một dự án và xin báo cáo chi tiết, hỏi về khả năng của trợ lý
+    ('Báo cáo chi tiết dự án I.A.1.1', [], ('project', 'search'), None),
+    ('Bạn có tạo được biểu đồ hay ma trận tóm tắt không?', [], ('help',), None),
     # xác nhận / lạc đề
     ('ok', H_DRAFT, ('unknown',), None),
     ('cảm ơn nha', H_ASK, ('unknown',), None),

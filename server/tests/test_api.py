@@ -120,3 +120,19 @@ def test_agent_edit_end_to_end_never_applies(api, fake):
     s, d = api('/api/agent/ask', {'question': 'Điền mức rủi ro trung bình cho dự án Food còn trống', 'rows': rows, 'fields': fields})
     assert s == 200, d
     assert d['intent'] == 'edit' and d['applied'] is False and [(p['code'], p['to']) for p in d['proposals']] == [('DA01', 'Trung bình')]
+
+
+def test_transcribe_returns_text_with_normalized_codes(api, fake):
+    wav = b'RIFF....WAVEfmt ' + bytes(64)
+    s, d = api('/api/agent/transcribe?lang=vi', raw=wav, ctype='audio/wav')
+    assert s == 200, d
+    assert d['text'] == 'cho I.A.1.1 rủi ro cao' and d['raw'].startswith('cho i chấm')
+    raw = fake['asr_raw']
+    assert b'name="model"' in raw and b'v-llm-v1-asr' in raw and b'name="language"' in raw and b'filename="speech.wav"' in raw and wav in raw
+
+
+def test_transcribe_rejects_empty_and_unknown_type(api, fake):
+    s, d = api('/api/agent/transcribe', raw=b'', ctype='audio/wav')
+    assert s == 400
+    s, d = api('/api/agent/transcribe', raw=b'abc', ctype='application/pdf')
+    assert s == 415 and 'WAV' in d['error']
