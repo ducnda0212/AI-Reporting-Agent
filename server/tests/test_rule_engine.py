@@ -143,3 +143,14 @@ def test_goal_preserves_lines_and_bullets_and_kpi_includes_metric():
 
     kpi = "||*STT*||*KPI*||*Chỉ số chính*||\n|1|Tỉ lệ chuyển đổi|Tăng ≥ 12%|\n|2|Độ ổn định|"
     assert _kpi(kpi) == "1. Tỉ lệ chuyển đổi: Tăng ≥ 12%\n2. Độ ổn định"
+
+
+def test_extract_numeric_xx_code_and_workstream_mismatch_fallback():
+    assert extract_project_code_and_name("x.x.20 Cảnh báo SLA") == ("x.x.20", "Cảnh báo SLA")
+    assert extract_project_code_and_name("x.x.x Mục giữ chỗ")[0] is None
+    issue = {"Summary": "I.1.6.5 Chuẩn hóa sự cố"}
+    # template row inherits II.I.1... from another group; mismatched prefix must fall back to r.g
+    row = map_jira_issue_to_row(issue, {"mang_viec": "II.I.1Setup MOC", "template_row": 42}, WEEKS, i=0)
+    assert row.g == "I.1.6" and row.mang == "I.1.6"
+    ok = map_jira_issue_to_row(issue, {"mang_viec": "I.1.6.Chuẩn hóa", "template_row": 42}, WEEKS, i=0)
+    assert ok.mang == "I.1.6.Chuẩn hóa"

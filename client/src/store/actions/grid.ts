@@ -4,7 +4,7 @@ import { castDraft, type Draft } from 'immer';
 import { AI_IDS, FIELDS } from '@/data/constants';
 import { activeWkOf, cellValue, ck, displayText, effectiveKind, fieldById, grpName, locked, optsFor, refOf, sourceValue, type WeeksCtx } from '@/lib/cell';
 import { cleanText } from '@/lib/clean';
-import { autofitWidth, filterKey, findMatches, hitCell, needsFix, passColFilters, selKeys, sortRows, visibleFields } from '@/lib/grid';
+import { autofitWidth, filterKey, findMatches, groupedRows, hitCell, needsFix, passColFilters, selKeys, sortRows, visibleFields } from '@/lib/grid';
 import type { AiFieldId, AppState, CellFormat, CellRef, FieldGroup, FieldId, FindState, Row } from '@/types';
 import { getState, log, LS, lsSet, mutate, now, restoreSnap, rowsOf, toast, undoSnap } from '@/store';
 
@@ -24,7 +24,7 @@ export function gridRows(s: AppState): Row[] {
 /** Thứ tự dòng trên bảng (theo nhóm dự án, đã sắp xếp; nhóm đang gập không có dòng). */
 export function gridOrder(s: AppState): number[] {
   const list = gridRows(s), out: number[] = [];
-  s.groups.forEach((g) => { if (!s.collapsed[g.k]) sortRows(list.filter((r) => r.g === g.k), s.sort, s).forEach((r) => out.push(r.i)); });
+  groupedRows(s.groups, list).forEach(({ g, gr }) => { if (!s.collapsed[g.k]) sortRows(gr, s.sort, s).forEach((r) => out.push(r.i)); });
   return out;
 }
 const navFields = (s: AppState): FieldId[] => visibleFields(s.hidden).map((f) => f.id);

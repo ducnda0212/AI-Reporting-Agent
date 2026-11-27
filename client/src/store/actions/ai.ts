@@ -9,6 +9,7 @@ import { DRAFT_CHUNK, draftRequestRow, mergeRemote, type RemoteDrafts } from '@/
 import { fromRec, toRec, upsert } from '@/lib/chatHistory';
 import { REMOTE_MAX_QUESTION, REMOTE_MAX_ROWS, agentHtml, historyOf, intentCommand, keepLocal, textColumns } from '@/lib/agentRemote';
 import { ck, displayText, fieldById } from '@/lib/cell';
+import { groupedRows } from '@/lib/grid';
 import type { AgStageItem, AiFieldId, AppState, ChatRec, FieldId, Row, TraceTarget } from '@/types';
 import { getState, inBrowser, log, mutate, now, rowsOf, toast } from '@/store';
 import { editCell } from './grid';
@@ -321,8 +322,8 @@ const trTarget = (s: AppState): TraceTarget | null =>
 /** Các ô nháp AI chờ duyệt (`i|f`) theo thứ tự nhóm → dòng → cột. */
 export function pendingList(s: AppState): string[] {
   const out: string[] = [], rows = rowsOf(s);
-  s.groups.forEach((g) => rows.forEach((r) => {
-    if (r.g === g.k) AI_IDS.forEach((fid) => { const a = r.ai[fid]; if (a && !a.ok) out.push(ck(r.i, fid)); });
+  groupedRows(s.groups, rows).forEach(({ gr }) => gr.forEach((r) => {
+    AI_IDS.forEach((fid) => { const a = r.ai[fid]; if (a && !a.ok) out.push(ck(r.i, fid)); });
   }));
   return out;
 }

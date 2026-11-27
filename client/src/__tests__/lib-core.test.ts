@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { colNum, colLetter, ck, spillCls, mapNorm, cellValue, refOf, fieldById } from '@/lib/cell';
 import { cleanText, cleanKpi, cleanComment, ruleCounts } from '@/lib/clean';
-import { selKeys, visibleFields } from '@/lib/grid';
+import { findMatches, groupedRows, selKeys, visibleFields } from '@/lib/grid';
+import { exXlsx, pvUnzip } from '@/lib/xlsx';
+import { FIELDS } from '@/data/constants';
+import type { Row } from '@/types';
 import { parseMilestones, poNm, poWeeks } from '@/lib/popout';
 import { vCompare2, cxNote, diffSnap, vhList, type CmpSide } from '@/lib/versions';
 import { getStoredTheme, toggleTheme } from '@/lib/theme';
 import { STATUS_MAP } from '@/data/constants';
+import { PHASE_BUCKET } from './fixtures';
 import { SEED_VERSIONS, setFixtureCycle } from './fixtures';
 
 const side = (key: string, wk: CmpSide['wk'], snap: CmpSide['snap']): CmpSide => ({ key, wk, snap });
@@ -119,5 +123,32 @@ describe('Core Pure Helpers', () => {
   it('theme không làm hỏng khi chạy ngoài trình duyệt (SSR)', () => {
     expect(getStoredTheme()).toBeNull();
     expect(toggleTheme()).toBe('dark');
+  });
+});
+
+
+describe('groupedRows: dòng có nhóm ngoài s.groups không bị rơi', () => {
+  const mk = (i: number, g: string, ma: string) => ({ i, g, ma, mang: g, viec: 'Việc ' + ma, ai: {}, prw: {}, subtasks: [], reasons: {}, ovr: {}, pr: [] }) as unknown as Row;
+  const rows = [mk(0, 'I.A.1', 'I.A.1.1'), mk(1, 'I.1.6', 'I.1.6.5'), mk(2, 'x.x', 'x.x.20')];
+  const groups = [{ k: 'I.A.1', name: 'I.A.1.Tên' }];
+
+  it('giữ thứ tự groups rồi nối nhóm lạ ở cuối', () => {
+    const out = groupedRows(groups, rows);
+    expect(out.map((x) => x.g.k)).toEqual(['I.A.1', 'I.1.6', 'x.x']);
+    expect(out[0].g.name).toBe('I.A.1.Tên');
+    expect(out.map((x) => x.gr.map((r) => r.ma))).toEqual([['I.A.1.1'], ['I.1.6.5'], ['x.x.20']]);
+  });
+
+  it('bỏ nhóm rỗng', () => {
+    expect(groupedRows([...groups, { k: 'Z', name: 'Z' }], rows).map((x) => x.g.k)).not.toContain('Z');
+  });
+
+  it('findMatches và exXlsx vẫn thấy dòng nhóm lạ', async () => {
+    const st = { find: { q: 'I.1.6.5', open: true, scope: 'all', case: false, whole: false, filter: false }, hidden: {}, phaseBucket: PHASE_BUCKET, groups } as never;
+    expect(findMatches(st, rows).some((m) => m.i === 1)).toBe(true);
+    const blob = exXlsx(rows, FIELDS.slice(0, 5), { phaseBucket: PHASE_BUCKET, sort: null, groups } as never);
+    const sheet = (await pvUnzip(await blob.arrayBuffer()).get('xl/worksheets/sheet1.xml'))!;
+    expect(sheet).toContain('I.1.6.5');
+    expect(sheet).toContain('x.x.20');
   });
 });

@@ -41,11 +41,34 @@ def test_code_children_grandchildren_and_unknown_codes():
     ]
     rows, orphans = reconcile_issues(records, CATALOG, WEEKS)
     by = {r.ma: r for r in rows}
-    assert set(by) == {"I.C.1.2", "I.A.4.1", "I.A.4.2"}
+    assert set(by) == {"I.C.1.2", "I.A.4.1", "I.A.4.2", "IV.Z.99.99"}
+    assert by["IV.Z.99.99"].isNew is True and by["IV.Z.99.99"].tplRow == 0 and by["I.C.1.2"].isNew is False
+    assert [s.key for s in by["IV.Z.99.99"].subtasks] == ["F"]
     assert [s.key for s in by["I.C.1.2"].subtasks] == ["B", "C", "D"]
     assert by["I.A.4.2"].subtasks == [] and by["I.A.4.1"].subtasks == []  # coded task is its own row
     reasons = {o.key: o.reason for o in orphans}
     assert reasons == {
-        "E": "CODE_NOT_IN_CATALOG", "F": "NO_DA_CODE", "G": "NO_DA_CODE", "J": "DUPLICATE_DA_CODE",
+        "G": "NO_DA_CODE", "J": "DUPLICATE_DA_CODE",
     }
-    assert [r.i for r in rows] == [0, 1, 2]
+    assert [r.i for r in rows] == [0, 1, 2, 3]
+
+
+def test_csv_driven_projects_xx_codes_and_subtask_order():
+    records = [
+        {"Issue key": "SUB-EARLY", "Parent key": "M1", "Summary": "I.C.1.2 Subtask trùng mã đứng trước", "Issue Type": "Subtask", "Status": "Done"},
+        {"Issue key": "M1", "Summary": "I.C.1.2 Dự án chính", "Issue Type": "Epic", "Status": "In Progress"},
+        {"Issue key": "XX-1", "Summary": "x.x.20 Cảnh báo SLA", "Issue Type": "Epic", "Status": "To Do"},
+        {"Issue key": "XX-2", "Parent key": "XX-1", "Summary": "x.x.x Giữ chỗ", "Issue Type": "Task", "Status": "To Do"},
+        {"Issue key": "NEW-1", "Summary": "I.C.1.15 Dự án mới ngoài Excel", "Issue Type": "Epic", "Status": "To Do"},
+        {"Issue key": "NEW-1-SUB", "Parent key": "NEW-1", "Summary": "I.C.1.15.1 Việc con dự án mới", "Issue Type": "Task", "Status": "Done"},
+        {"Issue key": "NEW-1-DEEP", "Summary": "I.C.1.15.1.2 Cháu nhiều cấp", "Issue Type": "Task", "Status": "Done"},
+        {"Issue key": "NOPARENT", "Summary": "x.x.x Không cha", "Issue Type": "Task", "Status": "To Do"},
+    ]
+    rows, orphans = reconcile_issues(records, CATALOG, WEEKS)
+    by = {r.ma: r for r in rows}
+    assert set(by) == {"I.C.1.2", "x.x.20", "I.C.1.15"}
+    assert by["I.C.1.2"].key == "M1" and by["I.C.1.2"].isNew is False
+    assert by["I.C.1.15"].isNew is True and by["I.C.1.15"].tplRow == 0
+    assert [s.key for s in by["I.C.1.15"].subtasks] == ["NEW-1-SUB", "NEW-1-DEEP"]
+    assert [s.key for s in by["x.x.20"].subtasks] == ["XX-2"]
+    assert [(o.key, o.reason) for o in orphans] == [("SUB-EARLY", "DUPLICATE_DA_CODE"), ("NOPARENT", "NO_DA_CODE")]
