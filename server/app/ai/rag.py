@@ -50,6 +50,7 @@ RRF_K = 60
 LEX_KEEP = 0.4   # đoạn từ khoá chỉ giữ khi điểm ≥ 40% điểm đoạn đứng đầu (bỏ đoạn chỉ khớp một từ phổ biến)
 SEM_KEEP = 0.7   # đoạn embeddings chỉ giữ khi độ giống ≥ 70% đoạn đứng đầu và ≥ SEM_MIN
 SEM_MIN = 0.2
+SEM_Z = 0.0      # sàn thống kê: đoạn phải cao hơn trung bình của CẢ BẢNG ít nhất SEM_Z độ lệch chuẩn (tính riêng cho từng câu hỏi). 0 = tắt; đặt theo số đo thật ở ragTop.z_cao_nhat
 
 # từ nối và từ hỏi (đã bỏ dấu). "du", "an" nằm trong đây vì câu nào cũng nói "dự án".
 STOP = set('la va cua co khong nhu the nao gi nay do cac nhung mot trong voi duoc de da dang se o thi ma hay hoac bi tu den ve '
@@ -305,21 +306,30 @@ def _embed_text(p: dict) -> str:
 
 
 def semantic_many(queries: list[str], texts: list[str], stats: dict | None = None) -> list[list[tuple[int, float]]]:
-    """Với mỗi câu hỏi: [(vị trí đoạn, độ giống)] giảm dần, tối đa SEM_TOP đoạn. Câu hỏi và `texts` đã được che tên người trước khi gửi đi."""
+    """Với mỗi câu hỏi: [(vị trí đoạn, độ giống)] giảm dần, tối đa SEM_TOP đoạn. Câu hỏi và `texts` đã được che tên người trước khi gửi đi.
+    `stats['sem']` nhận [{mean, std}] của độ giống với CẢ BẢNG cho từng câu hỏi (để đặt sàn theo độ lệch chuẩn, không đoán số cố định)."""
     vecs = _embed_cached(queries + texts, stats)
     k = len(queries)
     qs, docs = vecs[:k], vecs[k:]
+    spread: list[dict] = []
     if np is not None and docs:
         sims = np.asarray(qs, dtype=np.float32) @ np.asarray(docs, dtype=np.float32).T
         out = []
         for row in sims:
+            spread.append({'mean': float(row.mean()), 'std': float(row.std())})
             order = np.argsort(-row, kind='stable')[:SEM_TOP]
             out.append([(int(i), float(row[i])) for i in order])
-        return out
-    out = []
-    for q in qs:  # vector đã độ dài 1: tích vô hướng = cosine
-        r = sorted(((i, sum(x * y for x, y in zip(q, d))) for i, d in enumerate(docs)), key=lambda x: -x[1])
-        out.append(r[:SEM_TOP])
+    else:
+        out = []
+        for q in qs:  # vector đã độ dài 1: tích vô hướng = cosine
+            r = [(i, sum(x * y for x, y in zip(q, d))) for i, d in enumerate(docs)]
+            vals = [v for _, v in r]
+            mean = sum(vals) / len(vals) if vals else 0.0
+            spread.append({'mean': mean, 'std': math.sqrt(sum((v - mean) ** 2 for v in vals) / len(vals)) if vals else 0.0})
+            r.sort(key=lambda x: -x[1])
+            out.append(r[:SEM_TOP])
+    if stats is not None:
+        stats['sem'] = spread
     return out
 
 
@@ -379,15 +389,22 @@ def search(question: str, rows: list[dict], mask=lambda s: s, timing: dict | Non
             try:
                 est: dict = {}
                 res = semantic_many([mask(question), *[mask(q) for q in extras]], [mask(_embed_text(p)) for p in passages], est)
+                spread = est.pop('sem', [])
+                zs = []
                 for k, sem in enumerate(res):
                     for i, sc in sem:
                         sims[i] = max(sims.get(i, -1.0), sc)
                     if sem:
-                        lists.append(('embedding' if k == 0 else f'embedding_{k}', W_SEM if k == 0 else W_EXTRA,
-                                      [i for i, sc in sem[:30] if sc >= max(SEM_MIN, SEM_KEEP * sem[0][1])]))
+                        mean, std = (spread[k]['mean'], spread[k]['std']) if k < len(spread) else (0.0, 0.0)
+                        zs.append(round((sem[0][1] - mean) / std, 2) if std > 1e-9 else 0.0)
+                        floor = max(SEM_MIN, SEM_KEEP * sem[0][1], mean + SEM_Z * std if SEM_Z > 0 else 0.0)
+                        keep = [i for i, sc in sem[:30] if sc >= floor]
+                        if keep:
+                            lists.append(('embedding' if k == 0 else f'embedding_{k}', W_SEM if k == 0 else W_EXTRA, keep))
                 how = 'tu_khoa+embedding'
                 if timing is not None:
                     timing['ragEmbed'] = est  # {memory, disk, new, ms}: bao nhiêu đoạn lấy từ đâu, và mất bao lâu
+                    timing['ragZ'] = zs        # độ lệch chuẩn của đoạn giống nhất so với cả bảng, theo từng câu (gốc, viết lại…)
             except (VllmError, ValueError, KeyError, TypeError) as e:
                 _note_failure(e)
                 if timing is not None:
@@ -398,7 +415,7 @@ def search(question: str, rows: list[dict], mask=lambda s: s, timing: dict | Non
         for pos, i in enumerate(rk):
             fused[i] += w / (RRF_K + pos + 1)
             where.setdefault(i, {})[name] = pos + 1
-    if how == 'tu_khoa' and not conf:  # chỉ từ khoá và khớp yếu (vd chỉ trùng "làm", "giao hàng"): chủ đề này không có trong bảng
+    if not conf and not any(n.startswith('embedding') for n, _, _ in lists):  # khớp từ khoá yếu (vd chỉ trùng "làm", "giao hàng") và không đoạn nào đủ giống theo nghĩa: chủ đề này không có trong bảng
         return {'passages': [], 'how': how, 'confident': False}
     by_code: dict[str, list[float]] = {}
     for i, sc in fused.items():

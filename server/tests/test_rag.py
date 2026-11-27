@@ -386,3 +386,29 @@ def test_openai_schema_is_made_strict_without_changing_the_original():
 def test_vllm_body_keeps_its_own_parameters():
     b = _body('v-llm-v1-medium', base='https://v-llm.example/t/v1')
     assert b['chat_template_kwargs'] == {'enable_thinking': False} and b['guardrail'] == 'low' and b['max_tokens'] == 300 and 'max_completion_tokens' not in b
+
+
+# ---------- sàn thống kê cho embeddings ----------
+def test_semantic_many_reports_spread_of_the_whole_table(embeddings):
+    st = {}
+    out = rag.semantic_many(['thiếu card'], [rag._embed_text(p) for p in rag.build_passages(CLEAN)], st)
+    assert out and len(st['sem']) == 1 and st['sem'][0]['std'] >= 0 and -1.0 <= st['sem'][0]['mean'] <= 1.0
+
+
+def test_search_reports_how_far_the_best_passage_stands_out(embeddings):
+    timing = {}
+    rag.search('thiếu card', CLEAN, timing=timing)
+    assert isinstance(timing['ragZ'], list) and timing['ragZ'] and 'sem' not in timing['ragEmbed']
+
+
+def test_statistical_floor_can_drop_passages_that_do_not_stand_out(embeddings, monkeypatch):
+    assert rag.search('thiếu card', CLEAN)['passages']          # tắt sàn (mặc định): vẫn có đoạn
+    monkeypatch.setattr(rag, 'SEM_Z', 1e6)                      # sàn cao vô lý: không đoạn nào nổi bật hơn cả bảng
+    assert rag.search('thiếu card', CLEAN)['passages'] == []    # không có từ khoá chắc và không đoạn nào đủ giống: không bịa đoạn
+
+
+def test_router_prompt_teaches_assignment_commands_and_asks_for_a_short_intent_first():
+    from server.app.ai.agent import qa
+    assert qa.ROUTE_SCHEMA['required'][0] == 'y_dinh' and list(qa.ROUTE_SCHEMA['properties'])[0] == 'y_dinh'
+    for must in ('cho hết dự án Voice rủi ro thấp', 'mấy dự án Ride ghi note đã họp', 'late / delayed', 'dự án đang thực hiện mà chậm tiến độ', 'KHÔNG phải "prioritize"', 'td i.c.1.1 la cham', 'lọc dòng còn lỗi thôi'):
+        assert must in qa.ROUTE_SYSTEM
