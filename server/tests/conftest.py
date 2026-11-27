@@ -27,7 +27,7 @@ os.environ["DEFAULT_CYCLE_ID"] = "2026_11_w3"  # pinned: tests assume week 3; au
 FAKE_PORT, API_PORT = 9555, 8799
 TEST_ENV = {
     'PMO_SKIP_DOTENV': '1',
-    'AI_MODE': 'vllm', 'VLLM_BASE_URL': f'http://127.0.0.1:{FAKE_PORT}/tenant/v1', 'VLLM_MODEL': 'v-llm-v1-large',
+    'AI_MODE': 'vllm', 'AI_PROVIDER': 'vllm', 'VLLM_BASE_URL': f'http://127.0.0.1:{FAKE_PORT}/tenant/v1', 'VLLM_MODEL': 'v-llm-v1-large',
     'VLLM_API_KEY': '', 'VLLM_AUTH_URL': f'http://127.0.0.1:{FAKE_PORT}/oauth/token', 'VLLM_CLIENT_ID': 'cid',
     'VLLM_CLIENT_SECRET': 'secret', 'VLLM_PROJECT_ID': 'p1', 'VLLM_THINKING': '0', 'VLLM_GUARDRAIL': 'low',
     'VLLM_JSON_MODE': 'schema', 'VLLM_CA_BUNDLE': '', 'VLLM_INSECURE': '0', 'VLLM_TIMEOUT': '10',

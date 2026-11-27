@@ -46,3 +46,11 @@ def test_client_treats_custom_openai_base_url_as_openai():
     from server.app.ai.llm import VllmClient
     assert VllmClient(st.load({**BOTH, 'AI_PROVIDER': 'openai', 'OPENAI_BASE_URL': 'https://proxy.example/v1'})).openai
     assert not VllmClient(st.load(dict(BOTH))).openai
+
+
+def test_voice_is_independent_of_the_chat_provider():
+    asr = {'AI_ASR_BASE_URL': 'https://asr.example/v1', 'AI_ASR_API_KEY': 'ak', 'AI_ASR_MODEL': 'whisper-large'}
+    for prov in ('openai', 'vllm'):
+        s = st.load({**BOTH, **asr, 'AI_PROVIDER': prov})
+        assert (s.asr_base_url, s.asr_api_key, s.asr_model) == ('https://asr.example/v1', 'ak', 'whisper-large')
+    assert st.load({**BOTH, 'AI_PROVIDER': 'openai'}).asr_model == 'v-llm-v1-asr'   # không tự đổi sang model của OpenAI
