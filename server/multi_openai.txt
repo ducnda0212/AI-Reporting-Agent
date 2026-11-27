@@ -1,0 +1,17 @@
+  LỖI [dep] dự án nào không phải đúng tiến độ  → intent=filter shown=['I.C.1.14'] so_luong=1 · đáp án ['I.1.7.2', 'I.A.4.1', 'I.A.4.3', 'I.A.5.2', 'I.C.1.14', 'I.C.1.7'] (9)
+        spec Agent chọn: {"query": "filter", "field": "tien_do", "value": "Không theo dõi", "detail": "vua"} · bởi gpt-4o-mini-2024-07-18
+  LỖI [dep] nhóm MOC hay nhóm Điều phối Cung-Cầu có nhiều dự án hoàn thành hơn  → intent=analyze shown=[] so_luong=1 · thiếu ['MOC'] · Trong 1 dự án có Trạng thái = Hoàn thành và Nhóm = II.D.1Marketplace Trust Syste
+        spec Agent chọn: {"query": "analyze", "filters": [{"field": "trang_thai", "value": "Hoàn thành"}, {"field": "mang", "value": "II.D.1Marketplace Trust System"}, {"field": "mang", "value": "I.C.1.Bộ giải pháp Điều phối Cung-Cầu và Tối ưu Phát cuốc"}], "group_by": "mang", "sort": "", "limit": 0, "due": "", "list_each": false, "detail": "vua"} · bởi gpt-4o-mini-2024-07-18
+
+# Đánh giá câu hỏi nhiều bước — live — 27/11/2026 15:01
+
+Dữ liệu: 56 dự án. Ngày chuẩn: 26/11/2026.
+
+| Nhóm | Đạt |
+|---|---|
+| one — một đặc tả là đủ | 7/7 (100%) |
+| dep — phụ thuộc bước trước / hợp / phủ định / so sánh | 13/15 (87%) |
+
+Thời gian mỗi câu: P50 4.45s · lớn nhất 6.91s
+
+Gợi ý quyết định: nhóm dep ≥ 60% → giữ kiến trúc hiện tại, chỉ sửa các ca lỗi.

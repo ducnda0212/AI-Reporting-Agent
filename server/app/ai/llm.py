@@ -144,6 +144,39 @@ class VllmClient:
             raise last
         raise last or VllmError('Gọi embeddings thất bại.')
 
+    def rerank(self, query: str, documents: list[str], top_n: int | None = None, model: str | None = None) -> list[tuple[int, float]]:
+        """V-LLM /rerank: chấm độ liên quan của từng đoạn với câu hỏi. Trả [(vị trí đoạn trong `documents`, điểm)] giảm dần theo điểm."""
+        if not documents:
+            return []
+        body: dict[str, Any] = {'model': model or self.cfg.rerank_model, 'query': query, 'documents': documents}
+        if not body['model']:
+            raise VllmError('Chưa đặt AI_RERANK_MODEL.')
+        if top_n:
+            body['top_n'] = top_n
+        url = f'{self.cfg.base_url}/rerank'
+        last: VllmError | None = None
+        refreshed = False
+        for attempt in range(3):
+            status, raw = self._http('POST', url, body, headers=self._auth_headers())
+            if status == 200:
+                try:
+                    res = [(int(r['index']), float(r['relevance_score'])) for r in json.loads(raw)['results']]
+                except (ValueError, KeyError, TypeError):
+                    raise VllmError('Phản hồi rerank không đúng định dạng (cần results[].index và relevance_score).', status, raw[:300])
+                if any(not 0 <= i < len(documents) for i, _ in res):
+                    raise VllmError('Rerank trả vị trí đoạn ngoài danh sách đã gửi.', status, raw[:300])
+                return sorted(res, key=lambda x: -x[1])
+            if status == 401 and self.cfg.auth_kind == 'oauth' and not refreshed:
+                self._get_token(force=True)
+                refreshed = True
+                continue
+            last = VllmError(_http_message(status), status, raw[:500])
+            if status in (429, 500, 502, 503, 504):
+                time.sleep(self.backoff * (attempt + 1))
+                continue
+            raise last
+        raise last or VllmError('Gọi rerank thất bại.')
+
     def transcribe(self, audio: bytes, filename: str = 'speech.wav', content_type: str = 'audio/wav', language: str = 'vi', model: str | None = None) -> dict:
         """/v1/audio/transcriptions (chuẩn OpenAI, multipart). Trả {'text', 'language', 'duration'}."""
         if not audio:
@@ -277,6 +310,47 @@ class VllmClient:
                 continue
             raise last
         raise last or VllmError('Gọi V-LLM thất bại.')
+
+    def chat_tools(self, messages: list[dict], tools: list[dict], max_tokens: int | None = None, temperature: float = 0.0,
+                   model: str | None = None) -> dict:
+        """Gọi chat completions kèm công cụ (function calling). Trả {'content', 'tool_calls': [{'id','name','arguments': dict}], 'finish', 'usage', 'ms'}.
+        `tools`: [{'name','description','parameters': JSON schema}]. Nền tảng không nhận tham số `tools` thì VllmError (400/404/422)."""
+        url = f'{self.cfg.base_url}/chat/completions'
+        t0 = time.time()
+        body = self._body(messages, None, max_tokens, temperature, model)
+        body['tools'] = [{'type': 'function', 'function': t} for t in tools]
+        body['tool_choice'] = 'auto'
+        refreshed = False
+        for attempt in range(3):
+            status, raw = self._http('POST', url, body, headers=self._auth_headers())
+            if status == 200:
+                try:
+                    d = json.loads(raw)
+                    ch = d['choices'][0]
+                    msg = ch['message']
+                except (ValueError, KeyError, IndexError):
+                    raise VllmError('Phản hồi V-LLM không đúng định dạng OpenAI.', status, raw[:300])
+                calls = []
+                for c in msg.get('tool_calls') or []:
+                    fn = c.get('function') or {}
+                    try:
+                        args = json.loads(fn.get('arguments') or '{}')
+                    except ValueError:
+                        args = {'_loi': 'arguments không phải JSON', '_tho': str(fn.get('arguments'))[:300]}
+                    calls.append({'id': c.get('id') or f'call_{len(calls)}', 'name': fn.get('name') or '', 'arguments': args if isinstance(args, dict) else {}})
+                return {'content': msg.get('content') or '', 'tool_calls': calls, 'finish': ch.get('finish_reason'),
+                        'usage': d.get('usage') or {}, 'model': d.get('model') or model or self.cfg.model, 'ms': int((time.time() - t0) * 1000)}
+            if status == 401 and self.cfg.auth_kind == 'oauth' and not refreshed:
+                self._get_token(force=True)
+                refreshed = True
+                continue
+            err = VllmError(self._err(status, 'OPENAI_API_KEY') if self.openai else _http_message(status), status, raw[:500])
+            if status in (429, 500, 502, 503, 504):
+                time.sleep(self.backoff * (attempt + 1))
+                last = err
+                continue
+            raise err
+        raise last
 
     def chat_json(self, messages: list[dict], schema: dict, max_tokens: int | None = None, model: str | None = None,
                   repair: bool = False, temperature: float | None = None) -> dict:

@@ -1,0 +1,201 @@
+== Phần 1: đọc ý định ==
+PASS du an nao cham tien do
+PASS may du an tre han
+PASS rr cao co may dA
+PASS tuan nay on ko
+PASS tom tat dum t tuan nay
+PASS nhom nao nhieu du an cham nhat
+PASS ghi chu cho i.a.1.1 la cho hop
+PASS i.a.1.2 rui ro thap nha
+PASS dat td cham cho i.c.1.1 giup m
+PASS chuyen may cai food sang dung tien do
+PASS an cot note di
+PASS hien lai cot note
+PASS chi cho t xem may dong loi
+PASS bo loc het di
+PASS AI soan dum t may o trong
+PASS duyet het nhap cho t
+PASS xem giúp mình bao nhiêu dự án đang trễ
+PASS có cái nào sắp tới hạn không
+PASS top 3 dự án gần hạn nhất
+PASS đừng hiện cột PIC nữa
+PASS giấu cột ghi chú giùm
+PASS cho tôi nhìn lại toàn bộ bảng
+PASS nhờ AI viết hộ phần rủi ro đang bỏ trống
+PASS OK mấy ô AI soạn chấp nhận hết
+PASS I.C.1.2 note là đang đợi PO
+PASS hạ rủi ro I.A.1.1 xuống thấp
+PASS mấy dự án Voice cho tiến độ có nguy cơ chậm
+PASS ai đã sửa dự án I.A.1.1 lần cuối
+PASS đổi tiến độ có ảnh hưởng gì tới báo cáo không
+PASS còn rủi ro cao thì sao
+PASS trong số đó cái nào rủi ro cao
+PASS mấy dự án này ai phụ trách
+PASS cũng ghi vậy cho I.A.1.2
+PASS đổi lại thành Cao
+PASS thêm I.C.1.1 nữa
+PASS làm tiếp đi
+PASS bây giờ tôi bị rút bớt kinh phí, nên không thể chạy được hết tất cả dự án hiện tại, tôi nên pending dự án nào và ưu tiên cái nào
+PASS thiếu người nên tạm dừng dự án nào
+PASS cắt ngân sách thì giữ dự án nào
+PASS nen uu tien du an nao truoc
+PASS dự án nào nên dừng trước nếu phải cắt giảm
+PASS Báo cáo chi tiết dự án I.A.1.1
+PASS Bạn có tạo được biểu đồ hay ma trận tóm tắt không?
+PASS ok
+PASS cảm ơn nha
+PASS hôm nay thời tiết thế nào
+PASS tổng quan tuần này
+PASS báo cáo tuần này thế nào
+PASS cho mình biết tình hình chung
+PASS có bao nhiêu dự án tất cả
+PASS tuan nay co gi dang chu y
+PASS tóm tắt nhanh giúp
+PASS overview đi
+PASS sức khỏe danh mục dự án sao rồi
+PASS bao nhiêu dự án chậm tiến độ
+PASS có mấy dự án đúng tiến độ
+PASS dự án nào có nguy cơ chậm
+PASS liệt kê dự án rủi ro cao
+PASS rủi ro trung bình có những dự án nào
+PASS những dự án đã hoàn thành
+PASS dự án nào đang thực hiện
+PASS dự án nào chưa thực hiện
+PASS cho xem các dự án nhóm Food
+PASS nhóm Voice có mấy dự án
+PASS co may du an ride
+PASS dự án late là gì
+PASS đếm giúp dự án chậm
+PASS chậm bao nhiêu cái
+PASS cho t list dự án trễ
+PASS ds dự án rr cao
+PASS dự án Food nào chậm tiến độ
+PASS Voice mà rủi ro cao có không
+PASS mỗi nhóm có bao nhiêu dự án
+PASS nhóm nào chậm nhiều nhất
+PASS nhóm nào nhiều rủi ro cao nhất
+PASS thống kê tiến độ theo nhóm
+PASS ai phụ trách nhiều dự án chậm nhất
+PASS dự án nào quá hạn rồi
+PASS 7 ngày tới có dự án nào đến hạn
+PASS trong 14 ngày tới dự án nào hết hạn
+PASS tháng này dự án nào đến hạn
+PASS 5 dự án gần hạn nhất
+PASS dự án nào hạn xa nhất
+PASS top 3 dự án chậm
+PASS so sánh số dự án chậm giữa các nhóm
+PASS dự án đang thực hiện mà chậm tiến độ
+PASS I.A.1.1 là dự án gì
+PASS cho mình thông tin I.C.1.2
+PASS tình trạng của I.A.2.1
+PASS ai phụ trách II.A.1.1
+PASS KPI của I.A.1.1 là gì
+PASS mục tiêu I.C.1.1 ra sao
+PASS i.a.1.2 dang lam gi
+PASS dự án nào đang chờ GPU
+PASS có dự án nào nói về dữ liệu tài xế không
+PASS vướng mắc của các dự án là gì
+PASS dự án nào đề cập tới đối tác
+PASS tìm dự án có chữ dashboard
+PASS có bao nhiêu ô nháp AI chờ duyệt
+PASS nháp nào chưa duyệt
+PASS dự án nào còn nháp
+PASS con nhap nao cho duyet ko
+PASS còn nhóm Voice thì sao
+PASS vậy dự án đúng tiến độ?
+PASS trong đó có dự án nào Food
+PASS ai phụ trách mấy dự án đó
+PASS còn gì nữa không
+PASS bạn là ai
+PASS kể chuyện cười đi
+PASS giá vàng hôm nay
+PASS viết email xin nghỉ phép
+PASS thanks
+PASS ừ
+PASS đổi tiến độ của I.A.1.1 thành chậm
+PASS sửa rủi ro I.C.1.2 sang cao
+PASS cập nhật ghi chú I.A.1.2: đang chờ phê duyệt
+PASS I.A.2.1 đúng tiến độ rồi
+FAIL I.C.1.1 vẫn có nguy cơ chậm nha
+   mong đợi: ('edit',)  | nhận được: {'query': 'project', 'field': '', 'value': 'I.C.1.1', 'detail': 'ngan'} | bởi: gpt-4o-mini-2024-07-18
+PASS đặt mức rủi ro trung bình cho I.A.1.1 và I.A.1.2
+PASS cho hết dự án Voice rủi ro thấp
+PASS mấy dự án Ride ghi note đã họp
+PASS các dự án chưa có rủi ro thì để trung bình
+PASS dự án nào chậm thì note chờ CBLD
+PASS tất cả dự án ghi chú đang theo dõi
+PASS hạ hết rủi ro cao xuống trung bình
+PASS nâng I.C.1.2 lên rủi ro cao
+PASS xóa ghi chú I.A.1.1
+PASS i.a.1.1 note cho hop khoi
+FAIL td i.c.1.1 la cham
+   mong đợi: ('edit',)  | nhận được: {'query': 'project', 'field': '', 'value': 'I.C.1.1', 'detail': 'ngan'} | bởi: gpt-4o-mini-2024-07-18
+PASS rr thap cho i.a.2.1
+PASS ghi note "đã gửi PO" cho I.C.1.2
+PASS nhớ ghi I.A.1.2 là chờ GPU nhé
+PASS làm giúp mình: I.A.2.1 rủi ro cao, I.C.1.1 rủi ro thấp
+PASS chuyển I.A.1.1 sang hoàn thành
+PASS soạn nháp giúp mình
+PASS nhờ AI điền phần rủi ro còn thiếu
+PASS viết giúp mình mục vấn đề và rủi ro cho các dự án trống
+PASS AI soạn progress report đi
+PASS điền hết ô trống bằng AI
+PASS ai viet nhap giup t
+PASS tự động điền các ô còn thiếu
+PASS gợi ý rủi ro cho các dự án chưa đánh giá
+PASS duyệt nháp của I.A.1.1
+PASS chấp nhận hết các ô AI soạn
+PASS duyệt tất cả
+PASS ok duyệt hết nháp đi
+PASS duyet nhap i.c.1.2
+PASS ẩn cột Ghi chú
+PASS ẩn cột PIC đi
+PASS hiện lại cột Note
+PASS bật lại cột Mục tiêu
+PASS chỉ hiện dòng cần sửa
+FAIL lọc dòng còn lỗi thôi
+   mong đợi: ('view',) only_fix | nhận được: {'query': 'filter', 'field': '', 'value': '', 'detail': 'ngan'} | bởi: gpt-4o-mini-2024-07-18
+PASS bỏ lọc
+PASS hiện hết các dòng
+PASS cho xem lại cả bảng
+PASS giấu cột KPI giùm
+PASS cũng làm vậy cho I.C.1.2
+PASS thêm I.C.1.2 vào luôn
+PASS thôi bỏ I.A.1.1 ra
+PASS đổi thành "chờ họp khối" nhé
+PASS làm lại đi
+PASS soạn tiếp các ô còn lại
+PASS tiến độ của I.A.1.1 là gì
+PASS rủi ro của I.A.1.1 đang là gì
+PASS dự án nào đã được sửa rủi ro
+-> 163/166
+== Phần 2: sửa nối tiếp / không dấu ==
+PASS cũng ghi vậy cho I.A.1.2
+PASS đặt rủi ro thấp cho mấy dự án đó luôn
+PASS đổi lại thành Trung bình
+PASS thêm I.C.1.1 nữa
+PASS ghi chu cho i.a.1.2 la cho gpu
+PASS i.a.1.2 tien do cham
+PASS rui ro cao cho may cai ride nha
+PASS ghi chú chờ họp
+PASS đổi tiến độ của I.A.1.2 thành chậm
+PASS I.C.1.1 đúng tiến độ nha
+PASS cho I.A.2.1 và I.C.1.1 rủi ro thấp
+PASS mấy dự án Voice ghi note đã họp
+PASS dự án nào chậm thì note chờ CBLD
+PASS dự án nào chưa có rủi ro thì để trung bình
+PASS tất cả dự án ghi chú đang theo dõi
+PASS hạ rủi ro I.A.1.1 xuống trung bình
+PASS i.a.1.2 note cho hop khoi
+PASS rr thap cho i.a.1.1
+PASS làm giúp mình: I.A.2.1 rủi ro cao, I.C.1.1 rủi ro thấp
+PASS đổi rủi ro I.A.1.1 thành siêu cao
+PASS đổi tiến độ của I.Z.9.9 thành chậm
+PASS cũng làm vậy cho I.C.1.2
+PASS đổi thành "chờ họp khối" nhé
+FAIL thêm I.C.1.2 vào luôn
+   mong đợi: {('I.C.1.2', 'ghichu'): 'chờ họp'} | nhận được: {('I.C.1.2', 'ghichu'): 'chờ họp', ('I.A.1.1', 'ghichu'): 'chờ họp', ('I.A.2.1', 'ghichu'): 'chờ họp', ('II.A.1.1', 'ghichu'): 'chờ họp'} | kế hoạch AI: {'ops': [{'field': 'ghichu', 'value': 'chờ họp', 'codes': ['I.C.1.2'], 'where_field': 'td', 'where_value': 'Chậm tiến độ', 'only_empty': False, 'all': False}, {'field': 'ghichu', 'value': 'chờ họp', 'codes': ['I.A.1.1'], 'where_field': 'td', 'where_value': 'Chậm tiến độ', 'only_empty': False, 'all': False}, {'field': 'ghichu', 'value': 'chờ họp', 'codes': ['I.A.2.1'], 'where_field': 'td', 'where_value': 'Chậm tiến độ', 'only_empty': False, 'all': False}, {'field': 'ghichu', 'value': 'chờ họp', 'codes': ['II.A.1.1'], 'where_field': 'td', 'where_value': 'Chậm tiến độ', 'only_empty': False, 'all': False}], 'unclear': ''}
+PASS ghi chú chờ họp
+-> 24/25
+
+187/191 ca đạt (live)
