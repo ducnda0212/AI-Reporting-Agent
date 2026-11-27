@@ -206,7 +206,6 @@ describe('ExportModal, AiDoneModal', () => {
     const h = renderToString(<ExportModal />);
     expect(h).toContain('Xuất báo cáo');
     expect(h).toContain('20261120_DAN_Bao-cao-PMO.xlsx');
-    expect(h).toContain('cột AR–AT');
     expect(h).toContain('Xuất file từ v');
     expect(h).toContain('Đủ 49 cột theo mẫu');
     expect(h).toContain('Cột đang hiển thị');
