@@ -53,9 +53,9 @@ async def ai_status(_: Request):
     host = urlparse(settings.base_url).netloc if settings.base_url else ''
     return JSONResponse({
         'mode': settings.mode, 'model': settings.model, 'host': host, 'auth': settings.auth_kind,
-        'thinking': settings.thinking, 'guardrail': settings.guardrail or 'mặc định', 'jsonMode': client._json_mode,
+        'provider': settings.provider, 'thinking': settings.thinking, 'guardrail': settings.guardrail or 'mặc định', 'jsonMode': client._json_mode,
         'maskNames': settings.mask_names, 'problems': settings.problems(),
-        'rag': {'embeddings': rag.embeddings_enabled(), 'model': settings.embed_model or None},
+        'rag': {'embeddings': rag.embeddings_enabled(), 'model': settings.embed_model or None, **({'external': urlparse(settings.embed_base_url).netloc} if settings.embed_base_url else {}), **({'problem': rag.embeddings_problem()} if rag.embeddings_problem() else {})},
     })
 
 
@@ -136,6 +136,17 @@ async def agent_ask(request: Request):
         return err(str(e), 502, e.detail)
 
 
+async def agent_warm(request: Request):
+    """Nạp sẵn embeddings cho bảng để câu hỏi đầu tiên không phải chờ. Không bao giờ trả lỗi: nạp không được thì câu hỏi tự nạp lúc cần."""
+    rows = (await _json(request)).get('rows')
+    if not isinstance(rows, list) or not rows or len(rows) > 300 or settings.mode != 'vllm' or settings.problems():
+        return JSONResponse({'ok': True, 'enabled': False})
+    try:
+        return JSONResponse({'ok': True, **await run_in_threadpool(agent.warm, rows)})
+    except VllmError as e:
+        return JSONResponse({'ok': False, 'enabled': True, 'error': str(e)})
+
+
 async def agent_transcribe(request: Request):
     """Nhận file âm thanh (WAV/MP3…) làm thân yêu cầu, trả chữ để điền vào ô chat. Không tự chạy lệnh nào."""
     if not settings.asr_base_url:  # dùng V-LLM: cần cấu hình V-LLM đầy đủ; dịch vụ giọng nói riêng (AI_ASR_BASE_URL) thì không
@@ -182,6 +193,7 @@ routes = [
     Route('/api/ai/draft', ai_draft, methods=['POST']),
     Route('/api/risk/assess', risk_assess, methods=['POST']),
     Route('/api/agent/ask', agent_ask, methods=['POST']),
+    Route('/api/agent/warm', agent_warm, methods=['POST']),
     Route('/api/agent/transcribe', agent_transcribe, methods=['POST']),
 ]
 app = Starlette(routes=routes)

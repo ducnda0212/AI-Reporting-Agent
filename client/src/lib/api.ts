@@ -85,7 +85,12 @@ export interface AgentFacts {
   du_an?: FactProject | FactProject[] | null;
   /** Gợi ý ưu tiên khi cắt giảm (kieu 'prioritize'): nên giữ / cần xem lại / có thể hoãn, kèm tiêu chí và lưu ý. */
   nen_giu?: FactBucket; can_xem_lai?: FactBucket; co_the_hoan?: FactBucket; dang_chay?: number; tieu_chi?: string[]; luu_y?: string;
+  /** Khi người dùng nêu sức chứa / nhóm bảo vệ: danh sách giữ - hoãn theo sức chứa và nhóm được giữ nguyên. */
+  suc_chua?: { giu_toi_da: number; giu: FactBucket; hoan: FactBucket; du_cho?: boolean; bao_ve_vuot_suc_chua?: boolean };
+  bao_ve?: FactBucket & { nhom: string[] };
   doan?: FactPassage[];
+  /** Câu hỏi "so với tuần trước": các đoạn `doan` gồm ô tuần trước và các ô tuần này của một dự án. */
+  so_sanh?: boolean; ma_hoi?: string;
   theo_tien_do?: Record<string, number>; theo_muc_do_rui_ro?: Record<string, number>;
   du_an_cham?: string[]; so_du_an_cham?: number; so_du_an_co_o_nhap_ai_cho_duyet?: number;
   phan_nhom?: { truong: string; theo: Record<string, number>; con_lai_nhom?: number };
@@ -113,6 +118,10 @@ export interface AgentTurn { q: string; codes: string[]; a?: string }
 
 export const agentAsk = (question: string, rows: AgentRow[], history: AgentTurn[] = []) =>
   req<AgentAnswer>('/api/agent/ask', { method: 'POST', body: JSON.stringify({ question, rows, history }) }, 60000);
+
+/** Nạp sẵn embeddings cho bảng để câu hỏi đầu tiên không phải chờ. Backend không bao giờ trả lỗi cho việc này. */
+export const agentWarm = (rows: AgentRow[]) =>
+  req<{ ok: boolean; enabled?: boolean; passages?: number; error?: string }>('/api/agent/warm', { method: 'POST', body: JSON.stringify({ rows }) }, 180000);
 
 /** Lệnh sửa bảng do V-LLM đọc ý (backend chỉ đề xuất, không ghi). */
 export interface AgentEditField { id: string; name: string; options: string[]; editable: boolean; lockedWhy: string }
