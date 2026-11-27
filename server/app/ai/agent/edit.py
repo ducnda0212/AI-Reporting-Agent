@@ -14,6 +14,7 @@ import json
 import re
 import unicodedata
 
+from .. import rag
 from ..settings import settings
 from ..masking import Masker
 from ..llm import VllmError, client
@@ -36,6 +37,9 @@ Mỗi thao tác ("ops"):
   Từ đồng nghĩa: "trễ", "chậm", "quá hạn" = giá trị "Chậm tiến độ" của cột Tiến độ; "rủi ro cao" = giá trị "Cao" của cột Mức độ rủi ro.
   Từ trong câu lệnh trùng một giá trị cho phép của cột KHÁC cột cần sửa (vd "các dự án Voice", Voice thuộc cột Nhóm) là điều kiện lọc:
   dùng where_field/where_value, không liệt kê mã, không dùng "all".
+  Người dùng nêu tên một nhóm / mảng việc / chủ đề, kể cả nói gọn hoặc gần đúng ("dự án liên quan đến food & express" ↔ giá trị "I.A.4.Tối ưu Food & Express"):
+  where_field là id cột chứa giá trị đó, where_value chép ĐÚNG một giá trị trong "gia_tri_cac_cot_chu" (chọn giá trị gần nghĩa nhất); chỉ khi không giá trị nào hợp lý mới hỏi lại.
+  Người dùng gọi dự án bằng một đoạn TÊN nói gọn ("dự án liên quan đến Nền tảng thực nghiệm", "công việc Hệ thống cảnh báo sớm"): tìm trong "du_an" và "du_an_gan_nghia_voi_cau" các dự án có tên khớp ý, chép MÃ vào "codes" (có thể nhiều dự án). Đừng hỏi lại khi đã có dự án khớp rõ.
 Ví dụ (cột "ghichu" = Ghi chú, "td" = Tiến độ, "rui" = Mức độ rủi ro, "mang" = Nhóm):
 - "điền các domain còn thiếu thành Food" -> ops: [{field: id cột Domain, value: "Food", only_empty: true, các khoá phạm vi khác để rỗng/false}]
 - "dự án nào chưa có note thì ghi chờ CBLD" -> ops: [{field: ghichu, value: "chờ CBLD", only_empty: true, các khoá phạm vi khác để rỗng/false}]
@@ -162,11 +166,52 @@ def parse_rule(question: str, fields: dict, rows: list[dict]) -> dict | None:
             'unclear': ''}
 
 
+def _value_hints(question: str, fields: dict, rows: list[dict], m: Masker) -> dict:
+    """Giá trị đang có của các cột chữ (Mảng việc, Nhóm…) để V-LLM đối chiếu khi người dùng nêu tên nhóm / chủ đề nói gọn hoặc gần đúng
+    ("food & express" ↔ "I.A.4.Tối ưu Food & Express"). Ít giá trị thì đưa hết; nhiều thì chọn các giá trị gần nghĩa nhất với câu bằng embeddings."""
+    out = {}
+    for f in fields.values():
+        if f['options'] or f['editable']:   # cột nhập tay (ghi chú, báo cáo…) là nội dung riêng, không gửi; chỉ cột lấy từ Jira (nhóm, mảng việc…)
+            continue
+        vals = sorted({str(r['values'].get(f['id'], '')).strip() for r in rows if str(r['values'].get(f['id'], '')).strip()})
+        if len(vals) < 2 or sum(len(v) for v in vals) / len(vals) > 90:
+            continue
+        if len(vals) > 30:
+            try:
+                if not rag.embeddings_enabled():
+                    continue
+                vals = [vals[i] for i, _ in rag.semantic(question, [m.mask(v) for v in vals], question_text=m.mask(question))[:8]]
+            except Exception:   # embeddings lỗi: bỏ gợi ý, vẫn sửa được theo mã / tên dự án
+                continue
+        out[f['id']] = [m.mask(v)[:120] for v in vals]
+    return out
+
+
+def _name_hints(question: str, fields: dict, rows: list[dict], m: Masker) -> list[dict]:
+    """Dự án có tên khớp / gần nghĩa với câu (khớp chữ trước, rồi embeddings) để V-LLM chọn mã khi người dùng chỉ gọi tên nói gọn."""
+    by_code = {r['code']: r for r in rows}
+    order = _name_matches(question, rows)
+    try:
+        named = [r for r in rows if r.get('name')]
+        if named and rag.embeddings_enabled():
+            sem = rag.semantic(question, [m.mask(r['name']) for r in named], question_text=m.mask(question))
+            order += [named[i]['code'] for i, _ in sem[:6]]
+    except Exception:   # embeddings lỗi: chỉ dùng khớp chữ
+        pass
+    seen, out = set(), []
+    for c in order:
+        if c in by_code and c not in seen:
+            seen.add(c); out.append({'ma': c, 'ten': by_code[c]['name']})
+    return out[:8]
+
+
 def parse_ai(question: str, fields: dict, rows: list[dict], m: Masker, timing: dict, history: list[dict] | None = None) -> tuple[dict, str]:
     ctx = {'cot': [{'id': f['id'], 'ten': f['name'], 'duoc_sua': f['editable'], 'gia_tri_cho_phep': f['options'][:40] or 'chữ tự do',
                     **({'dau': f['options'][0], 'cuoi': f['options'][-1]} if len(f['options']) >= 3 else {})}
                    for f in fields.values()],
-           'du_an': [{'ma': r['code'], 'ten': r['name']} if r['name'] else {'ma': r['code']} for r in rows][:300]}
+           'du_an': [{'ma': r['code'], 'ten': r['name']} if r['name'] else {'ma': r['code']} for r in rows][:300],
+           'gia_tri_cac_cot_chu': _value_hints(question, fields, rows, m),
+           'du_an_gan_nghia_voi_cau': _name_hints(question, fields, rows, m)}
     msgs = [{'role': 'system', 'content': SYSTEM},
             {'role': 'user', 'content': 'Bảng:\n' + json.dumps(ctx, ensure_ascii=False)
              + ('\ncau_truoc:\n' + json.dumps([{'cau': m.mask(h['q']), 'ma_du_an_vua_nhac': h['codes'], 'tra_loi': m.mask(h.get('a', ''))} for h in history], ensure_ascii=False) if history else '')
@@ -196,14 +241,48 @@ def _mentioned(word: str, text_n: str) -> bool:
 
 def _infer_where(question: str, fields: dict, rows: list[dict], target: str, value: str) -> tuple[dict, str] | None:
     """Câu lệnh nêu một giá trị của cột khác (vd "dự án Voice") → điều kiện lọc. Hai cột cùng khớp thì không đoán."""
-    q = _norm(question).replace(_norm(value), ' ')
+    qn, vn = _norm(question), _norm(value)
+    i = qn.rfind(vn) if vn else -1
+    q = qn[:i] + ' ' + qn[i + len(vn):] if i >= 0 else qn   # chỉ bỏ giá trị MỚI (thường ở cuối câu), không bỏ chữ trùng nằm trong điều kiện ("food & express … thành Food")
     hits = []
     for f in fields.values():
         if f['id'] == target:
             continue
         vals = set(f['options']) | {r['values'].get(f['id'], '') for r in rows}
         hits += [(f, v) for v in vals if v and len(_norm(v)) >= 2 and _mentioned(v, q)]
-    return hits[0] if len(hits) == 1 else None
+    if len(hits) == 1:
+        return hits[0]
+    return None if hits else _infer_where_part(q, fields, rows, target)
+
+
+_STOP = set('toi muon chinh cot cua du an lien quan den thanh sang la doi sua cap nhat gan dien ghi cho giup nhe nha voi cac nhung may moi tat ca nao thi thuoc'.split())
+
+
+def _infer_where_part(q: str, fields: dict, rows: list[dict], target: str) -> tuple[dict, str] | None:
+    """Câu chỉ nêu MỘT PHẦN tên của một giá trị cột khác ("dự án liên quan đến food & express" ↔ Mảng việc "I.A.4.Tối ưu Food & Express"):
+    cụm từ nằm giữa các từ lệnh phải nằm trọn trong đúng MỘT giá trị của đúng một cột, nếu không thì không đoán."""
+    skip = _STOP | set(_norm(fields[target]['name']).split() if target in fields else [])
+    segs, cur = [], []
+    for w in q.split():
+        if w in skip:
+            if cur:
+                segs.append(' '.join(cur)); cur = []
+        else:
+            cur.append(w)
+    if cur:
+        segs.append(' '.join(cur))
+    for seg in sorted((s for s in segs if len(s.replace(' ', '')) >= 4 and re.search(r'[a-z]{3}', s)), key=len, reverse=True):
+        pat = re.compile(r'(?<![\w])' + re.escape(seg) + r'(?![\w])')
+        hits = []
+        for f in fields.values():
+            if f['id'] == target:
+                continue
+            m = {v for v in {r['values'].get(f['id'], '') for r in rows} if v and pat.search(_norm(v))}
+            if len(m) == 1:
+                hits.append((f, next(iter(m))))
+        if hits:
+            return hits[0] if len(hits) == 1 else None
+    return None
 
 
 # ---------- bước 2 + 3: kiểm tra và tạo bản xem trước ----------
@@ -251,6 +330,43 @@ def _scope_desc(t: dict, fields: dict, rows: list[dict]) -> str:
     return 'các dự án đang trống' if t.get('only_empty') else ''
 
 
+def _closest_values(wv: str, vals: list[str], k: int = 4) -> str:
+    """Gợi ý ngắn các giá trị gần nhất (chung nhiều chữ nhất với điều kiện), không liệt kê cả cột."""
+    w = set(_norm(wv).split())
+    ranked = sorted(vals, key=lambda v: -len(w & set(_norm(v).split())))
+    near = [v for v in ranked if w & set(_norm(v).split())][:k] or ranked[:k]
+    return 'Gần nhất: ' + '; '.join(near) + (f' (còn {len(vals) - len(near)} giá trị khác).' if len(vals) > len(near) else '.')
+
+
+def _name_matches(question: str, rows: list[dict], skip: set | None = None, value: str = '') -> list[str]:
+    """Người dùng gọi dự án bằng một đoạn TÊN ("dự án liên quan đến Nền tảng thực nghiệm"): các dự án có tên chứa đoạn chữ liền nhau dài nhất
+    của câu (ít nhất 2 từ có nghĩa). Quá nhiều dự án khớp ngang nhau thì không đoán."""
+    qn, vn = _norm(question), _norm(value)
+    i = qn.rfind(vn) if vn else -1
+    if i >= 0:
+        qn = qn[:i] + ' ' + qn[i + len(vn):]   # bỏ giá trị MỚI ở cuối câu
+    qw = qn.split()
+    stop = _STOP | (skip or set())
+    best, hit = 0, []
+    for r in rows:
+        nw = _norm(r.get('name') or '').split()
+        if not nw:
+            continue
+        run, prev = 0, [0] * (len(nw) + 1)
+        for a in qw:   # độ dài đoạn liền nhau dài nhất, chỉ tính các từ không phải từ lệnh
+            cur = [0] * (len(nw) + 1)
+            for j, b in enumerate(nw, 1):
+                if a == b and a not in stop:
+                    cur[j] = prev[j - 1] + 1
+                    run = max(run, cur[j])
+            prev = cur
+        if run >= 2 and run >= best:
+            if run > best:
+                best, hit = run, []
+            hit.append(r['code'])
+    return hit if 0 < len(hit) <= 8 else []
+
+
 def build_preview(plan: dict, fields: dict, rows: list[dict], question: str = '', prev_codes: list[str] | None = None, confirmed: bool = False) -> dict:
     proposals, skipped, unchanged, guessed = [], [], [], []
     seen: set = set()
@@ -286,7 +402,8 @@ def build_preview(plan: dict, fields: dict, rows: list[dict], question: str = ''
         if question and codes:
             # AI không thấy tên dự án, nên mã hợp lệ phải có trong câu lệnh; mã AI tự thêm thì bỏ
             ref = bool(prev_codes) and bool(REF_CUE.search(qn))  # "dự án đó", "thêm … nữa": được dùng mã người dùng vừa nhắc ở câu trước
-            codes = [c for c in codes if _mentioned(c, qn) or (ref and c in prev_codes) or (c in by_code and _name_hit(by_code[c]['name'], qn))]
+            by_name = set(_name_matches(question, rows, set(_norm(f['name']).split()), val))
+            codes = [c for c in codes if _mentioned(c, qn) or (ref and c in prev_codes) or c in by_name or (c in by_code and _name_hit(by_code[c]['name'], qn))]
         ask_scope = ''   # phạm vi V-LLM đọc ra nhưng câu chưa nói rõ: hỏi lại người dùng thay vì tự làm
         if question and t.get('all') is True and not ALL_WORDS.search(qn) and not confirmed:
             ask_scope = _scope_desc(t, fields, rows)
@@ -298,6 +415,8 @@ def build_preview(plan: dict, fields: dict, rows: list[dict], question: str = ''
             guess = _infer_where(question, fields, rows, f['id'], val)
             if guess:
                 t['where_field'], t['where_value'] = guess[0]['id'], guess[1]
+            else:   # gọi dự án bằng một đoạn tên: tìm theo tên (vẫn chỉ là bản xem trước, người dùng duyệt)
+                codes = _name_matches(question, rows, set(_norm(f['name']).split()), val)
         if codes:
             fix = {c: s[0] for c in codes if c not in by_code for s in [_similar_codes(c, by_code)] if len(s) == 1}   # đúng một mã cùng dãy số: đoán, vẫn phải xác nhận ở bản xem trước
             for a, b in fix.items():
@@ -318,6 +437,11 @@ def build_preview(plan: dict, fields: dict, rows: list[dict], question: str = ''
             wv = str(t.get('where_value') or '')
             vals = sorted({r['values'].get(wf['id'], '') for r in rows if r['values'].get(wf['id'])}) if wf else []
             want = _match_option(wv, vals) if wf else None
+            if want is None and wf and wv.strip():   # V-LLM nêu gọn ("Food & Express"): cùng cột có DUY NHẤT một giá trị chứa đủ các phần đó ("I.A.4.Tối ưu Food & Express")
+                toks0 = [t.strip() for t in re.split(r'[,&/+;]|\bva\b|\bvoi\b', _norm(wv)) if t.strip()] or [_norm(wv)]
+                part = [v for v in vals if all(_mentioned(t, _norm(v)) for t in toks0)]
+                if len(part) == 1:
+                    want = part[0]
             if want is None and wv.strip():  # cột AI chọn (vd Domain, đang trống) không có giá trị này: tìm cột khác có DUY NHẤT một giá trị nêu đúng chữ đó (vd Mảng việc "…Food & Express")
                 alt = []
                 for g in fields.values():
@@ -334,7 +458,7 @@ def build_preview(plan: dict, fields: dict, rows: list[dict], question: str = ''
                 want, wf = None, None   # điều kiện lọc AI đọc ra không khớp giá trị nào (vd nhầm đại từ "t" thành mã): ô trống đã là phạm vi, bỏ điều kiện lọc
                 targets = rows
             elif want is None:
-                why = (f" trong cột {wf['name']}. " + (f"Giá trị hiện có: {', '.join(vals)}." if vals else 'Cột này đang trống ở mọi dự án nên không lọc theo cột này được.')) if wf else '.'
+                why = (f" trong cột {wf['name']}. " + (_closest_values(wv, vals) if vals else 'Cột này đang trống ở mọi dự án nên không lọc theo cột này được.')) if wf else '.'
                 skipped.append({'field': f['id'], 'reason': f"Không tìm thấy điều kiện \"{wv}\"" + why})
                 continue
             if wf is not None and want is not None:
