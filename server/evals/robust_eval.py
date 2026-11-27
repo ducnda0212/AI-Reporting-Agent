@@ -57,7 +57,7 @@ ROUTE = [
     ('mấy dự án Voice cho tiến độ có nguy cơ chậm', [], ('edit',), None),
     # chứa chữ "đổi/sửa" nhưng là HỎI
     ('ai đã sửa dự án I.A.1.1 lần cuối', [], ('project', 'search', 'summary', 'unknown'), None),
-    ('đổi tiến độ có ảnh hưởng gì tới báo cáo không', [], ('unknown', 'summary', 'search'), None),
+    ('đổi tiến độ có ảnh hưởng gì tới báo cáo không', [], ('unknown', 'summary', 'search', 'help'), None),
     # nối tiếp / nhớ hội thoại
     ('còn rủi ro cao thì sao', H_ASK, ('filter', 'analyze'), None),
     ('trong số đó cái nào rủi ro cao', H_ASK, ('analyze', 'filter'), None),

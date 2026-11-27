@@ -47,7 +47,10 @@ Cột chữ tự do (ghi chú…): người dùng gõ không dấu thì viết l
 Hiểu cả câu gõ không dấu, viết tắt, lỗi chính tả, tiếng lóng, thiếu động từ ("rui ro cao", "ghi chu cho i.a.1.1 cho hop", "dat tdo cham", "td: dung tien do", "cho mấy cái trễ note chờ nha"). Chỉ cần đọc đúng ý, giá trị chép theo danh sách cho phép.
 Người dùng hay gọi dự án bằng TÊN, không nêu mã ("dự án nhận diện và xác thực khuôn mặt"). Bảng đưa "du_an" gồm mã và tên: đọc cả câu, tìm dự án có tên khớp ý người dùng (kể cả gõ thiếu dấu, thiếu chữ, nói gọn)
 và chép MÃ của dự án đó vào "codes". Chỉ khi không dự án nào khớp hoặc có nhiều dự án khớp ngang nhau mới trả ops rỗng và hỏi lại trong "unclear" (nêu tên các dự án gần giống).
-Cột có danh sách chọn như "AI Lifecycle" (các bước): "bước 5", "bước cuối cùng", "bước đầu" là giá trị trong danh sách; chép đúng giá trị đó.
+Cột có danh sách chọn như "AI Lifecycle" (các bước): "gia_tri_cho_phep" được liệt kê ĐÚNG THỨ TỰ các bước. "bước 5" là giá trị có số 5, "bước cuối cùng" / "bước cuối" là giá trị CUỐI danh sách (xem "cuoi"), "bước đầu" là giá trị đầu (xem "dau"), "bước tiếp theo" / "lùi một bước" tính từ giá trị hiện tại của dự án nếu người dùng nêu, không thì hỏi lại. Luôn chép đúng một giá trị trong danh sách.
+Nếu câu trước ("cau_truoc", mục tra_loi) là câu Agent hỏi xác nhận ("…, phải không?") và người dùng trả lời đồng ý bằng bất kỳ cách nói nào ("đúng", "ừ", "chuẩn rồi", "làm đi"), hãy lấy cột, giá trị và phạm vi Agent đã nêu để trả ops đầy đủ; nếu họ nói khác đi thì làm theo điều họ nói.
+Phạm vi không nêu rõ trong câu (không mã, không nhóm, không "tất cả"): nếu bạn đoán được từ ngữ cảnh thì vẫn điền, hệ thống sẽ hỏi người dùng xác nhận; nếu không đoán được thì ops rỗng và hỏi lại.
+Không chắc dự án hay giá trị nào thì KHÔNG đoán: trả ops rỗng và hỏi lại trong "unclear", nêu các lựa chọn gần nhất để người dùng chỉ cần trả lời "đúng" hoặc chọn một.
 Có "cau_truoc" (các câu trước, kèm mã dự án họ nêu hoặc đã sửa): dùng để hiểu câu nối tiếp.
 - "cũng ghi như vậy cho I.A.1.2" / "giống vừa rồi" -> lấy cột và giá trị của lệnh sửa gần nhất, áp cho phạm vi mới.
 - "thêm I.A.1.3 nữa" / "thêm … vào luôn" -> CHỈ mã mới (lệnh trước đã có bản xem trước riêng), cùng cột và giá trị như lệnh sửa gần nhất.
@@ -100,13 +103,30 @@ def _clean_rows(raw: list) -> list[dict]:
     return out
 
 
+LAST_WORDS = {'cuoi', 'cuoi cung', 'buoc cuoi', 'buoc cuoi cung', 'giai doan cuoi', 'last'}
+FIRST_WORDS = {'dau', 'dau tien', 'buoc dau', 'buoc dau tien', 'giai doan dau', 'first'}
+
+
 def _match_option(value: str, options: list[str]) -> str | None:
     want = _norm(value)
     for o in options:
         if _norm(o) == want:
             return o
     hit = [o for o in options if _norm(o).startswith(want)] if want else []
-    return hit[0] if len(hit) == 1 else None
+    if len(hit) == 1:
+        return hit[0]
+    # danh sách chọn có thứ tự (vd các bước AI Lifecycle): "bước cuối cùng" là phần tử cuối, "bước đầu" là phần tử đầu
+    if len(options) >= 2 and want in LAST_WORDS:
+        return options[-1]
+    if len(options) >= 2 and want in FIRST_WORDS:
+        return options[0]
+    # "bước 5", "5": số bước khớp đúng một giá trị (không nhầm 1 với 10, 11, 12)
+    n = re.search(r'\d+', want)
+    if n and re.fullmatch(r'(?:[a-z]+\s+)?\d+', want):
+        same = [o for o in options if (re.search(r'\d+', _norm(o)) or [None])[0] == n[0]]
+        if len(same) == 1:
+            return same[0]
+    return None
 
 
 def _match_field(name: str, fields: dict[str, dict]) -> dict | None:
@@ -138,7 +158,8 @@ def parse_rule(question: str, fields: dict, rows: list[dict]) -> dict | None:
 
 
 def parse_ai(question: str, fields: dict, rows: list[dict], m: Masker, timing: dict, history: list[dict] | None = None) -> tuple[dict, str]:
-    ctx = {'cot': [{'id': f['id'], 'ten': f['name'], 'duoc_sua': f['editable'], 'gia_tri_cho_phep': f['options'][:40] or 'chữ tự do'}
+    ctx = {'cot': [{'id': f['id'], 'ten': f['name'], 'duoc_sua': f['editable'], 'gia_tri_cho_phep': f['options'][:40] or 'chữ tự do',
+                    **({'dau': f['options'][0], 'cuoi': f['options'][-1]} if len(f['options']) >= 3 else {})}
                    for f in fields.values()],
            'du_an': [{'ma': r['code'], 'ten': r['name']} if r['name'] else {'ma': r['code']} for r in rows][:300]}
     msgs = [{'role': 'system', 'content': SYSTEM},
@@ -208,8 +229,25 @@ def _prev_codes(history: list[dict] | None) -> list[str]:
     return [c for h in (history or []) for c in h.get('codes', [])]
 
 
-def build_preview(plan: dict, fields: dict, rows: list[dict], question: str = '', prev_codes: list[str] | None = None) -> dict:
-    proposals, skipped, unchanged = [], [], []
+def _awaiting_confirm(history: list[dict] | None) -> bool:
+    """Câu trước Agent vừa hỏi xác nhận phạm vi ("… phải không?"): câu này là trả lời cho câu hỏi đó, nên tin phạm vi V-LLM đọc ra (không tự bắt người dùng nói lại từ khoá)."""
+    a = _norm(((history or [{}])[-1]).get('a', ''))
+    return 'phai khong' in a or 'dung khong' in a
+
+
+def _scope_desc(t: dict, fields: dict, rows: list[dict]) -> str:
+    if t.get('all') is True:
+        return f'tất cả {len(rows)} dự án'
+    wf = fields.get(str(t.get('where_field') or ''))
+    if wf and str(t.get('where_value') or '').strip():
+        return f"các dự án có {wf['name']} là “{t['where_value']}”"
+    if wf:
+        return f"các dự án đang trống {wf['name']}"
+    return 'các dự án đang trống' if t.get('only_empty') else ''
+
+
+def build_preview(plan: dict, fields: dict, rows: list[dict], question: str = '', prev_codes: list[str] | None = None, confirmed: bool = False) -> dict:
+    proposals, skipped, unchanged, guessed = [], [], [], []
     seen: set = set()
     by_code = {r['code']: r for r in rows}
     ops = plan.get('ops') if isinstance(plan.get('ops'), list) else []
@@ -244,19 +282,27 @@ def build_preview(plan: dict, fields: dict, rows: list[dict], question: str = ''
             # AI không thấy tên dự án, nên mã hợp lệ phải có trong câu lệnh; mã AI tự thêm thì bỏ
             ref = bool(prev_codes) and bool(REF_CUE.search(qn))  # "dự án đó", "thêm … nữa": được dùng mã người dùng vừa nhắc ở câu trước
             codes = [c for c in codes if _mentioned(c, qn) or (ref and c in prev_codes) or (c in by_code and _name_hit(by_code[c]['name'], qn))]
-        if question and t.get('all') is True and not ALL_WORDS.search(qn):
+        ask_scope = ''   # phạm vi V-LLM đọc ra nhưng câu chưa nói rõ: hỏi lại người dùng thay vì tự làm
+        if question and t.get('all') is True and not ALL_WORDS.search(qn) and not confirmed:
+            ask_scope = _scope_desc(t, fields, rows)
             t['all'] = False
-        if question and not codes and not SCOPE_CUE.search(qn):
-            t['where_field'], t['where_value'], t['only_empty'], t['all'] = '', '', False, False  # câu không nói dự án nào: AI không được tự đoán phạm vi
+        if question and not codes and not SCOPE_CUE.search(qn) and not confirmed:
+            ask_scope = ask_scope or _scope_desc(t, fields, rows)
+            t['where_field'], t['where_value'], t['only_empty'], t['all'] = '', '', False, False  # câu không nói dự án nào: không tự làm, hỏi lại để xác nhận
         if not codes and not t.get('where_field') and not t.get('all') and question:
             guess = _infer_where(question, fields, rows, f['id'], val)
             if guess:
                 t['where_field'], t['where_value'] = guess[0]['id'], guess[1]
         if codes:
+            fix = {c: s[0] for c in codes if c not in by_code for s in [_similar_codes(c, by_code)] if len(s) == 1}   # đúng một mã cùng dãy số: đoán, vẫn phải xác nhận ở bản xem trước
+            for a, b in fix.items():
+                if not any(g['from'] == a for g in guessed):
+                    guessed.append({'from': a, 'to': b})
+            codes = [fix.get(c, c) for c in codes]
             missing = [c for c in codes if c not in by_code]
             if missing:
                 hint = [f"{c} (ý bạn là {' hoặc '.join(s)}?)" if s else c for c in missing for s in [_similar_codes(c, by_code)]]
-                skipped.append({'field': f['id'], 'reason': f"Không có dự án {', '.join(hint)} trong bảng."})
+                skipped.append({'field': f['id'], 'reason': f"Không có dự án {', '.join(hint)} trong bảng. Bạn nói rõ mã giúp mình."})
             targets = [by_code[c] for c in codes if c in by_code]
         elif t.get('where_field') and not str(t.get('where_value') or '').strip() and str(t['where_field']) in fields:
             targets = [r for r in rows if not r['values'].get(str(t['where_field']), '').strip()]  # "chưa có note" mà AI ghi thành điều kiện rỗng: hiểu là ô trống
@@ -285,7 +331,8 @@ def build_preview(plan: dict, fields: dict, rows: list[dict], question: str = ''
         elif t.get('all') is True or t.get('only_empty'):
             targets = rows  # "dự án nào chưa có note": điều kiện ô trống đã là phạm vi, lọc ở bước dưới
         else:
-            skipped.append({'field': f['id'], 'reason': f"Chưa rõ sửa {f['name']} cho dự án nào. Bạn nêu mã dự án, hoặc nói “tất cả dự án”, “các dự án đang trống”, “các dự án chậm tiến độ”..."})
+            ask = f" Mình đoán bạn muốn sửa cho {ask_scope}, phải không? Đúng thì nói “đúng”, không thì nêu mã dự án hoặc nhóm." if ask_scope else ''
+            skipped.append({'field': f['id'], 'reason': f"Chưa rõ sửa {f['name']} cho dự án nào." + (ask or " Bạn nêu mã dự án, hoặc nói “tất cả dự án”, “các dự án đang trống”, “các dự án chậm tiến độ”...")})
             continue
         n_scope = len(targets)
         if t.get('only_empty'):
@@ -306,7 +353,7 @@ def build_preview(plan: dict, fields: dict, rows: list[dict], question: str = ''
                 break
             seen.add(key)
             proposals.append({'code': r['code'], 'field': f['id'], 'fieldName': f['name'], 'from': old, 'to': val})
-    return {'proposals': proposals, 'skipped': skipped, 'unchanged': unchanged}
+    return {'proposals': proposals, 'skipped': skipped, 'unchanged': unchanged, 'guessed': guessed}
 
 
 def _summary(prev: dict, unclear: str) -> str:
@@ -321,6 +368,8 @@ def _summary(prev: dict, unclear: str) -> str:
     codes = list(dict.fromkeys(x['code'] for x in p))
     cols = list(dict.fromkeys(x['fieldName'] for x in p))
     txt = f"Agent đề xuất đổi {len(p)} ô ({', '.join(cols)}) ở {len(codes)} dự án. Xem trước rồi bấm duyệt để áp dụng."
+    for g in prev.get('guessed') or []:  # hỏi xác nhận: bản xem trước chưa ghi gì, người dùng đúng thì áp dụng, sai thì nói lại mã
+        txt = f"Bảng không có mã {g['from']}. Mình đoán bạn muốn {g['to']} nên đã soạn sẵn bên dưới. Đúng thì bấm Áp dụng, sai thì nói lại mã giúp mình. " + txt
     return txt + (f' Bỏ qua {len(s)} phần: ' + s[0]['reason'] if s else '')
 
 
@@ -342,13 +391,14 @@ def propose(question: str, raw_rows: list, raw_fields: list, people: list | None
             m = Masker(settings.mask_names)
             m.add(*(people or []))
             plan, by = parse_ai(question, fields, rows, m, timing, history)
-    prev = build_preview(plan, fields, rows, question, _prev_codes(history))
+    confirmed = _awaiting_confirm(history)
+    prev = build_preview(plan, fields, rows, question, _prev_codes(history), confirmed)
     if by == 'rule' and settings.mode == 'vllm' and not prev['proposals'] and prev['skipped']:
         # mẫu câu quen đọc ra giá trị không hợp lệ (vd "đúng tiến độ dc ko" dính cả đuôi câu): không từ chối ngay, nhờ V-LLM đọc ý
         m = Masker(settings.mask_names)
         m.add(*(people or []))
         plan, by = parse_ai(question, fields, rows, m, timing, history)
-        prev = build_preview(plan, fields, rows, question, _prev_codes(history))
+        prev = build_preview(plan, fields, rows, question, _prev_codes(history), confirmed)
     unclear = str(plan.get('unclear') or '').strip()
     if not prev['proposals'] and not prev['skipped'] and not unclear and not plan.get('ops'):
         unclear = 'Agent chưa đọc được ý câu lệnh. Bạn nói rõ cột, giá trị mới và dự án nào (hoặc nhóm dự án nào).'

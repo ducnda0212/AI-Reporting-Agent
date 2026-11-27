@@ -71,7 +71,7 @@ function Welcome({ s }: { s: AppState }): JSX.Element {
   return (
     <div className="ai9">
       <div className="ai9hero"><div className="ai9orb" aria-hidden="true"><i /><span>✦</span></div>
-        <h3>Chào {s.lockBy || 'Khuê'}, cần gì cho <em>{wkName(activeWkOf(s), true)}</em>?</h3>
+        <h3>Chào Bạn thân yêu, cần gì cho <em>{wkName(activeWkOf(s), true)}</em>?</h3>
         <p>Hỏi về số liệu, hoặc nhờ Agent sửa bảng. Agent gửi bản xem trước, bạn duyệt mới áp dụng.</p>
         <div className="ai9sts">
           {stat(rows.length, 'dự án', '', 'Tóm tắt tuần này')}

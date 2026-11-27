@@ -297,4 +297,56 @@ def test_missing_code_suggests_code_with_same_numbers(monkeypatch):
     rows = [{'code': 'I.A.2.6.1', 'name': 'x', 'values': {'lc': 'Bước 5'}}]
     ai_returns(monkeypatch, {'ops': [op('lc', 'Bước 10', codes=['I.2.6.1'])], 'unclear': ''})
     out = agent_edit.propose('đổi cột AI lifecycle của dự án I.2.6.1 từ bước 5 thành bước 10', rows, FN)
-    assert not out['proposals'] and 'I.A.2.6.1' in out['answer']
+    assert [p['code'] for p in out['proposals']] == ['I.A.2.6.1']   # một mã cùng dãy số: đoán nhưng nói rõ để người dùng xác nhận
+    assert 'Mình đoán bạn muốn I.A.2.6.1' in out['answer'] and out['guessed'] == [{'from': 'I.2.6.1', 'to': 'I.A.2.6.1'}]
+
+
+def test_two_similar_codes_are_not_guessed_but_listed(monkeypatch):
+    rows = [{'code': 'I.A.2.6.1', 'values': {'lc': 'Bước 5'}}, {'code': 'I.B.2.6.1', 'values': {'lc': 'Bước 5'}}]
+    ai_returns(monkeypatch, {'ops': [op('lc', 'Bước 10', codes=['I.2.6.1'])], 'unclear': ''})
+    out = agent_edit.propose('đổi cột AI lifecycle của dự án I.2.6.1 từ bước 5 thành bước 10', rows, FN)
+    assert not out['proposals'] and 'I.A.2.6.1 hoặc I.B.2.6.1' in out['answer']
+
+
+STEPS = [f'Bước {i}' for i in range(1, 13)]
+FSTEP = [{'id': 'lc', 'name': 'AI Lifecycle', 'options': STEPS}]
+RSTEP = [{'code': 'DA01', 'name': 'Nhận diện khuôn mặt', 'values': {'lc': 'Bước 8'}}]
+
+
+@pytest.mark.parametrize('said,want', [('bước cuối cùng', 'Bước 12'), ('Bước cuối', 'Bước 12'), ('bước đầu tiên', 'Bước 1'), ('bước 10', 'Bước 10'), ('1', 'Bước 1'), ('bước 5', 'Bước 5')])
+def test_ordered_steps_last_first_and_number(monkeypatch, said, want):
+    seen = ai_returns(monkeypatch, {'ops': [op('lc', said, codes=['DA01'])], 'unclear': ''})
+    out = agent_edit.propose('Đổi thành ' + said + ' cho DA01', RSTEP, FSTEP, history=[{'q': 'đổi bước AI lifecycle của DA01', 'codes': ['DA01'], 'a': ''}])
+    assert [(p['code'], p['to']) for p in out['proposals']] == [('DA01', want)]
+    assert 'Bước 12' in seen['user'] and '"cuoi"' in seen['user']   # V-LLM được đưa giá trị đầu / cuối của danh sách
+
+
+def test_unknown_step_is_not_guessed(monkeypatch):
+    ai_returns(monkeypatch, {'ops': [op('lc', 'bước 99', codes=['DA01'])], 'unclear': ''})
+    out = agent_edit.propose('đổi AI lifecycle của DA01 thành bước 99', RSTEP, FSTEP)
+    assert not out['proposals'] and 'không có trong danh sách' in out['answer']
+
+
+def test_guessed_all_scope_is_asked_back_with_count_not_silently_dropped(monkeypatch):
+    ai_returns(monkeypatch, {'ops': [op('ghichu', 'Chờ họp khối', all_=True)], 'unclear': ''})
+    out = agent_edit.propose('Ghi chú "Chờ họp khối" giúp mình', ROWS, FIELDS)
+    assert out['proposals'] == [] and 'tất cả 4 dự án, phải không?' in out['answer']
+
+
+def test_guessed_condition_scope_is_asked_back(monkeypatch):
+    ai_returns(monkeypatch, {'ops': [op('rui', 'Cao', wf='td', wv='Chậm tiến độ')], 'unclear': ''})
+    out = agent.ask('đổi mức rủi ro thành cao', ROWS, FIELDS, None, True)
+    assert out['proposals'] == [] and 'Tiến độ là “Chậm tiến độ”, phải không?' in out['answer']
+
+
+def test_reply_to_a_confirmation_question_trusts_the_scope_ai_read(monkeypatch):
+    hist = [{'q': 'đổi mức rủi ro thành cao', 'codes': [], 'a': 'Agent chưa đề xuất thay đổi nào. Chưa rõ sửa Mức độ rủi ro cho dự án nào. Mình đoán bạn muốn sửa cho các dự án có Tiến độ là “Chậm tiến độ”, phải không?'}]
+    ai_returns(monkeypatch, {'ops': [op('rui', 'Cao', wf='td', wv='Chậm tiến độ')], 'unclear': ''})
+    out = agent_edit.propose('chuẩn rồi, làm đi', ROWS, FIELDS, history=hist)
+    assert [p['code'] for p in out['proposals']] == ['DA03']   # DA01 đã Cao; câu "chuẩn rồi" không có từ chỉ phạm vi nhưng là trả lời cho câu xác nhận
+
+
+def test_without_a_confirmation_question_the_same_reply_is_still_guarded(monkeypatch):
+    ai_returns(monkeypatch, {'ops': [op('rui', 'Cao', wf='td', wv='Chậm tiến độ')], 'unclear': ''})
+    out = agent_edit.propose('chuẩn rồi, làm đi', ROWS, FIELDS, history=[{'q': 'x', 'codes': [], 'a': 'Mình đã soạn 1 thay đổi'}])
+    assert out['proposals'] == []

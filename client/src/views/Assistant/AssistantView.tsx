@@ -56,7 +56,7 @@ export function AssistantView(): JSX.Element {
           <>
             <div className="asv-hero">
               <div className="asv-orb" aria-hidden="true"><i /><span>✦</span></div>
-              <h2>Chào {s.lockBy || 'Khuê'},<br /><span>hôm nay bạn muốn xem gì ở {wk.toLowerCase()}?</span></h2>
+              <h2>Chào Bạn thân yêu,<br /><span>hôm nay bạn muốn xem gì ở {wk.toLowerCase()}?</span></h2>
               <p>Agent trả lời từ bảng hiện tại. Lệnh sửa chỉ hiện bản xem trước, bạn duyệt rồi mới áp dụng.</p>
             </div>
             {composer}
