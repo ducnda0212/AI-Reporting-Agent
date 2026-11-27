@@ -3,10 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { STEP_MS, activeStep, cursorTag, runSteps, stepState } from '@/lib/agentRun';
 
 describe('thẻ "Agent đang làm"', () => {
-  it('lệnh sửa bảng dùng bước soạn thay đổi, câu hỏi dùng bước trả lời', () => {
+  it('các bước chờ dùng nhãn chung cho mọi câu (chưa biết ý định cho tới khi V-LLM đọc xong, không đoán bằng từ khoá)', () => {
     const c = runSteps('Đổi Market của I.A.4.1 thành Indo'), q = runSteps('Dự án nào đang chậm?');
-    expect(c.command).toBe(true); expect(c.title).toBe('Agent đang soạn thay đổi'); expect(c.steps).toHaveLength(4); expect(c.steps[3]).toBe('Dựng bản xem trước');
-    expect(q.command).toBe(false); expect(q.title).toBe('Agent đang trả lời'); expect(q.steps[3]).toBe('Viết câu trả lời');
+    expect(c).toEqual(q);
+    expect(c.command).toBe(false); expect(c.title).toBe('Agent đang xử lý'); expect(c.steps).toHaveLength(4);
+    expect(c.steps[0]).toBe('Đọc và hiểu yêu cầu'); expect(c.steps[3]).toBe('Chuẩn bị câu trả lời');
   });
   it('bước chuyển theo thời gian và bước cuối không bao giờ xong khi chưa có kết quả', () => {
     expect(activeStep(0, 4)).toBe(0);

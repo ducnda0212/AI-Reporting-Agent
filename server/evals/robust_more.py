@@ -44,7 +44,7 @@ ROUTE_ASK = [
     ('trong đó có dự án nào Food', H_ASK, ('analyze', 'filter'), None), ('ai phụ trách mấy dự án đó', H_ASK, ('analyze', 'project', 'projects', 'summary', 'filter', 'search'), None),
     ('còn gì nữa không', H_ASK, ('unknown', 'summary', 'filter', 'analyze'), None),
     # lạc đề / không liên quan
-    ('bạn là ai', [], ('unknown',), None), ('kể chuyện cười đi', [], ('unknown',), None),
+    ('bạn là ai', [], ('unknown', 'help'), None), ('kể chuyện cười đi', [], ('unknown',), None),
     ('giá vàng hôm nay', [], ('unknown',), None), ('viết email xin nghỉ phép', [], ('unknown',), None),
     ('thanks', H_ASK, ('unknown',), None), ('ừ', H_ASK, ('unknown',), None),
 ]
