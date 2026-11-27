@@ -1,0 +1,15 @@
+  LỖI [one] Nguyễn Minh Đức đang phụ trách bao nhiêu dự án  → intent=filter shown=[] so_luong=0 · đáp án 7
+        spec Agent chọn: {"query": "filter", "field": "mang", "value": "Người 1", "detail": "ngan"} · bởi v-llm-v1-medium
+
+# Đánh giá câu hỏi nhiều bước — live — 27/11/2026 15:15
+
+Dữ liệu: 56 dự án. Ngày chuẩn: 26/11/2026.
+
+| Nhóm | Đạt |
+|---|---|
+| one — một đặc tả là đủ | 6/7 (86%) |
+| dep — phụ thuộc bước trước / hợp / phủ định / so sánh | 15/15 (100%) |
+
+Thời gian mỗi câu: P50 1.73s · lớn nhất 2.71s
+
+Gợi ý quyết định: nhóm dep ≥ 60% → giữ kiến trúc hiện tại, chỉ sửa các ca lỗi.

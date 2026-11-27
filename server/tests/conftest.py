@@ -27,11 +27,11 @@ os.environ["DEFAULT_CYCLE_ID"] = "2026_11_w3"  # pinned: tests assume week 3; au
 FAKE_PORT, API_PORT = 9555, 8799
 TEST_ENV = {
     'PMO_SKIP_DOTENV': '1',
-    'AI_MODE': 'vllm', 'VLLM_BASE_URL': f'http://127.0.0.1:{FAKE_PORT}/tenant/v1', 'VLLM_MODEL': 'v-llm-v1-large',
+    'AI_MODE': 'vllm', 'AI_PROVIDER': 'vllm', 'VLLM_BASE_URL': f'http://127.0.0.1:{FAKE_PORT}/tenant/v1', 'VLLM_MODEL': 'v-llm-v1-large',
     'VLLM_API_KEY': '', 'VLLM_AUTH_URL': f'http://127.0.0.1:{FAKE_PORT}/oauth/token', 'VLLM_CLIENT_ID': 'cid',
     'VLLM_CLIENT_SECRET': 'secret', 'VLLM_PROJECT_ID': 'p1', 'VLLM_THINKING': '0', 'VLLM_GUARDRAIL': 'low',
     'VLLM_JSON_MODE': 'schema', 'VLLM_CA_BUNDLE': '', 'VLLM_INSECURE': '0', 'VLLM_TIMEOUT': '10',
-    'AI_MASK_NAMES': '1', 'AI_CONCURRENCY': '3',
+    'AI_MASK_NAMES': '1', 'AI_CONCURRENCY': '3', 'AI_EMBED_CACHE': '', 'AI_RERANK_MODEL': '',  # tắt bộ nhớ đệm trên đĩa: test không để lại file
 }
 os.environ.update(TEST_ENV)
 
@@ -48,9 +48,11 @@ def fake():
 def reset_fake_state():
     import fake_vllm
     fake_vllm.STATE.update({'reject_schema': False, 'status_queue': [], 'reply': None, 'agent_text': None, 'agent_codes': None,
-                            'embed_status': None, 'embed_calls': 0, 'embed_inputs': []})
+                            'embed_status': None, 'embed_calls': 0, 'embed_inputs': [], 'rerank_calls': 0, 'rerank_status': None, 'rerank_bodies': []})
     from server.app.ai import rag
     rag._CACHE.clear()  # bộ nhớ vector không được rò từ test này sang test khác
+    rag._down.update({'until': 0.0, 'why': ''})
+    rag._rr_down.update({'until': 0.0, 'why': ''})
     yield
 
 

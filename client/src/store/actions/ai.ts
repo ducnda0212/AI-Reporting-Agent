@@ -3,7 +3,7 @@
 import type { Draft } from 'immer';
 import { AI_IDS } from '@/data/constants';
 import { aiDrafts, askAnswer, exTT, isLate, trDraft, trInputs, trText, type TrVariant } from '@/lib/ai';
-import { agentAsk, agentEdit, aiStatus, draftRemote, type AgentAnswer, type AgentRow, type AgentTurn, type AiStatus } from '@/lib/api';
+import { agentAsk, agentEdit, agentWarm, aiStatus, draftRemote, type AgentAnswer, type AgentRow, type AgentTurn, type AiStatus } from '@/lib/api';
 import { editFields, editHtml, editRows, looksLikeEdit, toStageItems } from '@/lib/agentEdit';
 import { DRAFT_CHUNK, draftRequestRow, mergeRemote, type RemoteDrafts } from '@/lib/draftRemote';
 import { fromRec, toRec, upsert } from '@/lib/chatHistory';
@@ -138,6 +138,25 @@ async function remoteAsk(q: string): Promise<AgentAnswer | null> {
   const hist = memoryOf(s);
   const history = sel && rows.some((r) => r.ma === sel.ma) ? [{ q: '(dòng đang chọn trên bảng)', codes: [sel.ma] }, ...hist] : hist;
   try { return await agentAsk(q, rows.map((r) => agentRow(r, s)), history); } catch { return null; }
+}
+
+/** Nạp sẵn embeddings cho bảng khi mở Trợ lý, để câu hỏi đầu tiên không phải chờ. Chạy ngầm, lỗi thì bỏ qua (câu hỏi tự nạp lúc cần); nội dung bảng không đổi thì không gửi lại. */
+let warmed = '';
+export async function warmAgent(): Promise<void> {
+  const s = getState(), rows = rowsOf(s);
+  if (!rows.length || rows.length > REMOTE_MAX_ROWS) return;
+  try {
+    if (!(await backendReady())) return;
+    const send = rows.map((r) => agentRow(r, s));
+    const sig = JSON.stringify(send);
+    let h = 5381;
+    for (let i = 0; i < sig.length; i++) h = ((h << 5) + h + sig.charCodeAt(i)) | 0;
+    const key = `${send.length}:${sig.length}:${h}`;
+    if (key === warmed) return;
+    warmed = key;
+    const res = await agentWarm(send);
+    if (!res.ok) warmed = '';
+  } catch { warmed = ''; }
 }
 
 /** Lệnh sửa bảng: nhờ V-LLM đọc ý, chỉ đề xuất; kết quả thành bản xem trước. `null` = V-LLM lỗi. */

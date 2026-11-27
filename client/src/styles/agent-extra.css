@@ -1,0 +1,283 @@
+/* Gợi ý ưu tiên (nút soạn ghi chú) và thẻ "Điều cần chú ý" ở màn Trợ lý. Tiền tố riêng: pri-, asv-att. */
+.pri-act{margin:10px 0 2px;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.pri-act button{font:inherit;font-size:13px;font-weight:600;padding:7px 12px;border-radius:10px;border:1px solid #c7d2fe;background:#eef2ff;color:#3730a3;cursor:pointer}
+.pri-act button:hover{background:#e0e7ff}.pri-act button:focus-visible{outline:2px solid #6366f1;outline-offset:2px}
+.asv-att{margin:14px auto 0;max-width:720px;padding:14px 16px;border:1px solid #e2e8f0;border-radius:14px;background:#fff;text-align:left}
+.asv-att h3{margin:0 0 8px;font-size:14px;font-weight:700}
+.asv-att ul{list-style:none;margin:0 0 10px;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+.asv-att li button{font:inherit;font-size:13px;padding:6px 11px;border-radius:999px;border:1px solid #e2e8f0;background:#f8fafc;color:#0f172a;cursor:pointer}
+.asv-att li button:hover{border-color:#a5b4fc;background:#eef2ff}
+.asv-att p{margin:0 0 10px;font-size:13px;color:#64748b}
+.asv-att-go{font:inherit;font-size:13px;font-weight:600;padding:7px 12px;border-radius:10px;border:1px solid #c7d2fe;background:#eef2ff;color:#3730a3;cursor:pointer}
+.asv-att-go:hover{background:#e0e7ff}.asv-att button:focus-visible{outline:2px solid #6366f1;outline-offset:2px}
+/* Gợi ý ưu tiên gọn: nhóm có tiêu đề + số lượng, mỗi dự án một dòng */
+.pri{margin:6px 0 2px;display:flex;flex-direction:column;gap:12px}
+.pri-g h4{margin:0 0 4px;font-size:13px;font-weight:700;color:#0f172a;display:flex;align-items:center;gap:6px}
+.pri-g h4 b{font-weight:600;font-size:11.5px;color:#475569;background:#f1f5f9;border-radius:999px;padding:1px 8px}
+.pri-g ul,.pri-c ul{list-style:none;margin:0;padding:0}
+.pri-r{display:grid;grid-template-columns:8px auto minmax(0,1fr) auto auto;align-items:center;column-gap:8px;padding:7px 2px;border-top:1px solid #eef2f7;font-size:13px}
+.pri-r:first-child{border-top:0}
+.pri-r i{width:8px;height:8px;border-radius:50%;background:#94a3b8}
+.pri-r.o i{background:#22c55e}.pri-r.w i{background:#f59e0b}.pri-r.e i{background:#ef4444}
+.pri-n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#1e293b}
+.pri-w{font-size:12px;color:#64748b;white-space:nowrap}
+.pri-t{font-style:normal;font-size:11px;color:#3730a3;background:#eef2ff;border-radius:6px;padding:1px 6px}
+.pri-g details summary,.pri-c summary{cursor:pointer;font-size:12.5px;color:#4f46e5;padding:6px 2px;list-style:none}
+.pri-g details summary::-webkit-details-marker,.pri-c summary::-webkit-details-marker{display:none}
+.pri-m{margin:4px 0 0;font-size:12px;color:#64748b}
+.pri-c li{font-size:12.5px;color:#475569;padding:3px 0}
+.pri-act{margin:2px 0 0}
+
+/* Hoạt hình nhẹ: thanh chia đoạn mọc từ trái, dòng và gợi ý hiện dần. Tắt khi người dùng chọn giảm chuyển động. */
+@keyframes fx-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes fx-up{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.fx-seg{display:flex;gap:2px;height:10px;border-radius:999px;overflow:hidden;background:#f1f5f9;margin:6px 0 8px}
+.fx-seg i{display:block;min-width:4px;background:#94a3b8;transform-origin:left;animation:fx-grow .7s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*90ms)}
+.fx-seg i.o{background:#22c55e}.fx-seg i.w{background:#f59e0b}.fx-seg i.e{background:#ef4444}
+.pri-r{animation:fx-up .32s both;animation-delay:calc(var(--i,0)*45ms)}
+.fx-fu{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 2px}
+.fx-fu button{font:inherit;font-size:13px;display:inline-flex;gap:6px;align-items:center;max-width:100%;text-align:left;padding:7px 12px;border-radius:12px;border:1px solid #e2e8f0;background:#fff;color:#1e293b;cursor:pointer;animation:fx-up .35s both;animation-delay:calc(var(--i,0)*70ms + 250ms);transition:border-color .15s,background .15s,transform .15s}
+.fx-fu button span{color:#6366f1}
+.fx-fu button:hover{border-color:#a5b4fc;background:#eef2ff;transform:translateY(-1px)}
+.fx-fu button:focus-visible{outline:2px solid #6366f1;outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.fx-seg i,.pri-r,.fx-fu button{animation:none}.fx-fu button{transition:none}}
+
+/* Báo cáo một dự án: khối có tiêu đề nhỏ, ghi chú đáng chú ý, dòng xem trước khi gấp */
+.rpt-i{padding:8px 0;border-top:1px solid #eef2f7}
+.rpt-i:first-child{border-top:0;padding-top:2px}
+.rpt-i h5{margin:0 0 4px;font-size:12.5px;font-weight:700;color:#475569}
+.rpt-i p{margin:0 0 4px;font-size:13.5px;line-height:1.55;color:#1e293b}
+.rpt-i .rpt-l{margin:2px 0 0;padding-left:18px}
+.rpt-i .rpt-l li{font-size:13.5px;line-height:1.5;margin:2px 0;color:#1e293b}
+.rpt-n{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:4px}
+.rpt-n li{font-size:12.5px;line-height:1.4;padding:5px 9px 5px 26px;border-radius:8px;position:relative;background:#fffbeb;color:#92400e}
+.rpt-n li.e{background:#fef2f2;color:#991b1b}
+.rpt-n li::before{content:"!";position:absolute;left:8px;top:6px;width:13px;height:13px;border-radius:50%;background:#d97706;color:#fff;font-size:10px;font-weight:700;line-height:13px;text-align:center}
+.rpt-n li.e::before{background:#dc2626}
+.rpt-g>summary .rpt-tt{white-space:nowrap;flex:none}
+.rpt-g>summary .rpt-pk{flex:1 1 0;min-width:0;margin:0 4px 0 6px}
+.rpt-pk{display:block;margin-top:1px;font-size:12px;font-weight:400;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+
+/* ===== Thẻ trả lời dịu mắt: một mặt trắng, đường kẻ mảnh, chỉ dùng màu cho mức rủi ro (đỏ/vàng) ===== */
+.am .rpt{gap:0;border:1px solid #e5e7eb;border-radius:14px;background:#fff;overflow:hidden}
+.am .rpt .rpt-h{border:0;border-radius:0;background:#fff;padding:14px 16px 12px;animation:none}
+.am .rpt .rpt-h strong{font-size:15px;margin:6px 0 8px}
+.am .rpt .rpt-s,.am .rpt .rpt-s.w,.am .rpt .rpt-s.o,.am .rpt .rpt-s.b{border-left:0;border-radius:0;background:#fff;border-top:1px solid #eef0f3;padding:12px 16px}
+.am .rpt .rpt-s h4{margin:0 0 6px;font-size:12.5px;font-weight:600;color:#64748b}
+.am .rpt .rpt-dt{background:#f1f5f9;color:#475569;padding:0 7px}
+.am .rpt .rpt-f{gap:0;border-top:1px solid #eef0f3;animation:none}
+.am .rpt .rpt-g{border-radius:0;background:#fff;padding:9px 16px;border-bottom:1px solid #f1f3f6}
+.am .rpt .rpt-g:last-child{border-bottom:0}
+.am .rpt .rpt-g>summary::after,.am .rpt .rpt-x>summary{color:#64748b}
+.am .rpt .rpt-n{margin:2px 0 0}
+.am .rpt .rpt-n li{background:none;padding:0 0 0 14px;color:#475569}
+.am .rpt .rpt-n li::before{content:"";left:0;top:.55em;width:6px;height:6px;border-radius:50%;background:#f59e0b}
+.am .rpt .rpt-n li.e::before{background:#dc2626}
+.am .rpt .rpt-n li.e{color:#b91c1c}
+
+/* Phân tích nhiều dự án: bỏ thẻ gradient, ô số trung tính, nhận xét là danh sách phẳng */
+.am .ax-hero,.am .ax-hero.w,.am .ax-hero.e{background:#fff;color:#0f172a;border:1px solid #e5e7eb;box-shadow:none;border-radius:14px;padding:12px 16px;animation:none}
+.am .ax-hero::before,.am .ax-hero::after{display:none}
+.am .ax-hr{width:56px;height:56px}.am .ax-hr svg{filter:none}
+.am .ax-hr circle{stroke-width:3.4}
+.am .ax-hero .ax-rt{stroke:#e5e7eb}
+.am .ax-hero .ax-rv{stroke:#16a34a}.am .ax-hero.w .ax-rv{stroke:#f59e0b}.am .ax-hero.e .ax-rv{stroke:#dc2626}
+.am .ax-hr b{font-size:16px;color:#0f172a}
+.am .ax-ht strong{font-size:15px;animation:none}.am .ax-ht em,.am .ax-eb{opacity:1;color:#64748b;animation:none}
+.am .ax-k,.am .ax-k.e,.am .ax-k.w,.am .ax-k.o{background:#f8fafc;border:1px solid #eef0f3;border-radius:12px;box-shadow:none}
+.am .ax-k:hover{transform:none;box-shadow:none}
+.am .ax-k .ax-ic,.am .ax-k.e .ax-ic,.am .ax-k.w .ax-ic,.am .ax-k.o .ax-ic{background:none;color:#94a3b8;width:auto;height:auto}
+.am .ax-k b{font-size:22px;color:#0f172a}.am .ax-k.e b{color:#dc2626}.am .ax-k.w b{color:#b45309}
+.am .ax-k.o b{color:#0f172a}
+.am .ax-k em,.am .ax-k.e em,.am .ax-k.w em,.am .ax-k.o em{background:none;color:#94a3b8;padding:0}
+.am .ax-in{background:#fff;border:1px solid #e5e7eb;border-radius:14px}
+.am .ax-in .ax-h{color:#64748b}
+.am .ax-in li{background:none;padding:4px 0;animation:none}
+.am .ax-in li .ax-ic,.am .ax-in li i{width:auto;height:auto;background:none;color:#94a3b8;animation:none}
+.am .ax-in li.e .ax-ic{color:#dc2626;background:none}.am .ax-in li.w .ax-ic{color:#d97706;background:none}
+
+/* So với tuần trước: hai cột chữ trong cùng một thẻ trắng */
+.cmp{border:1px solid #e5e7eb;border-radius:14px;background:#fff;overflow:hidden;animation:axUp .35s cubic-bezier(.2,.8,.2,1) both}
+.cmp-h{padding:12px 16px;border-bottom:1px solid #eef0f3}
+.cmp-h strong{display:block;margin-top:4px;font-size:15px;font-weight:600;line-height:1.35}
+.cmp-g{display:grid;grid-template-columns:1fr 1fr}
+.cmp-g>section{padding:12px 16px;min-width:0}
+.cmp-g>section+section{border-left:1px solid #eef0f3}
+.cmp-g h4{margin:0 0 8px;font-size:12.5px;font-weight:600;color:#64748b}
+.cmp-i+.cmp-i{margin-top:10px;padding-top:10px;border-top:1px solid #f1f3f6}
+.cmp-i h5{margin:0 0 4px;font-size:12.5px;font-weight:600;color:#334155}
+.cmp-g p{margin:0;font-size:13.5px;line-height:1.55;color:#1e293b}
+.cmp-g .cmp-e{color:#94a3b8}
+.cmp .rpt-l{margin:0;padding:0;list-style:none}
+@media (max-width:640px){.cmp-g{grid-template-columns:1fr}.cmp-g>section+section{border-left:0;border-top:1px solid #eef0f3}}
+@media (prefers-reduced-motion:reduce){.cmp{animation:none}}
+.am .rpt .rpt-g>summary,.am .rpt .rpt-tt{color:#334155}
+
+/* ===== Màn Trợ lý: không che nội dung khi màn thấp, cột lịch sử thu/mở và kéo giãn, chữ và nút gọn hơn ===== */
+.asv{position:relative}
+.asv .asv-col{overflow-x:hidden;justify-content:flex-start;gap:16px;padding:24px clamp(14px,3vw,32px) 28px}
+.asv .asv-col>:first-child{margin-top:auto}
+.asv .asv-col>:last-child{margin-bottom:auto}
+.asv .asv-col>.asv-scroll{margin:0}
+@media (max-height:820px){.asv .asv-col{gap:12px;padding-top:16px}.asv .asv-hero p{display:none}.asv .asv-hero h2{font-size:24px}.asv .asv-orb{transform:scale(.8);margin:-6px auto -4px}}
+
+.asv-sep{flex:none;width:6px;margin:0 -3px;z-index:3;cursor:col-resize;position:relative;touch-action:none}
+.asv-sep::after{content:"";position:absolute;left:2px;top:0;bottom:0;width:2px;border-radius:2px;background:transparent;transition:background .15s}
+.asv-sep:hover::after,.asv-sep.on::after,.asv-sep:focus-visible::after{background:#818cf8}
+.asv-sep:focus-visible{outline:none}
+.asv-side{transition:width .18s ease;min-width:0;overflow:hidden}
+.asv-side.rail{align-items:center}
+.asv-sep.on~.asv-side,.asv-sep.on+.asv-side{transition:none}
+.asv-side .asv-sideh{display:flex;align-items:center;justify-content:space-between;padding:14px 12px 6px 16px;font-size:14px}
+.asv-sb{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:9px;background:none;color:#64748b;cursor:pointer}
+.asv-sb:hover:not(:disabled){background:#eef0f4;color:#0f172a}
+.asv-sb:disabled{opacity:.4;cursor:default}
+.asv-sb:focus-visible{outline:2px solid #6366f1;outline-offset:1px}
+.asv-railb{display:flex;flex-direction:column;gap:6px;padding:12px 0}
+.asv-side .chh{padding:6px 10px 16px;gap:10px}
+.asv-side .chhtop{flex-wrap:wrap}
+.asv-side .chhq{height:34px;border-radius:10px;background:#fff}
+.asv-side .chhtop .btn{height:34px;border-radius:10px;flex:1 1 auto;justify-content:center}
+.asv-side .chhmeta{font-size:12px}
+.asv-side .chhg{display:flex;flex-direction:column;gap:2px}
+.asv-side .chhg h4{margin:6px 0 4px 10px;font-size:11.5px;font-weight:600;color:#94a3b8}
+.asv-side .chhr{border-radius:10px;padding-right:6px;gap:4px}
+.asv-side .chhr.cur{box-shadow:none;background:#eef2ff}
+.asv-side .chho{padding:8px 4px 8px 10px;gap:3px}
+.asv-side .chht{font-size:13px;font-weight:600;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.asv-side .chhp{font-size:12px;line-height:1.4}
+.asv-side .chhr time{align-self:flex-start;margin-top:10px;font-size:11px}
+.asv-side .chhx{opacity:.0}
+@media (hover:none){.asv-side .chhx{opacity:.7}}
+@media (max-width:900px){
+  .asv-sep{display:none}
+  .asv .asv-side.open{display:flex;position:absolute;right:0;top:0;bottom:0;z-index:6;max-width:92%;box-shadow:-18px 0 40px -24px rgba(15,23,42,.45)}
+  .asv .asv-side.rail{display:flex}
+  .asv-col{padding:16px}
+}
+@media (prefers-reduced-motion:reduce){.asv-side{transition:none}}
+
+/* khung chat: bong bóng người dùng gọn, câu trả lời rộng đủ đọc */
+.asv .asv-wrap{max-width:820px;width:100%;gap:12px}
+.asv .askme{font-size:14px;line-height:1.5;max-width:min(80%,560px);padding:9px 14px;border-radius:16px 16px 4px 16px}
+.asv .askai{font-size:14px;line-height:1.6;padding:14px 16px;border-radius:16px 16px 16px 4px}
+.asv .askai .al{font-size:14.5px;line-height:1.6}
+.asv .src{font-size:11.5px;color:#94a3b8;margin:4px 4px 0}
+/* nút gợi ý: một cỡ chữ, một bo góc, không quá to */
+.asv .asv-cd{padding:11px 14px;border-radius:14px;font-size:14px;gap:10px}
+.asv .asv-ci{width:30px;height:30px;font-size:14px;border-radius:9px}
+.asv .asv-grid{gap:10px}
+.asv .asv-fc,.fx-fu button{font-size:13px;padding:7px 12px;border-radius:12px;line-height:1.35}
+.asv .asv-fu{gap:8px;max-width:820px;width:100%}
+.asv-in{max-width:820px;width:100%}
+@media (max-width:640px){.asv .askme{max-width:92%}.asv .asv-grid{grid-template-columns:1fr}.asv .asv-cd{padding:10px 12px}}
+
+/* ===== Vòng 3: sửa ô tìm kiếm / nút Chat mới, màn chat kiểu SchoolAI (giữa trang, một độ rộng, ít khung) ===== */
+.asv{overflow:clip}
+.asv .asv-col::before{inset:-10% 0 auto 0}   /* nền mờ không được rộng hơn cột: nguồn gây thanh cuộn ngang và lệch cả khung ngoài */
+/* Lịch sử: nút "Chat mới" một hàng đầy đủ, ô tìm kiếm ngay dưới */
+.asv-side .chhtop{display:flex;flex-direction:column;gap:8px;align-items:stretch}
+.asv-side .chhtop .btn{order:-1;flex:none;width:100%;height:38px;flex-direction:row;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:12px;font-size:13px;font-weight:600}
+.asv-side .chhs{flex:none;width:100%}
+.asv-side .chhq{width:100%;height:36px;border-radius:12px;padding:0 12px 0 34px;background:#f4f5f8;border:1px solid transparent;font-size:13px}
+.asv-side .chhq:focus{background:#fff;border-color:#a5b4fc;box-shadow:0 0 0 3px #e0e7ff}
+/* mỗi dòng: giờ ở góc trên phải, nút xoá thay chỗ giờ khi rê chuột; tiêu đề được dùng hết chiều ngang */
+.asv-side .chhr{position:relative;padding-right:0}
+.asv-side .chho{padding:9px 52px 9px 12px}
+.asv-side .chhr time{position:absolute;right:10px;top:10px;margin:0;font-size:11px;color:#94a3b8}
+.asv-side .chhx{position:absolute;right:6px;top:6px;width:26px;height:26px;background:#fff;box-shadow:0 0 0 1px #e5e7eb;opacity:0}
+.asv-side .chhr:hover time,.asv-side .chhr:focus-within time{opacity:0}
+.asv-side .chhr:hover .chhx,.asv-side .chhx:focus-visible{opacity:1}
+.asv-side .chhr:hover:not(.cur){background:#f4f5f8}
+.asv-side .chht em{display:none}
+.asv-side .chhr.cur .chht::after{content:"";flex:none;width:6px;height:6px;border-radius:50%;background:#6366f1}
+@media (hover:none){.asv-side .chhx{opacity:1;box-shadow:none;background:none}.asv-side .chhr time{display:none}}
+
+/* Màn mở đầu: mọi khối cùng một cột 760px, lời chào ở giữa */
+.asv .asv-col>.asv-hero,.asv .asv-col>.asv-in,.asv .asv-col>.asv-att,.asv .asv-col>.asv-sec{width:100%;max-width:760px;margin-left:auto;margin-right:auto;box-sizing:border-box}
+.asv .asv-hero{text-align:center}
+.asv .asv-hero h2{font-size:clamp(24px,3.2vw,32px);line-height:1.2;letter-spacing:-.02em;font-weight:700;margin:6px 0 8px}
+.asv .asv-hero h2 span{font-weight:600}
+.asv .asv-hero p{max-width:520px;margin:0 auto;font-size:14px;color:#64748b}
+.asv .asv-in{border:1px solid #e2e8f0;border-radius:22px;background:#fff;box-shadow:0 1px 2px rgba(15,23,42,.04),0 10px 30px -18px rgba(79,70,229,.35);padding:14px 16px 10px;transition:border-color .15s,box-shadow .15s}
+.asv .asv-in:focus-within{border-color:#a5b4fc;box-shadow:0 0 0 4px #e0e7ff,0 10px 30px -18px rgba(79,70,229,.35)}
+.asv .asv-in textarea{font-size:15px;line-height:1.5}
+/* "Điều cần chú ý": bỏ khung, thành một dòng nhãn + chip */
+.asv .asv-att{border:0;background:none;padding:0;text-align:left;display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px}
+.asv .asv-att h3{margin:0;font-size:13px;font-weight:600;color:#64748b;flex:none}
+.asv .asv-att ul{margin:0;gap:8px;flex:0 1 auto}
+.asv .asv-att p{margin:0}
+.asv .asv-att-go{margin-left:auto}
+.asv .asv-lb{font-size:13px;font-weight:600;color:#64748b;margin:14px 0 8px}
+.asv .asv-grid{margin:0 0 6px}
+.asv .asv-cd{background:#fff;border:1px solid #e5e7eb;box-shadow:none}
+.asv .asv-cd:hover{border-color:#c7d2fe;background:#fafaff;transform:none;box-shadow:0 6px 16px -12px rgba(79,70,229,.5)}
+.asv .asv-cg{opacity:0;transition:opacity .15s,transform .15s}.asv .asv-cd:hover .asv-cg{opacity:.7;transform:translateX(2px)}
+/* khi đang chat: cột đọc ở giữa, câu hỏi gọn bên phải */
+.asv .asv-col.chat{align-items:center}
+.asv .asv-col.chat>.asv-scroll{width:100%;max-width:820px;margin:0 auto}
+.asv .asv-col.chat>.asv-fu,.asv .asv-col.chat>.asv-in{max-width:820px}
+
+/* ===== Vòng 4 (học Grok, Gemini, Customer.io): câu trả lời là chữ phẳng trong một cột đọc, một hàng gợi ý, ô nhập gọn ===== */
+.asv .asv-col.chat{padding:0 clamp(12px,3vw,32px) 14px;gap:0;justify-content:flex-start}
+.asv .asv-col.chat>:first-child{margin-top:0}
+.asv .asv-col.chat>.asv-scroll{flex:1 1 0;min-height:0;width:100%;max-width:760px;padding:0 4px;scrollbar-gutter:stable}
+.asv .asv-wrap{max-width:760px;gap:22px;padding:24px 0 12px}
+.asv .askme{align-self:flex-end;background:#f1f2f6;color:#0f172a;border-radius:18px 18px 6px 18px;padding:10px 15px;font-size:14.5px;max-width:min(85%,600px);box-shadow:none}
+.asv .askai{background:none;border:0;box-shadow:none;border-radius:0;padding:0 2px;max-width:100%;font-size:14.5px}
+.asv .askai.agrun{padding:2px}
+.asv .askai .al{font-size:15px;line-height:1.65;color:#0f172a}
+.asv .askai .am>*+*{margin-top:12px}
+.asv .askai .src{font-size:11.5px;color:#94a3b8;margin:10px 0 0}
+/* gợi ý hỏi tiếp: một hàng, nhẹ như chip của Customer.io */
+.asv .askai .fx-fu{margin-top:12px;gap:8px}
+.asv .askai .fx-fu button{background:#fff;border:1px solid #e5e7eb;color:#334155;font-size:13px;padding:6px 12px;border-radius:999px}
+.asv .askai .fx-fu button:hover{border-color:#c7d2fe;background:#fafaff}
+.asv .asv-fu{width:100%;max-width:760px;padding:4px 4px 10px;gap:8px}
+.asv .asv-fc{font-size:13px;padding:6px 12px;border-radius:999px;background:#fff;border:1px solid #e5e7eb}
+/* ô nhập khi đang chat: thấp, nền xám nhạt, nút gửi tròn */
+.asv .asv-col.chat>.asv-in{max-width:760px;width:100%;padding:8px 10px 6px 16px;border-radius:20px;background:#f6f7fa;border:1px solid #eceef3;box-shadow:none;flex:none}
+.asv .asv-col.chat>.asv-in:focus-within{background:#fff;border-color:#a5b4fc;box-shadow:0 0 0 4px #e0e7ff}
+.asv .asv-col.chat>.asv-in textarea{min-height:26px;max-height:140px;font-size:15px;padding:4px 0;background:none}
+.asv .asv-col.chat>.asv-in .r{margin-top:2px}
+
+/* Lịch sử: lưới 2 cột, giờ ở trên, nút xoá ở dưới, không bao giờ chồng nhau */
+.asv-side .chhr{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto;align-items:start;column-gap:2px;padding:0 6px 0 0}
+.asv-side .chho{grid-column:1;grid-row:1/3;padding:9px 6px 9px 12px}
+.asv-side .chhr time{position:static;grid-column:2;grid-row:1;margin:10px 4px 0 0;opacity:1;display:block;font-size:11px;line-height:1.2;color:#94a3b8;text-align:right}
+.asv-side .chhx{position:static;grid-column:2;grid-row:2;justify-self:end;width:26px;height:26px;margin:2px 2px 0 0;background:none;box-shadow:none;opacity:.35}
+.asv-side .chhr:hover .chhx,.asv-side .chhx:focus-visible{opacity:1;background:#fee2e2;color:#dc2626}
+.asv-side .chhr:hover time,.asv-side .chhr:focus-within time{opacity:1}
+.asv-side .chhp{font-size:11.5px;color:#94a3b8}
+@media (hover:none){.asv-side .chhx{opacity:.6;background:none;box-shadow:none}.asv-side .chhr time{display:block}}
+.asv .asv-col.chat>.asv-fu{width:100%;max-width:760px;box-sizing:border-box;margin:0;padding:6px 6px 10px}
+
+/* ===== Vòng 5: Lịch sử tối giản (học Grok / Claude / ChatGPT): chỉ tiêu đề, không giờ, không xem trước, nút xoá hiện khi rê chuột ===== */
+.asv-side .chh{scrollbar-width:thin;scrollbar-color:#d6dae2 transparent;padding:4px 8px 16px;gap:6px}
+.asv-side .chh::-webkit-scrollbar{width:6px}.asv-side .chh::-webkit-scrollbar-thumb{background:#d6dae2;border-radius:6px}
+.asv-col{scrollbar-width:thin;scrollbar-color:#d6dae2 transparent}
+.asv-col::-webkit-scrollbar,.asv-scroll::-webkit-scrollbar{width:6px}.asv-col::-webkit-scrollbar-thumb,.asv-scroll::-webkit-scrollbar-thumb{background:#d6dae2;border-radius:6px}
+.asv-scroll{scrollbar-width:thin;scrollbar-color:#d6dae2 transparent}
+/* "Chat mới": dòng chữ nhẹ có biểu tượng, không còn nút hồng lớn */
+.asv-side .chhtop .btn,.asv-side .chhtop .btn.pri{order:-1;width:100%;height:36px;justify-content:flex-start;gap:8px;padding:0 10px;border:0;background:none;box-shadow:none;color:#3730a3;font-size:13.5px;font-weight:600;border-radius:10px}
+.asv-side .chhtop .btn:hover:not(:disabled){background:#eef2ff}
+.asv-side .chhtop .btn:disabled{color:#a5b4fc}
+.asv-side .chhq{height:34px;background:#f4f5f8;border-radius:10px}
+.asv-side .chhmeta{padding:2px 10px 0;font-size:11.5px;color:#94a3b8}
+.asv-side .chhall{color:#94a3b8;font-weight:500;padding:2px 6px}
+.asv-side .chhall:hover:not(:disabled){color:#dc2626;background:#fef2f2}
+.asv-side .chhg{gap:1px}
+.asv-side .chhg h4{margin:10px 0 4px 10px;font-size:11.5px;font-weight:600;color:#94a3b8}
+/* mỗi dòng: một dòng tiêu đề */
+.asv-side .chhr{display:block;position:relative;padding:0;border-radius:9px;background:none}
+.asv-side .chhr:hover{background:#f3f4f6}
+.asv-side .chhr.cur{background:#eceef3}
+.asv-side .chho{display:block;width:100%;padding:8px 34px 8px 10px}
+.asv-side .chht{display:block;font-size:13.5px;font-weight:500;line-height:1.35;color:#1f2937;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;-webkit-line-clamp:unset}
+.asv-side .chhr.cur .chht{font-weight:600}
+.asv-side .chhr.cur .chht::after{display:none}
+.asv-side .chhp,.asv-side .chhr time{display:none}
+.asv-side .chhx{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:26px;height:26px;margin:0;border-radius:7px;background:none;box-shadow:none;color:#94a3b8;opacity:0}
+.asv-side .chhr:hover .chhx,.asv-side .chhr:focus-within .chhx{opacity:1}
+.asv-side .chhx:hover:not(:disabled){background:#fee2e2;color:#dc2626}
+@media (hover:none){.asv-side .chhx{opacity:.7}}

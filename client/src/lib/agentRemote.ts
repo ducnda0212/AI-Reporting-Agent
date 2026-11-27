@@ -104,16 +104,55 @@ const RP_FOLD: [string, string][] = [['Mục tiêu', 'Mục tiêu'], ['KPI', 'KP
 const RP_SPLIT = /\s+(?=(?:\d{1,2}\.\s)|(?:\[\d{4}-\d{2}-\d{2}\]))/;
 const rpInline = (s: string): string => esc(s).replace(/\[(\d{4})-(\d{2})-(\d{2})\]\s*-?\s*/g, (_m, _y, mo, d) => '<b class="rpt-dt">' + d + '/' + mo + '</b>');
 
+/** Mục có tiêu đề IN HOA ("BÀI TOÁN & BỐI CẢNH Dự án…") và gạch đầu dòng "•" nằm chung một đoạn: tách thành tiêu đề nhỏ + danh sách, để đọc được. */
+const RP_HEAD = /^([\p{Lu}\d][\p{Lu}\d &/,\-]{4,70}?)\s+(?=[•\u2022]|\p{Lu}\p{Ll})/u;
+const sentenceCase = (s: string): string => { const t = s.trim().toLowerCase(); return t.charAt(0).toUpperCase() + t.slice(1); };
+function rpBlock(item: string): { head: string; lead: string; bullets: string[] } {
+  const m = RP_HEAD.exec(item), head = m ? sentenceCase(m[1]) : '', rest = m ? item.slice(m[0].length) : item;
+  const [lead, ...bullets] = rest.split(/\s*[•\u2022]\s*/).map((x) => x.trim());
+  return { head, lead: lead || '', bullets: bullets.filter(Boolean) };
+}
+const rpHeads = (raw: string): string[] => raw.replace(/\s+/g, ' ').trim().split(RP_SPLIT).map((x) => rpBlock(x.replace(/^\d{1,2}\.\s+/, '').trim()).head).filter(Boolean);
+
 function rpBody(raw: string): string {
   const text = raw.replace(/\s+/g, ' ').trim();
   const items = text.split(RP_SPLIT).map((x) => x.replace(/^\d{1,2}\.\s+/, '').trim()).filter(Boolean);
   const li = (xs: string[]): string => '<ul class="rpt-l">' + xs.map((x) => '<li>' + rpInline(x) + '</li>').join('') + '</ul>';
+  if (items.some((x) => rpBlock(x).head)) {   // báo cáo viết theo mục: mỗi mục một khối có tiêu đề nhỏ
+    return items.map((x) => {
+      const k = rpBlock(x);
+      return '<div class="rpt-i">' + (k.head ? '<h5>' + esc(k.head) + '</h5>' : '') + (k.lead ? '<p>' + rpInline(k.lead) + '</p>' : '') + (k.bullets.length ? li(k.bullets) : '') + '</div>';
+    }).join('');
+  }
   if (items.length > 1) {
     return items.length > 4 ? li(items.slice(0, 3)) + '<details class="rpt-x"><summary>Xem thêm ' + (items.length - 3) + ' ý</summary>' + li(items.slice(3)) + '</details>' : li(items);
   }
   if (text.length <= 320) return '<p>' + rpInline(text) + '</p>';
   const cut = text.lastIndexOf(' ', 280);
   return '<p>' + rpInline(text.slice(0, cut > 120 ? cut : 280)) + '…</p><details class="rpt-x"><summary>Xem đầy đủ</summary><p>' + rpInline(text) + '</p></details>';
+}
+
+/** Dòng xem trước cho mục đang gấp: các tiêu đề nhỏ nếu có, không thì vài chữ đầu. */
+function rpPeek(raw: string): string {
+  const heads = rpHeads(raw);
+  if (heads.length) return heads.join(' · ');
+  const t = raw.replace(/\s+/g, ' ').trim().split(RP_SPLIT).map((x) => x.replace(/^\d{1,2}\.\s+/, '').replace(/^\[(\d{4})-(\d{2})-(\d{2})\]\s*-?\s*/, '$3/$2 ')).join(' · ');
+  return t.length > 80 ? t.slice(0, t.lastIndexOf(' ', 80) > 30 ? t.lastIndexOf(' ', 80) : 80) + '…' : t;
+}
+
+/** Điều đáng chú ý của chính dự án, tính từ số liệu: mâu thuẫn giữa trạng thái và tiến độ, quá hạn / sắp hạn, chưa đánh giá rủi ro. */
+function projNotes(p: FactProject): string {
+  const out: [Tone, string][] = [];
+  const done = /hoàn thành|done|xong|closed/i.test(p.trang_thai || ''), late = /chậm|trễ/i.test(p.tien_do || '') && !/nguy cơ/i.test(p.tien_do || '');
+  if (done && late) out.push(['w', 'Trạng thái ghi "' + p.trang_thai + '" nhưng tiến độ vẫn là "' + p.tien_do + '". Nên đối chiếu lại.']);
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec((p.han || '').trim());
+  if (m && !done) {
+    const days = Math.round((new Date(+m[3], +m[2] - 1, +m[1]).getTime() - new Date().setHours(0, 0, 0, 0)) / 864e5);
+    if (days < 0) out.push(['e', 'Quá hạn ' + -days + ' ngày (hạn ' + p.han + ').']);
+    else if (days <= 14) out.push(['w', 'Còn ' + days + ' ngày tới hạn (' + p.han + ').']);
+  }
+  if (!done && !(p.rui_ro || '').trim()) out.push(['w', 'Chưa đánh giá mức độ rủi ro.']);
+  return out.length ? '<ul class="rpt-n">' + out.map(([t, s]) => '<li class="' + t + '">' + esc(s) + '</li>').join('') + '</ul>' : '';
 }
 
 function reportCard(p: FactProject, doan: FactPassage[], byCode: Map<string, number>): string {
@@ -123,22 +162,61 @@ function reportCard(p: FactProject, doan: FactPassage[], byCode: Map<string, num
   const open = RP_OPEN.filter(([k]) => by.get(k)).map(([k, title, tone]) =>
     '<section class="rpt-s ' + tone + '" style="--d:' + n++ + '"><h4>' + esc(title) + '</h4>' + rpBody(by.get(k)!) + '</section>').join('');
   const fold = RP_FOLD.filter(([k]) => by.get(k)).map(([k, title]) =>
-    '<details class="rpt-g"><summary>' + esc(title) + '</summary><div class="rpt-gb">' + rpBody(by.get(k)!) + '</div></details>').join('');
-  return '<div class="rpt"><div class="rpt-h">' + codeLink(p.code, byCode) + '<strong>' + esc(p.name || '') + '</strong><div class="pp">' + projChips(p) + '</div></div>'
+    '<details class="rpt-g"><summary><span class="rpt-tt">' + esc(title) + '</span><small class="rpt-pk">' + esc(rpPeek(by.get(k)!)) + '</small></summary><div class="rpt-gb">' + rpBody(by.get(k)!) + '</div></details>').join('');
+  return '<div class="rpt"><div class="rpt-h">' + codeLink(p.code, byCode) + '<strong>' + esc(p.name || '') + '</strong><div class="pp">' + projChips(p) + '</div>' + projNotes(p) + '</div>'
     + open + (fold ? '<div class="rpt-f">' + fold + '</div>' : '') + '</div>';
 }
 
-/** Gợi ý ưu tiên khi cắt giảm: ba nhóm dự án kèm lý do, tiêu chí và lưu ý. Mọi số liệu do backend tính từ bảng. */
+/** "So với tuần trước": hai cột cạnh nhau (Tuần trước | Tuần này), mỗi cột chỉ là chữ trong bảng. Bảng không có số liệu tuần trước nên không tính phần trăm đổi. */
+const CMP_NOW: [string, string][] = [['Công việc đã hoàn thành trong tuần', 'Đã làm'], ['Kế hoạch tuần sau', 'Kế hoạch'], ['Vấn đề, rủi ro và đề xuất', 'Vướng mắc']];
+function compareCard(f: AgentFacts, byCode: Map<string, number>): string {
+  const doan = f.doan || [];
+  const by = new Map<string, string>();
+  for (const x of doan) by.set(x.truong || '', ((by.get(x.truong || '') || '') + ' ' + (x.noi_dung || '')).trim());
+  const code = f.ma_hoi || doan[0]?.code || '';
+  const prev = by.get('Báo cáo các tuần trước');
+  const now = CMP_NOW.filter(([k]) => by.get(k));
+  const nowHtml = now.length
+    ? now.map(([k, t]) => '<div class="cmp-i"><h5>' + t + '</h5>' + rpBody(by.get(k)!) + '</div>').join('')
+    : '<p class="cmp-e">Tuần này chưa có nội dung.</p>';
+  const prevHtml = prev ? rpBody(prev) : '<p class="cmp-e">Bảng chưa có nội dung tuần trước nên chưa so sánh được.</p>';
+  return '<div class="cmp"><div class="cmp-h">' + (code ? codeLink(code, byCode) : '') + '<strong>' + esc(doan[0]?.ten || '') + '</strong></div>'
+    + '<div class="cmp-g"><section><h4>Tuần trước</h4>' + prevHtml + '</section><section><h4>Tuần này</h4>' + nowHtml + '</section></div></div>';
+}
+
+/** Gợi ý ưu tiên khi cắt giảm: gọn như danh sách Linear/Asana. Một dòng mỗi dự án (mã · tên · hạn), mỗi nhóm hiện 3 dòng đầu, còn lại gấp lại. */
+const PRI_SHOW = 3;
+const priTone = (why = ''): Tone => /rủi ro cao|chậm tiến độ|quá hạn/.test(why) ? 'e' : /nguy cơ/.test(why) ? 'w' : 'o';
+function priRow(p: FactProject, byCode: Map<string, number>, guard: boolean, k = 0): string {
+  const parts = (p.ly_do || '').split(', '), when = parts[parts.length - 1] || '';
+  return '<li class="pri-r ' + priTone(p.ly_do) + '" style="--i:' + k + '" title=""' + esc(p.ly_do || '') + '"><i aria-hidden="true"></i>' + codeLink(p.code, byCode)
+    + '<span class="pri-n">' + esc(p.name || '') + '</span>' + (guard ? '<em class="pri-t">bảo vệ</em>' : '<span></span>') + '<span class="pri-w">' + esc(when) + '</span></li>';
+}
+function priGroup(title: string, tone: Tone, b: FactBucket | undefined, byCode: Map<string, number>, guard: Set<string>): string {
+  if (!b || b.so <= 0 || !b.du_an.length) return '';
+  const head = b.du_an.slice(0, PRI_SHOW), rest = b.du_an.slice(PRI_SHOW), more = b.so - b.du_an.length;
+  const rows = (xs: FactProject[], o = 0): string => xs.map((p, k) => priRow(p, byCode, guard.has(p.code), o + k)).join('');
+  return '<section class="pri-g ' + tone + '"><h4>' + esc(title) + ' <b>' + b.so + '</b></h4><ul>' + rows(head) + '</ul>'
+    + (rest.length ? '<details><summary>Xem thêm ' + rest.length + ' dự án</summary><ul>' + rows(rest, PRI_SHOW) + '</ul></details>' : '')
+    + (more > 0 ? '<p class="pri-m">Còn ' + more + ' dự án khác. Thêm điều kiện (nhóm, người phụ trách) để thu hẹp.</p>' : '') + '</section>';
+}
 function prioritize(f: AgentFacts, byCode: Map<string, number>): string {
-  const blocks: [string, string, FactBucket | undefined, string][] = [   // [tiêu đề, (dự phòng màu), nhóm, gợi ý]
-    ['Nên giữ', 'o', f.nen_giu, 'Sắp về đích và đang ổn: dừng lúc này thì phí công đã bỏ ra.'],
-    ['Cần xem lại', 'e', f.can_xem_lai, 'Vừa chậm tiến độ vừa rủi ro cao: cân nhắc cứu, thu hẹp phạm vi hoặc dừng.'],
-    ['Có thể hoãn', 'w', f.co_the_hoan, 'Chưa gấp: hạn còn xa hoặc chưa có hạn.'],
-  ];
-  const html = blocks.filter(([, , b]) => b && b.so > 0).map(([title, , b, hint]) =>
-    '<div class="st"><div class="sh">' + title + ' (' + b!.so + ')</div><div class="pm">' + hint + '</div>' + projectList(b!.du_an, b!.so, byCode) + '</div>').join('');
-  const crit = (f.tieu_chi || []).length ? '<details class="more"><summary>Cách xếp</summary><ul class="pl">' + (f.tieu_chi || []).map((c) => '<li class="pi"><div class="px">' + esc(c) + '</div></li>').join('') + '</ul></details>' : '';
-  return html + crit + (f.luu_y ? '<div class="pm">' + esc(f.luu_y) + '</div>' : '');
+  const sc = f.suc_chua, bv = f.bao_ve, guard = new Set((bv?.du_an || []).map((p) => p.code));
+  const giu = sc ? sc.giu : f.nen_giu, hoan = sc ? sc.hoan : f.co_the_hoan;
+  const giuAll = bv && bv.so > 0 && !sc ? { so: bv.so + (giu?.so || 0), du_an: [...bv.du_an, ...(giu?.du_an || [])] } : giu;   // nhóm bảo vệ gộp vào "Nên giữ", không lặp lại hai lần
+  const html = priGroup(sc ? 'Nên giữ (tối đa ' + sc.giu_toi_da + ')' : 'Nên giữ', 'o', giuAll, byCode, guard)
+    + (sc ? '' : priGroup('Cần xem lại', 'e', f.can_xem_lai, byCode, guard))
+    + priGroup('Có thể hoãn', 'w', hoan, byCode, guard);
+  const note = sc?.bao_ve_vuot_suc_chua ? '<p class="pri-m">Nhóm bảo vệ đã vượt sức chứa nên chưa giữ hết được.</p>' : '';
+  const hint = [...(f.tieu_chi || []), ...(f.luu_y ? [f.luu_y] : [])];
+  const crit = hint.length ? '<details class="pri-c"><summary>Cách xếp và lưu ý</summary><ul>' + hint.map((c) => '<li>' + esc(c) + '</li>').join('') + '</ul></details>' : '';
+  const shown = (hoan?.du_an || []);
+  const act = shown.length   // chỉ gửi câu lệnh sửa: Agent soạn bản xem trước, bảng chỉ đổi khi bấm "Áp dụng"
+    ? '<div class="pri-act"><button type="button" data-act="askIdea" data-q="' + esc("Ghi chú 'Đề xuất tạm hoãn' cho " + shown.map((p) => p.code).join(', ')) + '">✦ Soạn ghi chú tạm hoãn cho ' + shown.length + ' dự án</button></div>' : '';
+  const bar = segBar(sc
+    ? [{ n: sc.giu.so, tone: 'o', label: 'Nên giữ' }, { n: sc.hoan.so, tone: 'w', label: 'Có thể hoãn' }]
+    : [{ n: f.nen_giu?.so || 0, tone: 'o', label: 'Nên giữ' }, { n: f.can_xem_lai?.so || 0, tone: 'e', label: 'Cần xem lại' }, { n: f.co_the_hoan?.so || 0, tone: 'w', label: 'Có thể hoãn' }, { n: f.con_lai || 0, tone: '', label: 'Chưa xếp' }]);
+  return '<div class="pri">' + bar + html + note + act + crit + '</div>';
 }
 
 function projectList(list: FactProject[], total: number | undefined, byCode: Map<string, number>): string {
@@ -151,11 +229,19 @@ function projectList(list: FactProject[], total: number | undefined, byCode: Map
   return h;
 }
 
+/** Thanh chia đoạn theo tỷ lệ (kiểu Plane/ClickUp): độ dài mỗi đoạn tỷ lệ với số lượng, đoạn mọc dần từ trái. Chip ngay dưới đóng vai chú thích. */
+function segBar(parts: { n: number; tone: Tone; label: string }[]): string {
+  const ps = parts.filter((x) => x.n > 0);
+  if (ps.length < 1) return '';
+  return '<div class="fx-seg" role="img" aria-label="' + esc(ps.map((x) => x.label + ' ' + x.n).join(', ')) + '">'
+    + ps.map((x, k) => '<i class="' + (x.tone || 'n') + '" style="flex:' + x.n + ';--i:' + k + '" title="' + esc(x.label + ': ' + x.n) + '"></i>').join('') + '</div>';
+}
+
 /** Thống kê dạng chip (tóm tắt tuần) và thanh ngang (đếm theo nhóm). */
 function statRow(title: string, counts: Record<string, number>, tone: (v: string) => Tone): string {
   const keys = Object.keys(counts);
   if (!keys.length) return '';
-  return '<div class="st"><div class="sh">' + esc(title) + '</div><div class="pp">' + keys.map((k) => chip(k + ' · ' + counts[k], tone(k))).join('') + '</div></div>';
+  return '<div class="st"><div class="sh">' + esc(title) + '</div>' + segBar(keys.map((k) => ({ n: counts[k], tone: tone(k), label: k }))) + '<div class="pp">' + keys.map((k) => chip(k + ' · ' + counts[k], tone(k))).join('') + '</div></div>';
 }
 /** Tên nhóm thường là "II.E.1Nền tảng MLOps…" hoặc "I.A.3.PAI - …": tách mã nhóm ra để dễ đọc. */
 const GROUP = /^((?:[IVX]+)\.[A-Z]\.\d+)\.?\s*(.+)$/;
@@ -297,9 +383,13 @@ function matrix(m: NonNullable<FactAnalysis['ma_tran']>): string {
 function analytics(f: AgentFacts): string {
   const a = f.phan_tich;
   if (!a || !a.so_du_an) return '';
+  if (a.so_du_an < 3 && f.kieu !== 'summary') return '';
+  const whole = f.kieu === 'summary' || f.kieu === 'analyze';
+  if (!whole && (f.so_luong ?? a.so_du_an) <= 8) return '';   // hỏi "dự án nào…" ra vài dự án: câu trả lời + danh sách là đủ, không vẽ thêm thẻ số/nhận xét lặp lại câu hỏi
+  const part = !whole && (f.so_luong ?? 0) < (f.tong ?? 0);   // chỉ một phần bảng: vòng "% đúng tiến độ" của cả bảng không áp dụng   // 1–2 dự án: danh sách bên dưới đã đủ, không vẽ vòng % và biểu đồ
   const lv = f.muc_chi_tiet || 'vua';   // V-LLM chọn theo ý người dùng: ngan / vua / day_du
   if (lv === 'ngan') { const k = kpiTiles(a, f.tong, true); return k ? '<div class="ax">' + k + '</div>' : ''; }
-  const top = hero(a) + kpiTiles(a, f.tong);
+  const top = (part ? '' : hero(a)) + kpiTiles(a, f.tong);
   const dist = distribution(a.phan_bo || {}, f.phan_nhom?.truong || '', lv === 'day_du' ? 9 : 1);
   const inner = (top ? '<div class="ax-top">' + top + '</div>' : '') + insights(lv === 'day_du' ? a.nhan_xet || [] : (a.nhan_xet || []).slice(0, 2)) + (lv === 'day_du' ? deadlines(a.lich_han || []) : '') + dist
     + (lv === 'day_du' && f.phan_nhom?.truong !== 'Nhóm' ? byGroup(a.theo_nhom || [], a.con_lai_nhom) : '')
@@ -317,14 +407,69 @@ function details(f: AgentFacts, byCode: Map<string, number>, aiText: boolean): s
     if (f.so_du_an_co_o_nhap_ai_cho_duyet) h += '<div class="pm">' + f.so_du_an_co_o_nhap_ai_cho_duyet + ' dự án có ô nháp AI chờ duyệt.</div>';
     return h;
   }
+  if (f.kieu === 'search' && f.so_sanh && f.doan?.length) return compareCard(f, byCode);
   if (f.kieu === 'search') return passages(f.doan || [], !aiText, byCode);
   if (f.kieu === 'prioritize') return prioritize(f, byCode);
-  if (f.phan_nhom) return analytics(f) + groupBars(f.phan_nhom) + groupLists(f.du_an_theo_nhom || [], byCode);
+  if (f.phan_nhom) {
+    const tiny = Object.keys(f.phan_nhom.theo).length < 2 && (f.phan_tich?.so_du_an ?? 0) < 3;   // nhóm chỉ có 1–2 dự án: bỏ thanh đếm, chỉ liệt kê
+    return analytics(f) + (tiny ? '' : groupBars(f.phan_nhom)) + groupLists(f.du_an_theo_nhom || [], byCode);
+  }
   const d = f.du_an;
   if (Array.isArray(d)) return analytics(f) + projectList(d, f.so_luong, byCode);
   if (d && typeof d === 'object') return f.doan?.length ? reportCard(d, f.doan, byCode) : '<ul class="pl">' + projectCard(d, byCode) + '</ul>';   // báo cáo chi tiết: khối riêng cho từng ô nội dung
   return '';
 }
+
+/** Gợi ý hỏi tiếp theo đúng câu trả lời vừa rồi (tối đa 3): dựa trên loại số liệu và mã dự án thật trong câu trả lời, không phải danh sách cố định. */
+export function nextQuestions(res: Pick<AgentAnswer, 'facts' | 'intent'>, codes: string[] = []): string[] {
+  const f = res.facts;
+  if (!f) return [];
+  const q: string[] = [];
+  const one = Array.isArray(f.du_an) ? undefined : f.du_an || undefined;
+  const list = Array.isArray(f.du_an) ? f.du_an : [];
+  const gcode = (g?: string): string => (g && GROUP.exec(g)?.[1]) || '';
+  const sameGroup = (g?: string): string => { const c = gcode(g); return c && codes.filter((x) => x.toUpperCase().startsWith(c.toUpperCase() + '.')).length >= 2 ? c : ''; };   // chỉ gợi ý khi nhóm có từ 2 dự án
+  switch (f.kieu) {
+    case 'summary': {
+      const cham = f.du_an_cham || [];
+      if (cham[0]) q.push('Chi tiết dự án ' + cham[0]);
+      if (cham.length) q.push('Trong số đó dự án nào có rủi ro cao?');
+      q.push('Nếu bị cắt kinh phí thì nên ưu tiên dự án nào?');
+      if (f.so_du_an_co_o_nhap_ai_cho_duyet) q.push('Những dự án nào đang có ô nháp AI chờ duyệt');
+      break;
+    }
+    case 'project':
+      if (one) {
+        q.push('Kế hoạch tuần sau của ' + one.code + ' là gì');
+        if (!f.doan?.length) q.push('Vướng mắc của ' + one.code + ' là gì');   // thẻ tóm tắt đã có: gợi ý câu khác, không lặp lại "Chi tiết"
+        if (sameGroup(one.nhom)) q.push('Các dự án cùng nhóm ' + sameGroup(one.nhom));
+        q.push('So với tuần trước ' + one.code + ' có gì đổi');
+      }
+      break;
+    case 'prioritize': {
+      const sc = f.suc_chua, xem = f.can_xem_lai?.du_an?.[0] || sc?.hoan.du_an?.[0];
+      q.push(sc ? 'Nếu giữ thêm 2 dự án thì sao?' : 'Chỉ giữ được 5 dự án thì nên giữ dự án nào?');
+      if (xem) q.push('Chi tiết dự án ' + xem.code);
+      if (!f.bao_ve) q.push('Giữ nguyên nhóm ' + (gcode(f.nen_giu?.du_an?.[0]?.nhom || sc?.giu.du_an?.[0]?.nhom) || 'Food') + ' thì sao?');
+      break;
+    }
+    case 'pending':
+      q.push('Duyệt hết nháp AI');
+      if (list[0]) q.push('Chi tiết dự án ' + list[0].code);
+      break;
+    case 'search':
+      if (f.so_sanh && f.doan?.[0]) { q.push('Kế hoạch tuần sau của ' + f.doan[0].code + ' là gì'); q.push('Chi tiết dự án ' + f.doan[0].code); }
+      else if (f.doan?.[0]) q.push('Chi tiết dự án ' + f.doan[0].code);
+      break;
+    default:
+      if (list[0]) q.push('Chi tiết dự án ' + list[0].code);
+      if (list.length > 1) { q.push('Trong số đó dự án nào hạn gần nhất?'); q.push('Trong số đó dự án nào chậm tiến độ?'); }
+      if (f.phan_nhom && list.length === 0 && !Array.isArray(f.du_an) && (f.phan_tich?.so_du_an ?? 2) >= 2) q.push('Dự án nào chậm nhất?');
+  }
+  return [...new Set(q)].slice(0, 3);
+}
+const followHtml = (qs: string[]): string => qs.length
+  ? '<div class="fx-fu" aria-label="Gợi ý hỏi tiếp">' + qs.map((t, k) => '<button type="button" data-act="askIdea" data-q="' + esc(t) + '" style="--i:' + k + '"><span aria-hidden="true">↳</span>' + esc(t) + '</button>').join('') + '</div>' : '';
 
 /** Đổi câu trả lời của Agent thành HTML: câu dẫn ngắn, rồi danh sách dự án/thống kê/nguồn dựng từ số liệu (mã dự án là nút bấm tới dòng đó),
  *  cuối cùng là dòng nguồn nói rõ ai viết câu trả lời. Không có `facts` (backend cũ) thì chỉ hiện câu trả lời. */
@@ -340,7 +485,7 @@ export function agentHtml(res: AgentAnswer, rows: Pick<Row, 'i' | 'ma'>[]): stri
     : res.grounded
       ? 'Số liệu tính từ bảng hiện tại'
       : 'Số liệu tính từ bảng hiện tại · AI trả lời lệch số liệu nên dùng câu mẫu';
-  return '<div class="am">' + (lines ? '<div class="al">' + lines + '</div>' : '') + extra + '</div><div class="src"' + why + '>' + src + '</div>';
+  return '<div class="am">' + (lines ? '<div class="al">' + lines + '</div>' : '') + extra + '</div><div class="src"' + why + '>' + src + '</div>' + followHtml(nextQuestions(res, rows.map((r) => r.ma)));
 }
 
 /** Lệnh chuẩn cho chức năng có sẵn của giao diện, theo ý định V-LLM đọc được. `null` = thiếu thông tin (vd ẩn cột nào?). */
