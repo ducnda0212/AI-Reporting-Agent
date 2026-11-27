@@ -3180,3 +3180,6 @@ select.cellsel{cursor:pointer}
 .chhe{margin:18px 4px;font-size:12.5px;line-height:1.5;color:var(--mut);text-align:center}
 @media (hover:none){.chhx{opacity:1}}
 .pa-goalh{font-weight:600}
+
+/* Panel AI: chip xuống dòng vừa 100% bề ngang panel (không còn dải chạy bị cắt), không phụ thuộc mức zoom của bảng */
+.ai9{min-width:0;max-width:100%}.ai9row{overflow:visible;margin:0;padding:2px 0;-webkit-mask-image:none;mask-image:none}.ai9track{display:flex;flex-wrap:wrap;gap:6px;width:auto;max-width:100%;padding:0;animation:none}.ai9track [aria-hidden="true"]{display:none}.ai9c{flex:0 1 auto;max-width:100%;min-width:0;white-space:normal;text-align:left;line-height:1.35}.ai9hero p{max-width:100%}

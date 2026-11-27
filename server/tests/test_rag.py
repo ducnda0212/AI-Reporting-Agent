@@ -197,3 +197,16 @@ def test_weak_keyword_match_returns_nothing_without_embeddings():
     for q in ('dự án nào làm về blockchain', 'dự án nào làm robot giao hàng tự lái'):  # chỉ trùng từ chung như "giao hàng": không phải chủ đề trong bảng
         assert rag.search(q, rows)['passages'] == []
     assert rag.search('dự án nào tối ưu ghép đơn giao hàng', rows)['passages']
+
+
+def test_question_with_project_name_and_field_reads_that_field(monkeypatch):
+    """"mục tiêu nền tảng thực nghiệm A/B là gì": không có mã, nhưng nêu tên dự án + ô cần hỏi → lấy đúng ô của dự án đó."""
+    monkeypatch.setattr(settings, 'mode', 'mock')
+    rows = [*ROWS]
+    rows[0] = {**rows[0], 'kpi': 'Tỉ lệ thực nghiệm đạt >= 95%'}
+    out = agent.ask('KPI nền tảng thực nghiệm A/B như nào', rows)
+    assert out['intent'] == 'search' and out['facts']['ma_hoi'] == 'I.A.1.1' and out['facts']['doan'][0]['truong'].lower().startswith('kpi')
+
+
+def test_name_alone_without_field_does_not_force_a_project():
+    assert agent._project_by_name('hôm nay trời đẹp', CLEAN) is None

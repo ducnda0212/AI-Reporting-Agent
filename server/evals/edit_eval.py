@@ -41,6 +41,8 @@ LATE = [c for c, td, *_ in T if td == 'Chậm tiến độ']
 EMPTY_NOTE = [c for c, _td, _r, _m, g, _tt in T if not g]
 FOOD = [c for c, _td, _r, m, _g, _tt in T if m == 'Food']
 HIGH = [c for c, _td, r, *_ in T if r == 'Cao']
+RIDE = [c for c, _td, _r, m, _g, _tt in T if m == 'Ride']
+ALL = [c for c, *_ in T]
 
 
 def op(field, value, codes=(), wf='', wv='', only_empty=False, all_=False):
@@ -65,7 +67,15 @@ CASES = [
     ('set tiến độ của I.C.1.2 là chậm giúp mình', [op('td', 'Chậm tiến độ', codes=['I.C.1.2'])], E(['I.C.1.2'], 'td', 'Chậm tiến độ')),
     ('những dự án chưa có note nhóm Voice thì điền đang xử lý', [op('ghichu', 'đang xử lý', wf='mang', wv='Voice', only_empty=True)],
      E([c for c, _td, _r, m, g, _tt in T if m == 'Voice' and not g], 'ghichu', 'đang xử lý')),
+    # câu có đuôi lịch sự / viết lẫn lộn (các lỗi từng gặp trên giao diện)
+    ('đổi tiến độ của I.A.1.1 thành đúng tiến độ dc ko', [op('td', 'Đúng tiến độ', codes=['I.A.1.1'])], E(['I.A.1.1'], 'td', 'Đúng tiến độ')),
+    ('điền Ghi chú "Chờ họp khối" cho tất cả các dự án', [op('ghichu', 'Chờ họp khối', all_=True)], E(ALL, 'ghichu', 'Chờ họp khối')),
+    ('I.A.1.2 và I.C.1.2 ghi note đã họp xong nhé', [op('ghichu', 'đã họp xong', codes=['I.A.1.2', 'I.C.1.2'])], E(['I.A.1.2', 'I.C.1.2'], 'ghichu', 'đã họp xong')),
+    ('chuyển mấy dự án nhóm Ride sang chậm tiến độ giúp mình với', [op('td', 'Chậm tiến độ', wf='mang', wv='Ride')], E(RIDE, 'td', 'Chậm tiến độ')),
+    ('đặt mức rủi ro cao cho dự án II.A.1.2 được không', [op('rui', 'Cao', codes=['II.A.1.2'])], E(['II.A.1.2'], 'rui', 'Cao')),
+    ('đổi tiến độ của I.A.1.1 thành chậm tiến độ', [op('td', 'Chậm tiến độ', codes=['I.A.1.1'])], set()),  # đã đúng sẵn: không đề xuất
     # phải từ chối / không đề xuất
+    ('điền Ghi chú "Chờ họp khối" cho các dự án', [], set()),
     ('chuyển I.A.1.1 sang Done giúp mình', [op('tt', 'Done', codes=['I.A.1.1'])], set()),
     ('ghi note chờ họp cho ZZ.9.9.9', [op('ghichu', 'chờ họp', codes=['ZZ.9.9.9'])], set()),
     ('cho I.A.1.1 mức rủi ro siêu cao', [op('rui', 'siêu cao', codes=['I.A.1.1'])], set()),

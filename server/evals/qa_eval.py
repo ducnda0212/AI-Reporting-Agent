@@ -136,6 +136,20 @@ DETAIL = [  # (câu hỏi, cụm chữ phải xuất hiện trong câu trả l�
     ('KPI của I.A.4.1 là gì', 'Uptime >= 99.5%'), ('mục tiêu của I.C.1.5 là gì', 'MAE'), ('milestone của I.A.4.1', 'Nghiệm thu và bàn giao'),
     ('I.A.4.1 đang gặp vấn đề gì', 'độ trễ dữ liệu giờ cao điểm'), ('I.A.4.1 đang thế nào', 'Dynamic Batching'),
 ]
+def name_detail_cases(rows: list[dict]) -> list[tuple[str, str]]:
+    """Hỏi một ô của dự án theo TÊN (không có mã). Đáp án lấy thẳng từ dữ liệu: câu trả lời phải chứa đoạn đầu của ô đó."""
+    names = [re.sub(r'\s*\(.*?\)\s*', ' ', r['name']).strip() for r in rows]
+    out = []
+    for i, r in enumerate(rows):
+        if names.count(names[i]) != 1 or len(names[i].split()) < 3:
+            continue
+        for key, ask in (('kpi', 'KPI của dự án {n} như nào'), ('goal', 'mục tiêu dự án {n} là gì')):
+            text = re.sub(r'^\s*\d+\.\s*', '', str(r.get(key) or '').strip())
+            if len(text) >= 20:
+                out.append((ask.format(n=names[i]), text[:24]))
+    return out[::max(1, len(out) // 12)][:12]
+
+
 FOLLOW = [  # (câu 1, câu 2, điều kiện của câu 2)
     ('dự án nào đang chậm?', 'dự án đó là dự án gì', 'name'), ('dự án nào có nguy cơ trễ?', 'trong số đó dự án nào đang thực hiện', 'subset'),
 ]
@@ -238,6 +252,11 @@ def run(args) -> int:
         for q, must in DETAIL:
             out = ask(q); text = out['answer'] + ' ' + json.dumps(out.get('facts') or {}, ensure_ascii=False)
             rec('detail', q, fold(must) in fold(text), f"intent={out['intent']} · cần có \"{must}\" · {out['answer'][:90]}")
+    # detail theo tên dự án
+    if want('detail'):
+        for q, must in name_detail_cases(rows):
+            out = ask(q); text = out['answer'] + ' ' + json.dumps(out.get('facts') or {}, ensure_ascii=False)
+            rec('detailname', q, fold(must) in fold(text), f"intent={out['intent']} · cần có \"{must}\" · {out['answer'][:90]}")
     # follow
     if want('follow'):
         for q1, q2, how in FOLLOW:
@@ -252,7 +271,7 @@ def run(args) -> int:
         return sum(1 for x in r if x['ok']), len(r)
     lines = [f"# Đánh giá Trợ lý hỏi đáp (RAG) — {args.mode} — {datetime.now():%d/%m/%Y %H:%M}", '',
              f'Dữ liệu: {len(rows)} dự án ({fx["file"]}). Ngày chuẩn cho hạn: {TODAY:%d/%m/%Y}. Embeddings: tắt (chỉ từ khoá).', '', '| Nhóm | Kết quả |', '|---|---|']
-    for k, label in [('struct', 'Số liệu (đếm, lọc, nhóm, hạn, top N, người)'), ('none', 'Chủ đề không có: nói chưa tìm thấy'), ('detail', 'Hỏi trường của dự án có mã'), ('follow', 'Câu nối tiếp (bộ nhớ)')]:
+    for k, label in [('struct', 'Số liệu (đếm, lọc, nhóm, hạn, top N, người)'), ('none', 'Chủ đề không có: nói chưa tìm thấy'), ('detail', 'Hỏi trường của dự án có mã'), ('detailname', 'Hỏi trường của dự án theo tên (không có mã)'), ('follow', 'Câu nối tiếp (bộ nhớ)')]:
         a, b = score(k)
         if b:
             lines.append(f'| {label} | {pct(a, b)} |')
