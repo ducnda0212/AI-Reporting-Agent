@@ -49,8 +49,8 @@ def test_client_treats_custom_openai_base_url_as_openai():
 
 
 def test_voice_is_independent_of_the_chat_provider():
-    asr = {'AI_ASR_BASE_URL': 'https://asr.example/v1', 'AI_ASR_API_KEY': 'ak', 'AI_ASR_MODEL': 'whisper-large'}
+    asr = {'AI_ASR_BASE_URL': 'https://api.blaze.vn/v1', 'AI_ASR_API_KEY': 'ak'}
     for prov in ('openai', 'vllm'):
         s = st.load({**BOTH, **asr, 'AI_PROVIDER': prov})
-        assert (s.asr_base_url, s.asr_api_key, s.asr_model) == ('https://asr.example/v1', 'ak', 'whisper-large')
+        assert (s.asr_base_url, s.asr_api_key, s.asr_model) == ('https://api.blaze.vn/v1', 'ak', 'blaze-stt-1.5')
     assert st.load({**BOTH, 'AI_PROVIDER': 'openai'}).asr_model == 'v-llm-v1-asr'   # không tự đổi sang model của OpenAI

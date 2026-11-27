@@ -3,7 +3,7 @@ import json
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-STATE = {'embed_calls': 0, 'embed_inputs': [], 'embed_status': None, 'tokens': 0, 'calls': 0, 'reject_first_token': True, 'bodies': [], 'reject_schema': False, 'status_queue': [], 'reply': None}
+STATE = {'rerank_calls': 0, 'rerank_status': None, 'rerank_bodies': [], 'embed_calls': 0, 'embed_inputs': [], 'embed_status': None, 'tokens': 0, 'calls': 0, 'reject_first_token': True, 'bodies': [], 'reject_schema': False, 'status_queue': [], 'reply': None}
 
 
 def _answer(body):
@@ -27,15 +27,8 @@ def _answer(body):
         return json.dumps({'ops': [{'field': 'rui', 'value': 'Trung bình', 'target': {'codes': [], 'where_field': 'mang', 'where_value': 'Food',
                                                                                   'only_empty': True, 'all': False}}], 'unclear': ''}, ensure_ascii=False)
     if name == 'agent_route' or 'Giá trị hiện có trong bảng' in user:
-        q = user.split('Câu của người dùng:', 1)[-1].strip().lower()
-        if q.startswith(('điền', 'đổi', 'sửa', 'ghi', 'chuyển')):
-            spec = {'query': 'edit'}
-        elif 'chờ gpu' in q:
-            spec = {'query': 'search', 'field': '', 'value': ''}
-        elif 'chậm' in q:
-            spec = {'query': 'filter', 'field': 'tien_do', 'value': 'chậm'}
-        else:
-            spec = {'query': 'summary', 'field': '', 'value': ''}
+        q = user.split('Câu hỏi:', 1)[-1].lower()
+        spec = {'query': 'filter', 'field': 'tien_do', 'value': 'chậm'} if 'chậm' in q else {'query': 'summary', 'field': '', 'value': ''}
         return json.dumps(spec, ensure_ascii=False)
     if name == 'agent_answer' or 'so_lieu:' in user:
         facts = json.loads(user.split('so_lieu:\n', 1)[1])
@@ -53,6 +46,13 @@ def _answer(body):
 
 
 _ALIAS = {'card': 'gpu', 'hoa': 'gpu', 'thieu': 'cho'}  # "đồng nghĩa" giả để thử tìm theo nghĩa
+
+
+def _embed_tokens(text):
+    import re
+    import unicodedata
+    t = unicodedata.normalize('NFD', text.lower().replace('đ', 'd'))
+    return [_ALIAS.get(w, w) for w in re.findall(r'[a-z0-9]+', ''.join(c for c in t if unicodedata.category(c) != 'Mn'))]
 
 
 def _embed(text, dim=64):
@@ -91,14 +91,7 @@ class H(BaseHTTPRequestHandler):
         self._send(404, {})
 
     def do_POST(self):
-        raw = self.rfile.read(int(self.headers.get('Content-Length', 0)))
-        if self.path.endswith('/v1/audio/transcriptions'):  # multipart: không đọc như JSON
-            if not self._auth_ok():
-                return self._send(401, {'error': 'unauthorized'})
-            STATE['asr_calls'] = STATE.get('asr_calls', 0) + 1
-            STATE['asr_raw'] = raw
-            return self._send(200, {'text': STATE.get('asr_text') or 'cho i chấm a chấm một chấm một rủi ro cao', 'language': 'vi', 'duration': 2.5})
-        body = json.loads(raw or b'{}')
+        body = json.loads(self.rfile.read(int(self.headers.get('Content-Length', 0))) or b'{}')
         if self.path.endswith('/oauth/token'):
             if body.get('client_secret') != 'secret':
                 return self._send(401, {'error': 'bad secret'})
@@ -112,6 +105,18 @@ class H(BaseHTTPRequestHandler):
             if STATE['embed_status']:
                 return self._send(STATE['embed_status'], {'error': 'embedding failure'})
             return self._send(200, {'model': body.get('model'), 'data': [{'index': i, 'embedding': _embed(t)} for i, t in reversed(list(enumerate(body['input'])))]})
+        if self.path.endswith('/v1/rerank'):
+            if not self._auth_ok():
+                return self._send(401, {'error': 'unauthorized'})
+            STATE['rerank_calls'] += 1
+            STATE['rerank_bodies'].append(body)
+            if STATE['rerank_status']:
+                return self._send(STATE['rerank_status'], {'error': 'rerank failure'})
+            # điểm giả: số từ của câu hỏi (đã bỏ dấu) xuất hiện trong đoạn / số từ câu hỏi; 'gpu' đồng nghĩa 'card'
+            q = set(_embed_tokens(body['query']))
+            res = [{'index': i, 'relevance_score': len(q & set(_embed_tokens(d))) / max(1, len(q))} for i, d in enumerate(body['documents'])]
+            res.sort(key=lambda r: -r['relevance_score'])
+            return self._send(200, {'model': body.get('model'), 'results': res[:body.get('top_n') or len(res)], 'usage': {'total_tokens': 1}})
         if self.path.endswith('/v1/chat/completions'):
             STATE['calls'] += 1
             STATE['bodies'].append(body)

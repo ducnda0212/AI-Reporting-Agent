@@ -50,7 +50,9 @@ RRF_K = 60
 LEX_KEEP = 0.4   # đoạn từ khoá chỉ giữ khi điểm ≥ 40% điểm đoạn đứng đầu (bỏ đoạn chỉ khớp một từ phổ biến)
 SEM_KEEP = 0.7   # đoạn embeddings chỉ giữ khi độ giống ≥ 70% đoạn đứng đầu và ≥ SEM_MIN
 SEM_MIN = 0.2
-SEM_Z = 0.0      # sàn thống kê: đoạn phải cao hơn trung bình của CẢ BẢNG ít nhất SEM_Z độ lệch chuẩn (tính riêng cho từng câu hỏi). 0 = tắt; đặt theo số đo thật ở ragTop.z_cao_nhat
+RERANK_POOL = 20  # số đoạn đứng đầu sau khi trộn được đưa vào bước rerank (một lần gọi cho cả nhóm)
+RERANK_MIN = 0.005  # sàn điểm rerank (V-LLM v1-rerank-medium): đo thật liên quan 0.018–0.37, nhiễu ≤0.002, chủ đề không có trong bảng ≈0.001. 0 = tắt
+SEM_Z = 0.0      # sàn thống kê theo độ lệch chuẩn. TẮT: đo thật ragZ câu không có trong bảng (4.5–6.0) ngang câu có (3.4–7.4) nên không phân biệt được; dùng RERANK_MIN thay
 
 # từ nối và từ hỏi (đã bỏ dấu). "du", "an" nằm trong đây vì câu nào cũng nói "dự án".
 STOP = set('la va cua co khong nhu the nao gi nay do cac nhung mot trong voi duoc de da dang se o thi ma hay hoac bi tu den ve '
@@ -162,6 +164,17 @@ _down: dict = {'until': 0.0, 'why': ''}
 def embeddings_enabled() -> bool:
     ext = getattr(settings, 'embed_base_url', '')
     return bool(settings.rag_embeddings and settings.embed_model and settings.mode == 'vllm' and (not ext or settings.embed_api_key) and time.time() >= _down['until'])
+
+
+_rr_down: dict = {'until': 0.0, 'why': ''}
+
+
+def rerank_enabled() -> bool:
+    return bool(settings.rag_rerank and settings.rerank_model and settings.mode == 'vllm' and getattr(settings, 'provider', 'vllm') == 'vllm' and time.time() >= _rr_down['until'])
+
+
+def rerank_problem() -> str:
+    return _rr_down['why'] if time.time() < _rr_down['until'] else ''
 
 
 def embeddings_problem() -> str:
@@ -425,8 +438,27 @@ def search(question: str, rows: list[dict], mask=lambda s: s, timing: dict | Non
         others = sorted(by_code[passages[i]['code']], reverse=True)
         others.remove(sc)   # bỏ chính nó; điểm cao nhất còn lại của cùng dự án là "bằng chứng thêm"
         final[i] = sc + PROJ_BOOST * (others[0] if others else 0.0)
+    order = [i for i, _ in sorted(final.items(), key=lambda kv: (-kv[1], kv[0]))]
+    rr: dict[int, float] = {}
+    if len(order) > 1 and rerank_enabled():   # chấm lại độ liên quan của nhóm đứng đầu bằng model rerank; lỗi thì giữ thứ tự đã trộn
+        pool = order[:RERANK_POOL]
+        t0 = time.time()
+        try:
+            for k, sc in client.rerank(mask(question), [mask(_embed_text(passages[i]))[:900] for i in pool]):
+                rr[pool[k]] = sc
+            order = sorted(pool, key=lambda i: (-rr.get(i, -1e9), -final[i], i))
+            if RERANK_MIN > 0:
+                order = [i for i in order if rr.get(i, 0.0) >= RERANK_MIN]
+            if timing is not None:
+                timing['ragRerank'] = {'ms': int((time.time() - t0) * 1000), 'so_doan': len(pool), 'diem_cao_nhat': round(max(rr.values()), 3) if rr else None}
+        except (VllmError, ValueError, KeyError, TypeError) as e:
+            rr = {}
+            if getattr(e, 'status', None) in (401, 403, 404):
+                _rr_down.update({'until': time.time() + DOWN_FOR, 'why': str(e)})
+            if timing is not None:
+                timing['ragNote'] = f'rerank lỗi, giữ thứ tự đã trộn: {e}'
     picked, per = [], Counter()
-    for i, _ in sorted(final.items(), key=lambda kv: (-kv[1], kv[0])):
+    for i in order:
         c = passages[i]['code']
         if per[c] >= PER_CODE:
             continue
@@ -435,7 +467,7 @@ def search(question: str, rows: list[dict], mask=lambda s: s, timing: dict | Non
         if len(picked) >= TOP_K:
             break
     if timing is not None:
-        timing['ragTrace'] = [{'code': passages[i]['code'], 'truong': passages[i]['label'], 'diem': round(final[i], 4), 'hang': where.get(i, {}), **({'cos': round(sims[i], 3)} if i in sims else {})} for i in picked]
+        timing['ragTrace'] = [{'code': passages[i]['code'], 'truong': passages[i]['label'], 'diem': round(final[i], 4), 'hang': where.get(i, {}), **({'cos': round(sims[i], 3)} if i in sims else {}), **({'rr': round(rr[i], 3)} if i in rr else {})} for i in picked]
         if sims:
             timing['ragTop'] = {'cos_cao_nhat': round(max(sims.values()), 3), 'chắc_từ_khoá': conf}
     return {'passages': [passages[i] for i in picked], 'how': how, 'confident': conf}

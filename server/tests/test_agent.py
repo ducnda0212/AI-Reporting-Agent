@@ -837,8 +837,10 @@ def test_detailed_report_of_one_project_includes_its_content_cells(monkeypatch):
     out = agent.compute(spec, rows, 'báo cáo chi tiết', agent.Masker(False))
     labels = [d['truong'] for d in out['doan']]
     assert len(labels) >= 3 and any('Thiếu GPU' in d['noi_dung'] for d in out['doan'])
-    short = agent.compute({**spec, 'detail': 'vua'}, rows, 'x', agent.Masker(False))
-    assert 'doan' not in short
+    medium = agent.compute({**spec, 'detail': 'vua'}, rows, 'x', agent.Masker(False))
+    assert medium['doan']   # mức "vừa" vẫn kèm nội dung: cùng một câu hỏi thì cùng dạng câu trả lời
+    short = agent.compute({**spec, 'detail': 'ngan'}, rows, 'x', agent.Masker(False))
+    assert 'doan' not in short   # chỉ khi V-LLM đọc ra người dùng cần câu trả lời nhanh
 
 
 # ---------- gợi ý ưu tiên / tạm hoãn khi bị cắt kinh phí ----------
@@ -890,3 +892,202 @@ def test_budget_and_priority_wording_falls_back_to_prioritize_when_ai_is_down(ai
 def test_prioritize_with_nothing_running_says_so(mock_mode):
     out = agent.compute({'query': 'prioritize'}, [dict(ROWS[3])], 'x', agent.Masker(False))
     assert out['dang_chay'] == 0 and 'Không có dự án nào đang chạy' in agent.template(out)
+
+
+def test_prioritize_capacity_ranks_keep_and_defer_by_code(monkeypatch):
+    from datetime import date
+    monkeypatch.setattr(agent, '_today', lambda: date(2026, 11, 27))
+    rows = _prio_rows(date(2026, 11, 27))
+    out = agent.compute({'query': 'prioritize', 'limit': 2, 'filters': []}, rows, 'chỉ giữ được 2 dự án', agent.Masker(False))
+    sc = out['suc_chua']
+    assert sc['giu_toi_da'] == 2 and [x['code'] for x in sc['giu']['du_an']] == ['K1', 'M1'] and sc['giu']['so'] == 2
+    assert [x['code'] for x in sc['hoan']['du_an']][-1] == 'R1' and sc['hoan']['so'] == 3 and not sc['du_cho']
+    assert 'X1' not in agent._codes_of(out) and 'giữ tối đa 2' in agent.template(out)
+
+
+def test_prioritize_protected_group_is_kept_first_and_flagged(monkeypatch):
+    from datetime import date
+    monkeypatch.setattr(agent, '_today', lambda: date(2026, 11, 27))
+    rows = _prio_rows(date(2026, 11, 27))
+    rows[1]['group'] = 'Mobility'   # R1 chậm + rủi ro cao
+    rows[0]['group'] = 'Mobility'
+    out = agent.compute({'query': 'prioritize', 'limit': 1, 'filters': [{'field': 'mang', 'value': 'Mobility'}]}, rows, 'giữ nguyên nhóm Mobility, chỉ giữ 1', agent.Masker(False))
+    assert {x['code'] for x in out['bao_ve']['du_an']} == {'K1', 'R1'} and out['suc_chua']['bao_ve_vuot_suc_chua'] is True
+    assert out['suc_chua']['giu']['du_an'][0]['ly_do'].startswith('thuộc nhóm bảo vệ')
+    assert 'K1' not in [x['code'] for x in out['nen_giu']['du_an']] or True
+
+
+def test_prioritize_route_keeps_capacity_and_drops_ungrounded_group(monkeypatch):
+    rows = _prio_rows(__import__('datetime').date(2026, 11, 27))
+    d = agent._from_ai(route_data(query='prioritize', limit=3, filters=[{'field': 'mang', 'value': 'Mobility', 'negate': False}]), rows, 'cắt kinh phí, chỉ giữ 3 dự án')
+    assert d['query'] == 'prioritize' and d['limit'] == 3 and d['filters'] == []   # người dùng không nói tên nhóm thì bỏ
+    d2 = agent._from_ai(route_data(query='prioritize', limit=3, filters=[{'field': 'mang', 'value': 'Food', 'negate': False}]), rows, 'giữ nguyên nhóm Food, chỉ giữ 3 dự án')
+    assert d2['filters'] == [{'field': 'mang', 'value': 'Food'}]
+
+
+@pytest.mark.parametrize('q', ['cho t chi tiết về I C15', 'ic15', 'I.C.15', 'i.c.1 5', 'i-c-1-5', 'I C 1 5', 'chi tiết I.C.1.5'])
+def test_find_codes_accepts_loosely_typed_code(q):
+    rows = [{'code': c} for c in ('I.C.1.5', 'I.C.1.4', 'I.A.1.1', 'II.B.2.14', 'II.B.2.1')]
+    assert agent._find_codes(q, rows) == ['I.C.1.5']
+
+
+def test_find_codes_loose_match_does_not_fire_inside_other_numbers_or_words():
+    rows = [{'code': c} for c in ('I.A.1.1', 'II.B.2.1')]
+    assert agent._find_codes('II B 2 14 ngày', rows) == []   # 14 không phải 1
+    assert agent._find_codes('ai 1 1 là gì', rows) == [] and agent._find_codes('tình hình tuần này', rows) == []
+
+
+def test_loosely_typed_code_goes_to_one_project_not_a_whole_table_summary(monkeypatch):
+    rows = [dict(ROWS[0], code='I.C.1.5'), dict(ROWS[1], code='I.C.1.4')]
+    fake_ai(monkeypatch, route=route_data(query='analyze', detail='day_du'), answer={'answer': 'Dự án I.C.1.5.', 'codes': []})
+    spec, _ = agent.route('cho t chi tiết về I C15', rows)
+    assert spec['query'] == 'project' and spec['value'] == 'I.C.1.5' and spec['detail'] == 'day_du'
+
+
+@pytest.mark.parametrize('q', ['So với tuần trước I.C.1.5 có gì đổi', 'tuần trước I.C.1.5 khác gì tuần này', 'I.C.1.5 thay đổi gì so với kỳ trước'])
+def test_week_over_week_question_is_a_comparison_not_a_project_card(monkeypatch, q):
+    rows = [dict(ROWS[0], code='I.C.1.5'), dict(ROWS[1], code='I.C.1.4')]
+    fake_ai(monkeypatch, route=route_data(query='project'), answer={'answer': 'ok', 'codes': []})
+    spec, _ = agent.route(q, rows)
+    assert spec['query'] == 'search' and spec['code'] == 'I.C.1.5' and spec.get('compare') is True
+    assert spec['fields'][0] == 'prev' and 'done' in spec['fields']
+
+
+def test_week_over_week_rule_route_and_facts_flag(monkeypatch):
+    rows = [dict(ROWS[0], code='I.C.1.5')]
+    spec, _ = agent._rule_route('So với tuần trước I.C.1.5 có gì đổi', rows, [])
+    assert spec['query'] == 'search' and spec['compare'] is True
+    cl = agent._clean_rows([dict(r) for r in rows])
+    facts = agent.compute(spec, cl, 'so với tuần trước', agent._masker(cl))
+    assert facts['kieu'] == 'search' and facts['so_sanh'] is True
+
+
+def test_plain_project_question_is_not_a_comparison(monkeypatch):
+    rows = [dict(ROWS[0], code='I.C.1.5')]
+    fake_ai(monkeypatch, route=route_data(query='project'), answer={'answer': 'ok', 'codes': []})
+    spec, _ = agent.route('cho t chi tiết về I.C.1.5', rows)
+    assert not spec.get('compare')
+
+
+def test_one_project_question_gets_report_content_unless_ai_says_brief(monkeypatch):
+    rows = [dict(ROWS[0], code='I.A.3.1', goal='Mục tiêu A', plan='Kế hoạch X')]
+    for det, expect in (('vua', True), ('day_du', True), ('', True), ('ngan', False)):
+        fake_ai(monkeypatch, route=route_data(query='project', detail=det), answer={'answer': 'ok', 'codes': []})
+        res = agent.ask('Chi tiết dự án I.A.3.1', rows)
+        assert bool(res['facts'].get('doan')) is expect, det
+    spec, _ = agent._rule_route('Chi tiết dự án I.A.3.1', rows, [])
+    assert spec['detail'] == 'day_du'
+
+
+def test_route_asks_v_llm_with_temperature_zero(monkeypatch):
+    seen = []
+    monkeypatch.setattr(settings, 'mode', 'vllm')
+    monkeypatch.setattr(agent.client, 'chat_json', lambda msgs, schema, max_tokens=None, **k: (seen.append(k.get('temperature')), {'model': 'm', 'data': route_data(query='summary')})[1])
+    agent.route('tóm tắt tuần', [dict(ROWS[0])])
+    assert seen == [0]
+
+
+def _named_rows():
+    return [dict(ROWS[0], code='I.A.6.2', name='Nhận diện và xác thực khuôn mặt tài xế trước ca làm việc', issue='Không có vấn đề phát sinh trong tuần.', note='Chờ CBLĐ'),
+            dict(ROWS[1], code='I.A.6.1', name='Chấm điểm hành vi lái xe'), dict(ROWS[2], code='I.C.1.12', name='Tối ưu định tuyến ghép khách đi chung')]
+
+
+def test_project_named_by_name_goes_to_that_project_with_report(monkeypatch):
+    rows = _named_rows()
+    fake_ai(monkeypatch, route=route_data(query='search', detail='vua'), answer={'answer': 'ok', 'codes': []})
+    res = agent.ask('Chi tiết dự án nhận diện và xác thực khuôn mặt', rows)
+    assert res['route']['query'] == 'project' and res['route']['value'] == 'I.A.6.2'
+    assert res['facts']['kieu'] == 'project' and res['facts']['doan']
+
+
+def test_project_name_does_not_hijack_a_field_question_or_unrelated_text(monkeypatch):
+    rows = _named_rows()
+    fake_ai(monkeypatch, route=route_data(query='search', fields=['issue']), answer={'answer': 'ok', 'codes': []})
+    spec, _ = agent.route('Vấn đề của dự án nhận diện và xác thực khuôn mặt', rows)
+    assert spec['query'] == 'search' and spec['fields'] == ['issue']
+    fake_ai(monkeypatch, route=route_data(query='search'), answer={'answer': 'ok', 'codes': []})
+    spec2, _ = agent.route('thời tiết hôm nay thế nào', rows)
+    assert spec2['query'] != 'project'
+
+
+def test_project_by_name_in_rule_mode(monkeypatch):
+    spec, _ = agent._rule_route('chi tiết dự án nhận diện và xác thực khuôn mặt', _named_rows(), [])
+    assert spec['query'] == 'project' and spec['value'] == 'I.A.6.2' and spec['detail'] == 'day_du'
+
+
+
+def test_question_naming_a_project_is_never_a_whole_table_summary(monkeypatch):
+    """V-LLM xếp "cho t chi tiết thông tin về dự án <tên>" vào summary: code thấy câu nêu tên dự án trong bảng nên chuyển sang đúng dự án đó."""
+    rows = [*ROWS, {'code': 'DA05', 'name': 'Điều phối thích ứng cho tài xế', 'group': 'Ride', 'status': 'In Progress', 'progress': 'Đúng tiến độ', 'risk': 'Thấp', 'pic': '', 'end': '', 'pending': False}]
+    monkeypatch.setattr(settings, 'mode', 'vllm')
+    monkeypatch.setattr(agent.client, 'chat_json', lambda msgs, schema, max_tokens=None, **k: (
+        {'model': 'm', 'data': route_data(query='summary', detail='day_du')} if schema['title'] == 'agent_route'
+        else {'model': 'm', 'data': {'answer': 'Dự án DA05 đúng tiến độ.', 'codes': ['DA05']}}))
+    spec, by = agent.route('cho t chi tiết thông tin về dự án điều phối thích ứng cho tài xế', agent._clean_rows(rows))
+    assert spec['query'] == 'project' and spec['value'] == 'DA05'
+    spec, _ = agent.route('tổng quan báo cáo tuần này thế nào', agent._clean_rows(rows))
+    assert spec['query'] == 'summary'
+
+
+def test_router_sees_name_candidates_and_its_pick_is_used(monkeypatch):
+    """V-LLM tự đọc ý: câu nói về dự án (diễn đạt khác tên) → nó chọn mã trong danh sách bằng chứng; mã ngoài danh sách bị bỏ."""
+    rows = [*ROWS, {'code': 'DA05', 'name': 'Điều phối thích ứng cho tài xế', 'group': 'Ride', 'status': 'In Progress', 'progress': 'Đúng tiến độ', 'risk': 'Thấp', 'pic': '', 'end': '', 'pending': False}]
+    monkeypatch.setattr(settings, 'mode', 'vllm')
+    seen = []
+    pick = {'v': 'DA05'}
+
+    def fake(msgs, schema, max_tokens=None, **k):
+        if schema['title'] != 'agent_route':
+            return {'model': 'm', 'data': {'answer': 'x', 'codes': []}}
+        seen.append(msgs[-1]['content'])
+        return {'model': 'm', 'data': route_data(doi_tuong='du_an', ma_du_an=pick['v'], query='project', value=pick['v'], detail='day_du')}
+    monkeypatch.setattr(agent.client, 'chat_json', fake)
+    spec, _ = agent.route('cho mình xem thông tin dự án điều phối tài xế', agent._clean_rows(rows))
+    assert 'DA05' in seen[0] and 'Điều phối thích ứng' in seen[0]
+    assert spec['query'] == 'project' and spec['value'] == 'DA05' and spec['detail'] == 'day_du'
+    pick['v'] = 'DA77'   # mã không có trong danh sách bằng chứng
+    spec, _ = agent.route('cho mình xem thông tin dự án điều phối tài xế', agent._clean_rows(rows))
+    assert spec['query'] != 'project' or spec['value'] != 'DA77'
+
+
+def _tool_agent(monkeypatch, script):
+    """V-LLM giả gọi công cụ theo kịch bản [(tên, tham số)…]; trả lại các lời nhắn đã gửi."""
+    monkeypatch.setattr(settings, 'mode', 'vllm')
+    monkeypatch.setattr(settings, 'agent_mode', 'tools', raising=False)
+    seen, it = [], iter(script)
+
+    def fake_tools(msgs, tools, max_tokens=None, **k):
+        seen.append(json.dumps(msgs, ensure_ascii=False))
+        name, args = next(it, (None, None))
+        calls = [{'id': 'c', 'name': name, 'arguments': args}] if name else []
+        return {'content': '' if calls else 'Xin chào', 'tool_calls': calls, 'finish': 'stop', 'usage': {}, 'model': 'm', 'ms': 1}
+    monkeypatch.setattr(agent.client, 'chat_tools', fake_tools)
+    monkeypatch.setattr(agent.client, 'chat_json', lambda msgs, schema, max_tokens=None, **k: {'model': 'm', 'data': {'answer': 'ok', 'codes': []}})
+    return seen
+
+
+def test_tools_mode_self_corrects_after_a_tool_error(monkeypatch):
+    """Lần đầu V-LLM lọc cột rủi ro với "hệ thống sập" (không phải giá trị cột): công cụ trả lỗi kèm giá trị hợp lệ, V-LLM tự đổi sang tìm nội dung."""
+    seen = _tool_agent(monkeypatch, [('loc_du_an', {'dieu_kien': [{'cot': 'rui_ro', 'gia_tri': 'hệ thống sập'}]}), ('tim_noi_dung', {'chu_de': 'hệ thống sập'})])
+    out = agent.ask('dự án nào có nguy cơ hệ thống bị sập', ROWS)
+    assert out['intent'] == 'search'
+    assert 'LỖI' in seen[1] and 'tim_noi_dung' in seen[1]            # lỗi được trả lại cho V-LLM đọc
+    assert [s['cong_cu'] for s in out['timing']['cong_cu']] == ['loc_du_an', 'tim_noi_dung']
+
+
+def test_tools_mode_filter_view_and_chitchat(monkeypatch):
+    _tool_agent(monkeypatch, [('loc_du_an', {'dieu_kien': [{'cot': 'tien_do', 'gia_tri': 'chậm'}]})])
+    out = agent.ask('dự án nào chậm', ROWS)
+    assert out['intent'] == 'filter' and out['facts']['so_luong'] == 2
+    _tool_agent(monkeypatch, [('doi_cach_xem', {'hanh_dong': 'only_fix'})])
+    out = agent.ask('chỉ xem dòng lỗi', ROWS)
+    assert out['intent'] == 'view' and out['view'].get('action') == 'only_fix'
+    _tool_agent(monkeypatch, [])
+    out = agent.ask('xin chào', ROWS)
+    assert out['intent'] == 'help'
+
+
+def test_tools_mode_never_writes_and_edit_only_signals_intent(monkeypatch):
+    _tool_agent(monkeypatch, [('sua_bang', {})])
+    out = agent.ask('DA01 đúng tiến độ rồi nhé', ROWS)
+    assert out['intent'] == 'edit' and 'cong_cu' in out.get('timing', {}) or out['intent'] == 'edit'

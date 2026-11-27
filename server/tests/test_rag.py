@@ -412,3 +412,82 @@ def test_router_prompt_teaches_assignment_commands_and_asks_for_a_short_intent_f
     assert qa.ROUTE_SCHEMA['required'][0] == 'y_dinh' and list(qa.ROUTE_SCHEMA['properties'])[0] == 'y_dinh'
     for must in ('cho hết dự án Voice rủi ro thấp', 'mấy dự án Ride ghi note đã họp', 'late / delayed', 'dự án đang thực hiện mà chậm tiến độ', 'KHÔNG phải "prioritize"', 'td i.c.1.1 la cham', 'lọc dòng còn lỗi thôi'):
         assert must in qa.ROUTE_SYSTEM
+
+
+def test_router_example_turns_follow_the_schema_exactly():
+    import json
+    from server.app.ai.agent import qa
+    shots = qa._shots()
+    assert len(shots) == 2 * len(qa._SHOTS) and [m['role'] for m in shots[:2]] == ['user', 'assistant']
+    props = qa.ROUTE_SCHEMA['properties']
+    for m in shots[1::2]:
+        d = json.loads(m['content'])
+        assert set(d) == set(qa.ROUTE_SCHEMA['required'])                       # đủ khoá, không thừa
+        assert d['query'] in props['query']['enum'] and d['view_action'] in ['', *qa.VIEW_ACTIONS]
+        assert d['field'] in props['field']['enum'] and d['detail'] in props['detail']['enum']
+    for q, _ in qa._SHOTS:   # không trùng câu trong bộ eval (tránh học vẹt)
+        assert q not in qa.ROUTE_SYSTEM
+
+
+# ---------- rerank (V-LLM /rerank) ----------
+@pytest.fixture
+def rerank(embeddings, monkeypatch):
+    monkeypatch.setattr(settings, 'rerank_model', 'rr-test')
+    monkeypatch.setattr(settings, 'rag_rerank', True)
+    monkeypatch.setattr(settings, 'provider', 'vllm')
+    return embeddings
+
+
+def test_rerank_is_off_without_a_model(embeddings):
+    got = rag.search('thiếu card', CLEAN)
+    assert got['passages'] and embeddings['rerank_calls'] == 0 and not rag.rerank_enabled()
+
+
+def test_rerank_reorders_candidates_and_reports_scores(rerank):
+    timing = {}
+    got = rag.search('chờ GPU', CLEAN, timing=timing)
+    assert rerank['rerank_calls'] == 1 and rerank['rerank_bodies'][0]['model'] == 'rr-test'
+    assert got['passages'][0]['code'] == 'II.B.2.4' and timing['ragRerank']['so_doan'] >= 2
+    assert all('rr' in x for x in timing['ragTrace']) and timing['ragTrace'][0]['rr'] >= timing['ragTrace'][-1]['rr']
+
+
+def test_rerank_sends_masked_text_only(rerank):
+    rag.search('Nguyễn Văn An review API Food chờ GPU', CLEAN, mask=lambda s: s.replace('Nguyễn Văn An', '[Người 1]'))
+    assert rerank['rerank_bodies'], 'cần có ít nhất hai đoạn ứng viên để rerank'
+    body = rerank['rerank_bodies'][0]
+    assert 'Nguyễn Văn An' not in body['query'] and all('Nguyễn Văn An' not in d for d in body['documents'])
+
+
+def test_rerank_failure_keeps_the_fused_order(rerank):
+    rerank['rerank_status'] = 500
+    timing = {}
+    got = rag.search('thiếu card', CLEAN, timing=timing)
+    assert got['passages'][0]['code'] == 'II.B.2.4' and 'rerank lỗi' in timing['ragNote']
+    assert rag.rerank_enabled()                 # lỗi tạm thời không làm nghỉ
+
+
+def test_forbidden_rerank_model_pauses_rerank_only(rerank):
+    rerank['rerank_status'] = 403
+    rag.search('thiếu card', CLEAN)
+    assert not rag.rerank_enabled() and 'HTTP 403' in rag.rerank_problem() and rag.embeddings_enabled()
+    calls = rerank['rerank_calls']
+    assert rag.search('thiếu card', CLEAN)['passages'] and rerank['rerank_calls'] == calls   # đang nghỉ: không gọi lại
+
+
+def test_rerank_floor_can_drop_weak_passages(rerank, monkeypatch):
+    monkeypatch.setattr(rag, 'RERANK_MIN', 2.0)   # điểm giả tối đa 1.0
+    assert rag.search('chờ GPU', CLEAN)['passages'] == []
+
+
+def test_openai_provider_never_calls_rerank(rerank, monkeypatch):
+    monkeypatch.setattr(settings, 'provider', 'openai')
+    rag.search('chờ GPU', CLEAN)
+    assert rerank['rerank_calls'] == 0
+
+
+def test_rerank_setting_follows_the_provider():
+    from server.app.ai import settings as st
+    base = {'AI_MODE': 'vllm', 'VLLM_BASE_URL': 'https://x/t/v1', 'VLLM_API_KEY': 'k', 'OPENAI_API_KEY': 'o'}
+    assert st.load({**base, 'AI_PROVIDER': 'vllm'}).rerank_model == 'v-llm-v1-rerank-medium'
+    assert st.load({**base, 'AI_PROVIDER': 'vllm', 'AI_RERANK_MODEL': 'm2'}).rerank_model == 'm2'
+    assert st.load({**base, 'AI_PROVIDER': 'openai'}).rerank_model == ''

@@ -53,9 +53,10 @@ async def ai_status(_: Request):
     host = urlparse(settings.base_url).netloc if settings.base_url else ''
     return JSONResponse({
         'mode': settings.mode, 'model': settings.model, 'host': host, 'auth': settings.auth_kind,
-        'provider': settings.provider, 'thinking': settings.thinking, 'guardrail': settings.guardrail or 'mặc định', 'jsonMode': client._json_mode,
+        'provider': settings.provider, 'agentMode': settings.agent_mode, 'agentModel': settings.agent_model, 'thinking': settings.thinking, 'guardrail': settings.guardrail or 'mặc định', 'jsonMode': client._json_mode,
         'maskNames': settings.mask_names, 'problems': settings.problems(),
-        'rag': {'embeddings': rag.embeddings_enabled(), 'model': settings.embed_model or None, **({'external': urlparse(settings.embed_base_url).netloc} if settings.embed_base_url else {}), **({'problem': rag.embeddings_problem()} if rag.embeddings_problem() else {})},
+        'rag': {'embeddings': rag.embeddings_enabled(), 'model': settings.embed_model or None, **({'external': urlparse(settings.embed_base_url).netloc} if settings.embed_base_url else {}), **({'problem': rag.embeddings_problem()} if rag.embeddings_problem() else {}),
+                'rerank': rag.rerank_enabled(), **({'rerankModel': settings.rerank_model} if settings.rerank_model else {}), **({'rerankProblem': rag.rerank_problem()} if rag.rerank_problem() else {})},
     })
 
 

@@ -57,6 +57,7 @@ CONTENT_FIELDS = (
 ROUTE_SCHEMA = {
     'title': 'agent_route', 'type': 'object', 'additionalProperties': False,
     'properties': {'y_dinh': {'type': 'string'},
+                   'doi_tuong': {'type': 'string', 'enum': ['du_an', 'chu_de', 'ca_bang', 'khong_ro']}, 'ma_du_an': {'type': 'string'},
                    'query': {'type': 'string', 'enum': QUERIES}, 'field': {'type': 'string', 'enum': ['', *FIELDS]},
                    'value': {'type': 'string'},
                    'filters': {'type': 'array', 'maxItems': 4, 'items': {
@@ -74,7 +75,7 @@ ROUTE_SCHEMA = {
                    'fields': {'type': 'array', 'maxItems': 4, 'items': {'type': 'string', 'enum': [k for k, _ in CONTENT_FIELDS]}},
                    'search_queries': {'type': 'array', 'maxItems': 3, 'items': {'type': 'string'}},
                    'refers_previous': {'type': 'boolean'}},
-    'required': ['y_dinh', 'query', 'field', 'value', 'filters', 'group_by', 'sort', 'limit', 'due', 'text', 'expand_top', 'list_each', 'fields', 'detail', 'view_action', 'column', 'search_queries', 'refers_previous'],
+    'required': ['y_dinh', 'doi_tuong', 'ma_du_an', 'query', 'field', 'value', 'filters', 'group_by', 'sort', 'limit', 'due', 'text', 'expand_top', 'list_each', 'fields', 'detail', 'view_action', 'column', 'search_queries', 'refers_previous'],
 }
 ANSWER_SCHEMA = {
     'title': 'agent_answer', 'type': 'object', 'additionalProperties': False,
@@ -82,8 +83,10 @@ ANSWER_SCHEMA = {
     'required': ['answer', 'codes'],
 }
 
-ROUTE_SYSTEM = """Bạn phân loại câu hỏi của người dùng về bảng báo cáo PMO thành MỘT truy vấn có sẵn. Chỉ chọn truy vấn, không trả lời.
-Trước hết điền "y_dinh": MỘT câu ngắn (tối đa 15 từ) nêu người dùng đang HỎI thông tin hay MUỐN ĐỔI/SOẠN/DUYỆT/XEM bảng, và nhắc các điều kiện họ nêu; sau đó mới chọn truy vấn khớp với y_dinh.
+ROUTE_SYSTEM = """Bạn đọc câu của người dùng về bảng báo cáo PMO rồi chọn MỘT truy vấn có sẵn. Chỉ chọn truy vấn, không trả lời. Làm theo 3 bước, điền đúng thứ tự:
+1. "y_dinh": MỘT câu ngắn (tối đa 15 từ): người dùng đang HỎI thông tin hay MUỐN ĐỔI/SOẠN/DUYỆT/XEM bảng, kèm các điều kiện họ nêu.
+2. "doi_tuong": họ đang nói về cái gì. "du_an" = MỘT dự án cụ thể (nêu mã, nêu tên, hoặc nói lái tên; xem mục "Dự án có tên gần nghĩa nhất với câu" trong dữ liệu, nếu đúng dự án đó thì điền mã vào "ma_du_an", nếu có mã trong câu thì điền mã đó); "chu_de" = một vấn đề / nội dung chữ không gắn một dự án (GPU, hệ thống sập, quá tải…); "ca_bang" = số liệu, nhóm, điều kiện lọc trên cả bảng; "khong_ro". Không có dự án cụ thể thì "ma_du_an" là "".
+3. Chọn "query" khớp với y_dinh và doi_tuong: nói về MỘT dự án và muốn biết thông tin của nó → "project" (hoặc "search" nếu chỉ hỏi một ô như KPI, mục tiêu); nói về chủ đề → "search"; nói về cả bảng → "summary" / "filter" / "analyze"; muốn đổi bảng → "edit" / "draft" / "approve" / "view".
 Truy vấn:
 - "summary": tóm tắt chung, số lượng tổng quan.
 - "filter": liệt kê hoặc đếm dự án theo ĐÚNG MỘT điều kiện, MỘT giá trị (không có "hoặc", "không phải", "chưa", "trừ" đứng trước giá trị — những câu đó phải chọn "analyze"). Điền "field" (tien_do, trang_thai, rui_ro, mang) và "value" là một giá trị CÓ SẴN trong danh sách giá trị bên dưới.
@@ -98,6 +101,7 @@ Truy vấn:
   Câu hỏi về trạng thái / tiến độ / rủi ro / nhóm của dự án LUÔN là "filter" hoặc "analyze", kể cả khi giá trị người dùng nói (vd "chưa thực hiện") không có trong danh sách: cứ điền đúng giá trị người dùng nói (hệ thống sẽ báo chưa có giá trị đó và nêu các giá trị có sẵn). Chỉ chọn "search" khi hỏi về NỘI DUNG chữ.
   Câu có HAI điều kiện khác cột nối bằng "mà", "và", "nhưng", "đồng thời" (vd "dự án đang thực hiện mà chậm tiến độ" → trang_thai Đang thực hiện + tien_do Chậm tiến độ; "Food nào chậm") → "analyze" với đủ các cặp filters, KHÔNG dùng "filter" và KHÔNG bỏ bớt điều kiện.
   Từ tiếng Anh: late / delayed / behind = chậm tiến độ; on track = đúng tiến độ; at risk = có nguy cơ chậm; done / completed = hoàn thành; high risk = rủi ro cao. Hỏi nghĩa một từ trạng thái trong bảng ("dự án late là gì") là hỏi các dự án có trạng thái đó → "filter" (field tien_do, value Chậm tiến độ).
+  "nguy cơ" + một SỰ KIỆN / CHỦ ĐỀ khác (sập, quá tải, mất dữ liệu, hết ngân sách, thiếu người, lộ thông tin…) là hỏi NỘI DUNG chữ của dự án → "search", KHÔNG phải trạng thái "Có nguy cơ chậm". Chỉ khi "nguy cơ" đi với chậm/trễ/trễ hạn (hoặc đứng một mình như giá trị Tiến độ) mới là filter tien_do "Có nguy cơ chậm".
 - "search": hỏi về NỘI DUNG chữ của dự án: tên, mục tiêu, KPI, công việc đã làm, kế hoạch, vấn đề/vướng mắc, comment; hoặc tìm dự án theo tên/chủ đề khi KHÔNG có mã dự án (vd "dự án nào đang chờ GPU", "nền tảng thực nghiệm là gì").
   "search_queries": CHỈ khi query = "search": 1–3 cách diễn đạt KHÁC của điều cần tìm để tìm trong báo cáo dự án (từ đồng nghĩa, viết tắt viết đầy đủ, thuật ngữ thường gặp trong báo cáo, tiếng Việt có dấu; vd "chờ GPU" → "thiếu card đồ họa", "hạ tầng tính toán chưa sẵn sàng"). Không phải search thì [].
 - "project": hỏi về một dự án cụ thể (có mã dự án trong câu hỏi, hoặc nêu đúng TÊN dự án như "chi tiết dự án nhận diện và xác thực khuôn mặt"; nêu tên thì "value" là tên đó, hệ thống tự đối chiếu với bảng).
@@ -132,16 +136,17 @@ Chỉ trả về JSON đúng schema."""
 
 # Ví dụ mẫu đưa vào đầu hội thoại: model nhỏ làm theo ví dụ tốt hơn làm theo quy tắc viết bằng chữ. Cố ý KHÔNG trùng câu trong bộ eval (tránh học vẹt).
 _SHOT_VALUES = {'tien_do': ['Chậm tiến độ', 'Có nguy cơ chậm', 'Đúng tiến độ'], 'trang_thai': ['Hoàn thành', 'In Progress'], 'rui_ro': ['Cao', 'Thấp', 'Trung bình'], 'mang': ['Food', 'Ride', 'Voice']}
-_SHOT_BASE = {'query': 'unknown', 'field': '', 'value': '', 'filters': [], 'group_by': '', 'sort': '', 'limit': 0, 'due': '', 'text': '', 'expand_top': False,
+_SHOT_BASE = {'doi_tuong': 'ca_bang', 'ma_du_an': '', 'query': 'unknown', 'field': '', 'value': '', 'filters': [], 'group_by': '', 'sort': '', 'limit': 0, 'due': '', 'text': '', 'expand_top': False,
               'list_each': False, 'fields': [], 'detail': 'vua', 'view_action': '', 'column': '', 'search_queries': [], 'refers_previous': False}
 _SHOTS = [
-    ('I.B.2.2 đang chậm rồi nhé', {'y_dinh': 'Khẳng định có mã dự án: đặt Tiến độ của I.B.2.2 là Chậm tiến độ → sửa ô', 'query': 'edit'}),
-    ('I.B.2.2 đang chậm hả?', {'y_dinh': 'Câu hỏi về tình trạng một dự án có mã', 'query': 'project', 'value': 'I.B.2.2', 'detail': 'ngan'}),
+    ('I.B.2.2 đang chậm rồi nhé', {'y_dinh': 'Khẳng định có mã dự án: đặt Tiến độ của I.B.2.2 là Chậm tiến độ → sửa ô', 'doi_tuong': 'du_an', 'ma_du_an': 'I.B.2.2', 'query': 'edit'}),
+    ('I.B.2.2 đang chậm hả?', {'y_dinh': 'Câu hỏi về tình trạng một dự án có mã', 'doi_tuong': 'du_an', 'ma_du_an': 'I.B.2.2', 'query': 'project', 'value': 'I.B.2.2', 'detail': 'ngan'}),
     ('td ii.a.3.1 nguy co cham', {'y_dinh': 'Viết tắt: đặt Tiến độ của II.A.3.1 là Có nguy cơ chậm → sửa ô', 'query': 'edit'}),
     ('mình chỉ muốn thấy mấy dòng còn lỗi', {'y_dinh': 'Đổi cách xem bảng: chỉ hiện dòng còn lỗi, không lọc dự án', 'query': 'view', 'view_action': 'only_fix'}),
     ('dự án nào đang chậm tiến độ', {'y_dinh': 'Hỏi danh sách dự án theo một điều kiện Tiến độ', 'query': 'filter', 'field': 'tien_do', 'value': 'Chậm tiến độ'}),
     ('cho toàn bộ dự án Food mức rủi ro cao', {'y_dinh': 'Gán Mức độ rủi ro = Cao cho mọi dự án nhóm Food → sửa ô', 'query': 'edit'}),
     ('đề xuất mức rủi ro cho mấy dự án chưa chấm', {'y_dinh': 'Nhờ AI soạn nháp Mức độ rủi ro cho ô còn trống', 'query': 'draft'}),
+    ('dự án nào có nguy cơ quá tải hệ thống', {'y_dinh': 'Tìm theo chủ đề quá tải hệ thống trong nội dung dự án, không phải trạng thái Tiến độ', 'doi_tuong': 'chu_de', 'query': 'search', 'search_queries': ['quá tải hệ thống', 'hệ thống sập, nghẽn', 'rủi ro vận hành hệ thống']}),
 ]
 
 
@@ -553,6 +558,30 @@ def _rule_route(question: str, rows: list[dict], history: list[dict]) -> tuple[d
     return spec, 'rule'
 
 
+NAME_CANDS = 4   # số dự án có tên gần nghĩa nhất đưa cho V-LLM xem
+
+
+def _name_candidates(question: str, rows: list[dict], m: Masker) -> list[dict]:
+    """Dự án nào có TÊN gần nghĩa với câu hỏi (embeddings, rerank nếu bật; không có embeddings thì dùng từ khoá). Chỉ là bằng chứng đưa cho V-LLM:
+    V-LLM tự quyết người dùng có đang nói về dự án đó không; code không đoán thay."""
+    names = [p for p in rag.build_passages(rows) if p['field'] == 'name']
+    if not names:
+        return []
+    order: list[int] = []
+    try:
+        if rag.embeddings_enabled():
+            sem = rag.semantic(question, [m.mask(p['text']) for p in names], question_text=m.mask(question))
+            order = [i for i, _ in sem[:8]]
+            if len(order) > 1 and rag.rerank_enabled():
+                rr = client.rerank(m.mask(question), [m.mask(names[i]['text']) for i in order])
+                order = [order[k] for k, _ in sorted(rr, key=lambda x: -x[1])]
+    except (VllmError, ValueError, KeyError, TypeError):
+        order = []
+    if not order:
+        order = [i for i, _, _ in rag.lexical(question, names)[:NAME_CANDS]]
+    return [{'ma': names[i]['code'], 'ten': m.mask(names[i]['text'])} for i in order[:NAME_CANDS]]
+
+
 def route(question: str, rows: list[dict], timing: dict | None = None, history: list[dict] | None = None) -> tuple[dict, str]:
     """V-LLM đọc Ý ĐỊNH của câu chat trước (hỏi gì, hay muốn sửa / soạn / duyệt / đổi cách xem), code kiểm tra rồi mới gọi đúng chức năng.
     Luật từ khóa chỉ là dự phòng khi V-LLM tắt (mock) hoặc lỗi."""
@@ -562,8 +591,11 @@ def route(question: str, rows: list[dict], timing: dict | None = None, history: 
         return spec, ('mock' if by == 'rule' and spec['query'] == 'unknown' else by)
     vals = {k: _values(rows, FIELDS[k]) for k in FIELDS}
     ctx = [{'cau_truoc': _masker(rows).mask(h['q']), 'ma_du_an_vua_nhac': h['codes'], 'tra_loi': _masker(rows).mask(h.get('a', ''))} for h in history]
+    mk = _masker(rows)
+    cands = _name_candidates(question, rows, mk)
     msgs = [{'role': 'system', 'content': ROUTE_SYSTEM}, *_shots(),
             {'role': 'user', 'content': 'Giá trị hiện có trong bảng:\n' + json.dumps(vals, ensure_ascii=False)
+             + '\nDự án có tên gần nghĩa nhất với câu (hệ thống tìm sẵn, chưa chắc người dùng nhắc đến):\n' + json.dumps(cands, ensure_ascii=False)
              + ('\nCác câu trước:\n' + json.dumps(ctx, ensure_ascii=False) if ctx else '')
              + '\nCâu của người dùng: ' + _masker(rows).mask(question)[:500]}]
     try:
@@ -590,10 +622,15 @@ def route(question: str, rows: list[dict], timing: dict | None = None, history: 
             spec = {'query': 'projects', 'codes': codes[:MAX_LIST]}
         elif spec['query'] == 'project':
             spec = {'query': 'summary', 'field': '', 'value': ''}
-    if not codes and spec['query'] in ('search', 'project', 'unknown') and not spec.get('fields'):
+    if not codes and spec['query'] in ('search', 'project', 'unknown', 'summary') and not spec.get('fields'):   # 'summary' cũng đối chiếu tên: câu nêu tên dự án thì không thể là tổng quan cả bảng
         by_name = _project_by_name(str(d.get('value') or '') if spec['query'] == 'project' else question, rows) or _project_by_name(question, rows)
         if by_name:   # người dùng nêu TÊN dự án (không có mã): code đối chiếu tên trong bảng, V-LLM chỉ đọc ý định; dự án khớp thì trả đúng dự án đó, không trả đoạn rải rác
             spec = {'query': 'project', 'field': '', 'value': by_name}
+    chosen = str(d.get('ma_du_an') or (d.get('value') if d.get('query') == 'project' else '') or '').strip()
+    if d.get('doi_tuong') != 'chu_de' and not codes and chosen in {c['ma'] for c in cands} and spec['query'] in ('project', 'summary', 'unknown', 'search', 'filter'):
+        # V-LLM đã đọc ý: người dùng đang nói về dự án này (code chỉ kiểm tra mã nằm trong danh sách bằng chứng); hỏi một ô cụ thể thì tìm đúng ô của dự án đó
+        fields = ai_fields if spec['query'] == 'search' else None
+        spec = {'query': 'search', 'field': '', 'value': '', 'code': chosen, 'fields': fields} if fields else {'query': 'project', 'field': '', 'value': chosen}
     detail = d.get('detail') if d.get('detail') in ('ngan', 'vua', 'day_du') else ''   # V-LLM đọc ý: muốn bản tóm tắt hay đầy đủ
     if d.get('refers_previous') is True and not codes:
         scope = next((h['codes'] for h in reversed(history) if h['codes']), [])
@@ -1175,7 +1212,12 @@ def ask(question: str, raw_rows: list, fields: list | None = None, history: list
         return {**agent_edit.propose(question, raw_rows, fields, [r['pic'] for r in rows if r['pic']], _clean_history(history, rows)), 'route': {'query': 'edit'}, 'routedBy': 'client'}
     m = _masker(rows)
     timing: dict = {'routeMs': 0, 'answerMs': 0}
-    spec, routed_by = route(question, rows, timing, _clean_history(history, rows))
+    pre = None   # số liệu đã tính sẵn khi V-LLM tự gọi công cụ (AI_AGENT_MODE=tools)
+    if settings.mode == 'vllm' and getattr(settings, 'agent_mode', 'router') == 'tools':
+        from . import tools as agent_tools
+        spec, routed_by, pre = agent_tools.run(question, rows, timing, _clean_history(history, rows))
+    else:
+        spec, routed_by = route(question, rows, timing, _clean_history(history, rows))
     if spec['query'] in ('draft', 'view', 'approve'):  # việc làm trên giao diện: backend chỉ nói người dùng muốn gì, giao diện thực hiện
         return {'intent': spec['query'], 'answer': '', 'codes': [], 'view': {k: spec[k] for k in ('action', 'column') if k in spec}, 'target': spec.get('codes', []),
                 'facts': {'kieu': spec['query']}, 'route': spec, 'by': routed_by, 'routedBy': routed_by, 'grounded': True, 'warnings': [], 'timing': timing}
@@ -1184,7 +1226,7 @@ def ask(question: str, raw_rows: list, fields: list | None = None, history: list
     if spec['query'] == 'edit':
         return {'intent': 'edit', 'answer': 'Để Agent đề xuất sửa bảng, giao diện cần gửi kèm danh sách cột (fields). Bạn vẫn có thể hỏi tóm tắt tuần, dự án chậm, rủi ro cao hoặc nháp chờ duyệt.',
                 'codes': [], 'facts': {'kieu': 'edit'}, 'route': spec, 'by': routed_by, 'grounded': True, 'warnings': []}
-    facts = compute(spec, rows, question, m, timing)
+    facts = pre if pre is not None else compute(spec, rows, question, m, timing)
     if facts.get('phan_tich'):
         facts['muc_chi_tiet'] = spec.get('detail') or 'vua'   # giao diện vẽ nhiều hay ít theo mức này
     answer, codes, by, problems = _write(question, facts, rows, m, timing)
