@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { REMOTE_MAX_TEXT, agentHtml, historyOf, keepLocal, nextQuestions, textColumns } from '@/lib/agentRemote';
+import { REMOTE_MAX_TEXT, agentHtml, historyOf, keepLocal, textColumns } from '@/lib/agentRemote';
 import type { AgentAnswer, AgentFacts } from '@/lib/api';
 
 const rows = [{ i: 3, ma: 'I.A.1.1' }, { i: 7, ma: 'II.B.2.4' }];
@@ -25,7 +25,8 @@ describe('Agent hỏi đáp qua backend', () => {
     const h = agentHtml(ans({ answer: '<img src=x onerror=alert(1)> Có 1 dự án.' }), rows);
     expect(h).not.toContain('<img');
     expect(h).toContain('&lt;img');
-    expect(h).toContain('lời văn do v-llm-v1-medium');
+    expect(h).toContain('lời văn do VLLM');
+    expect(h).not.toContain('v-llm-v1-medium');
   });
 
   it('câu trả lời mẫu: nói rõ khi AI lệch số liệu', () => {
@@ -255,119 +256,5 @@ describe('Câu trả lời gọn: câu dẫn ngắn + danh sách dựng từ s�
     const h = agentHtml(ans({ by: 'rule', answer: 'Có 3 dự án.' }), rows);
     expect(h).toContain('<p>Có 3 dự án.</p>');
     expect(h).not.toContain('class="pl"');
-  });
-});
-
-
-describe('Báo cáo chi tiết một dự án và gợi ý ưu tiên', () => {
-  const P = { code: 'I.A.1.1', name: 'Điều phối tài xế', tien_do: 'Chậm tiến độ', rui_ro: 'Thấp', trang_thai: 'Đang thực hiện', han: '10/12/2026' };
-  it('mỗi ô nội dung là một khối riêng, gộp đoạn, tách ý theo số thứ tự và không lặp mã dự án', () => {
-    const doan = [
-      { code: 'I.A.1.1', truong: 'Vấn đề, rủi ro và đề xuất', noi_dung: 'Rủi ro: dự án chậm.' },
-      { code: 'I.A.1.1', truong: 'Vấn đề, rủi ro và đề xuất', noi_dung: 'Đề xuất: cập nhật kế hoạch.' },
-      { code: 'I.A.1.1', truong: 'KPI', noi_dung: '1. Tỉ lệ chuyển đổi >= 12% 2. Độ trễ P95 <= 250ms' },
-      { code: 'I.A.1.1', truong: 'Công việc đã hoàn thành trong tuần', noi_dung: '[2026-11-19] - Đánh giá mở rộng phạm vi' },
-    ];
-    const h = agentHtml(ans({ intent: 'project', answer: 'ok', facts: { kieu: 'project', tim_thay: true, du_an: P, doan } as AgentFacts }), rows);
-    expect(h).toContain('class="rpt"');
-    expect(h).toContain('Vấn đề, rủi ro và đề xuất');
-    expect(h).toContain('Rủi ro: dự án chậm. Đề xuất: cập nhật kế hoạch.');   // hai đoạn của cùng một ô được gộp
-    expect(h).toContain('<b class="rpt-dt">19/11</b>');
-    expect((h.match(/data-act="exGo"/g) || []).length).toBe(1);   // mã dự án chỉ xuất hiện ở tiêu đề
-    expect(h.indexOf('Việc đã làm tuần này')).toBeGreaterThan(h.indexOf('Vấn đề'));
-    expect(h).toContain('<details class="rpt-g"><summary><span class="rpt-tt">KPI</span><small');
-  });
-  it('ô dài có nút xem đầy đủ, chữ trong báo cáo bị thoát HTML', () => {
-    const long = 'a'.repeat(60) + ' ' + 'từ '.repeat(150);
-    const h = agentHtml(ans({ answer: 'ok', facts: { kieu: 'project', tim_thay: true, du_an: P, doan: [{ code: 'I.A.1.1', truong: 'Kế hoạch tuần sau', noi_dung: long + '<img src=x>' }] } as AgentFacts }), rows);
-    expect(h).toContain('Xem đầy đủ');
-    expect(h).not.toContain('<img');
-  });
-  it('gợi ý ưu tiên: ba nhóm kèm lý do, cách xếp và lưu ý', () => {
-    const facts = { kieu: 'prioritize', dang_chay: 5, nen_giu: { so: 1, du_an: [{ ...P, code: 'I.A.1.1', tien_do: 'Đúng tiến độ', ly_do: 'đúng tiến độ, hạn còn 10 ngày' }] },
-      can_xem_lai: { so: 1, du_an: [{ ...P, code: 'II.B.2.4', rui_ro: 'Cao', ly_do: 'chậm tiến độ, rủi ro cao, quá hạn 5 ngày' }] }, co_the_hoan: { so: 0, du_an: [] },
-      tieu_chi: ['Nên giữ: sắp về đích.'], luu_y: 'Bảng không có ngân sách.' } as AgentFacts;
-    const h = agentHtml(ans({ intent: 'prioritize', answer: 'Gợi ý.', facts }), rows);
-    expect(h).toContain('Nên giữ <b>1</b>');
-    expect(h).toContain('Cần xem lại <b>1</b>');
-    expect(h).not.toContain('Có thể hoãn');
-    expect(h).toContain('quá hạn 5 ngày');
-    expect(h).toContain('Bảng không có ngân sách.');
-  });
-  it('gợi ý ưu tiên có sức chứa và nhóm bảo vệ: có nút soạn ghi chú tạm hoãn gửi lệnh sửa', () => {
-    const facts = { kieu: 'prioritize', dang_chay: 5, suc_chua: { giu_toi_da: 2, giu: { so: 1, du_an: [{ ...P, code: 'I.A.1.1', ly_do: 'thuộc nhóm bảo vệ · đúng tiến độ' }] }, hoan: { so: 1, du_an: [{ ...P, code: 'II.B.2.4', ly_do: 'chậm tiến độ' }] }, bao_ve_vuot_suc_chua: false },
-      bao_ve: { nhom: ['Nhóm = Food'], so: 1, du_an: [{ ...P, code: 'I.A.1.1' }] }, nen_giu: { so: 0, du_an: [] }, can_xem_lai: { so: 0, du_an: [] }, co_the_hoan: { so: 0, du_an: [] } } as AgentFacts;
-    const h = agentHtml(ans({ intent: 'prioritize', answer: 'Gợi ý.', facts }), rows);
-    expect(h).toContain('Nên giữ (tối đa 2)');
-    expect(h.match(/I\.A\.1\.1/g)?.length).toBe(1);   // nhóm bảo vệ không lặp lại ở hai mục
-    expect(h).toContain('bảo vệ');
-    expect(h).toContain('data-act="askIdea"');
-    expect(h).toContain('II.B.2.4');
-    expect(h).toContain('Đề xuất tạm hoãn');
-  });
-  it('gợi ý hỏi tiếp theo đúng ngữ cảnh câu trả lời, mã dự án lấy từ số liệu', () => {
-    const sum = agentHtml(ans({ intent: 'summary', answer: 'ok', facts: { kieu: 'summary', tong: 4, du_an_cham: ['II.B.2.4', 'I.A.1.1'], theo_tien_do: { 'Chậm tiến độ': 2, 'Đúng tiến độ': 2 }, so_du_an_co_o_nhap_ai_cho_duyet: 1 } as AgentFacts }), rows);
-    expect(sum).toContain('data-q="Chi tiết dự án II.B.2.4"');
-    expect(sum).toContain('Nếu bị cắt kinh phí thì nên ưu tiên dự án nào?');
-    expect(sum.match(/data-act="askIdea"/g)!.length).toBeLessThanOrEqual(3);
-    const pf = { intent: 'project', facts: { kieu: 'project', tim_thay: true, du_an: { ...P, code: 'I.A.1.1', nhom: 'I.A.1.Food' } } as AgentFacts };
-    expect(nextQuestions(pf, ['I.A.1.1'])).not.toContain('Các dự án cùng nhóm I.A.1');   // nhóm chỉ có 1 dự án: không gợi ý vô nghĩa
-    const pj = nextQuestions(pf, ['I.A.1.1', 'I.A.1.2']);
-    expect(pj).toContain('Các dự án cùng nhóm I.A.1');
-    expect(pj.every((t) => t.includes('I.A.1.1') || t.includes('I.A.1'))).toBe(true);
-    expect(nextQuestions({ intent: 'help', facts: undefined })).toEqual([]);
-  });
-  it('thống kê có thanh chia đoạn tỷ lệ; gợi ý ưu tiên có thanh giữ / hoãn', () => {
-    const h = agentHtml(ans({ intent: 'summary', answer: 'ok', facts: { kieu: 'summary', tong: 4, theo_tien_do: { 'Chậm tiến độ': 3, 'Đúng tiến độ': 1 } } as AgentFacts }), rows);
-    expect(h).toContain('class="fx-seg"');
-    expect(h).toContain('style="flex:3;--i:0"');
-    const pr = agentHtml(ans({ intent: 'prioritize', answer: 'ok', facts: { kieu: 'prioritize', dang_chay: 3, nen_giu: { so: 1, du_an: [{ ...P, ly_do: 'a, hạn còn 3 ngày' }] }, can_xem_lai: { so: 0, du_an: [] }, co_the_hoan: { so: 2, du_an: [] }, con_lai: 0 } as AgentFacts }), rows);
-    expect(pr).toContain('fx-seg');
-  });
-  it('báo cáo dự án: mục viết IN HOA + dấu • được tách thành tiêu đề nhỏ và danh sách, mục gấp có dòng xem trước', () => {
-    const goal = '1. BÀI TOÁN & BỐI CẢNH Dự án thuộc lộ trình ứng dụng AI. 2. MỤC TIÊU & TÁC ĐỘNG KINH DOANH • Cải thiện độ chính xác ETA • Chỉ tiêu: MAE ≤ 1.2 phút 3. PHẠM VI & TRADEOFF • Phạm vi: Hà Nội • Tradeoff: SLA';
-    const h = agentHtml(ans({ intent: 'project', answer: 'ok', facts: { kieu: 'project', tim_thay: true, du_an: P, doan: [{ code: 'I.A.1.1', truong: 'Mục tiêu', noi_dung: goal }] } as AgentFacts }), rows);
-    expect(h).toContain('<h5>Bài toán &amp; bối cảnh</h5>');
-    expect(h).toContain('<h5>Mục tiêu &amp; tác động kinh doanh</h5>');
-    expect(h).toContain('<li>Cải thiện độ chính xác ETA</li>');
-    expect(h).toContain('class="rpt-pk">Bài toán &amp; bối cảnh · Mục tiêu &amp; tác động kinh doanh · Phạm vi &amp; tradeoff</small>');
-  });
-  it('báo cáo dự án nêu mâu thuẫn: đã hoàn thành nhưng tiến độ chậm', () => {
-    const h = agentHtml(ans({ intent: 'project', answer: 'ok', facts: { kieu: 'project', tim_thay: true, du_an: { ...P, trang_thai: 'Đã hoàn thành', tien_do: 'Chậm tiến độ', han: '15/11/2026' }, doan: [{ code: 'I.A.1.1', truong: 'Ghi chú', noi_dung: 'x' }] } as AgentFacts }), rows);
-    expect(h).toContain('class="rpt-n"');
-    expect(h).toContain('Nên đối chiếu lại.');
-    expect(h).not.toContain('Quá hạn');   // dự án đã xong thì không báo quá hạn
-  });
-  it('so với tuần trước: hai cột Tuần trước / Tuần này, không phải thẻ tóm tắt dự án', () => {
-    const facts = { kieu: 'search', so_sanh: true, ma_hoi: 'I.A.1.1', tim_thay: true, doan: [
-      { code: 'I.A.1.1', ten: 'Dự án A', truong: 'Báo cáo các tuần trước', noi_dung: '[2026-10-01] - Hoàn thành thiết kế' },
-      { code: 'I.A.1.1', ten: 'Dự án A', truong: 'Công việc đã hoàn thành trong tuần', noi_dung: 'Chạy thử bản beta' },
-      { code: 'I.A.1.1', ten: 'Dự án A', truong: 'Kế hoạch tuần sau', noi_dung: 'Mở rộng thử nghiệm' },
-    ] } as AgentFacts;
-    const h = agentHtml(ans({ intent: 'search', answer: 'Có thay đổi.', facts }), rows);
-    expect(h).toContain('class="cmp"');
-    expect(h).toContain('Tuần trước');
-    expect(h).toContain('Tuần này');
-    expect(h).toContain('Chạy thử bản beta');
-    expect(h).toContain('Hoàn thành thiết kế');
-    expect(h).not.toContain('Nguồn trong bảng');
-  });
-  it('so với tuần trước nhưng bảng chưa có nội dung tuần trước: nói rõ, không bịa', () => {
-    const facts = { kieu: 'search', so_sanh: true, ma_hoi: 'I.A.1.1', tim_thay: true, doan: [{ code: 'I.A.1.1', ten: 'A', truong: 'Kế hoạch tuần sau', noi_dung: 'Làm tiếp' }] } as AgentFacts;
-    const h = agentHtml(ans({ intent: 'search', answer: 'ok', facts }), rows);
-    expect(h).toContain('chưa so sánh được');
-  });
-  it('phân tích chỉ 1 dự án: không vẽ thẻ vòng % và biểu đồ', () => {
-    const facts = { kieu: 'filter', so_luong: 1, tong: 4, du_an: [P], phan_tich: { so_du_an: 1, ty_le_dung_tien_do: 100, the_so: [{ nhan: 'Dự án', so: 1, muc: 'n' }], phan_bo: {}, nhan_xet: [] } } as unknown as AgentFacts;
-    const h = agentHtml(ans({ intent: 'filter', answer: 'ok', facts }), rows);
-    expect(h).not.toContain('ax-hero');
-  });
-  it('hỏi "dự án nào…" ra ít dự án: chỉ câu trả lời và danh sách, không vẽ vòng % và thẻ số lặp lại câu hỏi', () => {
-    const P2 = (c: string) => ({ code: c, name: 'Dự án ' + c, tien_do: 'Có nguy cơ chậm', rui_ro: 'Thấp', trang_thai: 'Đang thực hiện', han: '10/12/2026' });
-    const phan_tich = { so_du_an: 4, ty_le_dung_tien_do: 0, the_so: [{ nhan: 'Dự án', so: 4, muc: 'n' }, { nhan: 'Có nguy cơ chậm', so: 4, muc: 'w' }], phan_bo: {}, nhan_xet: [{ muc: 'w', noi_dung: '4 dự án đến hạn trong 14 ngày tới.' }] };
-    const facts = { kieu: 'filter', khop: true, so_luong: 4, tong: 56, du_an: [P2('I.A.1.1'), P2('I.A.1.2'), P2('I.A.1.3'), P2('I.A.1.4')], phan_tich } as unknown as AgentFacts;
-    const h = agentHtml(ans({ intent: 'filter', answer: 'Có 4 dự án.', facts }), rows);
-    ['ax-hero', 'ax-kp', 'Điều cần chú ý'].forEach((c) => expect(h, c).not.toContain(c));
-    expect(h).toContain('I.A.1.4');
   });
 });

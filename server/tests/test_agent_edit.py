@@ -358,3 +358,18 @@ def test_without_a_confirmation_question_the_same_reply_is_still_guarded(monkeyp
     ai_returns(monkeypatch, {'ops': [op('rui', 'Cao', wf='td', wv='Chậm tiến độ')], 'unclear': ''})
     out = agent_edit.propose('chuẩn rồi, làm đi', ROWS, FIELDS, history=[{'q': 'x', 'codes': [], 'a': 'Mình đã soạn 1 thay đổi'}])
     assert out['proposals'] == []
+
+
+def test_only_empty_wins_when_ai_misreads_pronoun_as_project_code(monkeypatch):
+    """"điền các domain còn thiếu cho t thành Food": AI nhầm "t" (tôi) thành điều kiện Mã DA = t; ô trống đã là phạm vi nên bỏ điều kiện đó."""
+    fields = FIELDS + [{'id': 'ma', 'name': 'Mã DA'}, {'id': 'domain', 'name': 'Domain', 'options': ['Food', 'Voice']}]
+    rows = [{'code': r['code'], 'values': {**r['values'], 'ma': r['code'], 'domain': d}} for r, d in zip(ROWS, ['', 'Voice', '', ''])]
+    ai_returns(monkeypatch, {'ops': [op('domain', 'Food', wf='ma', wv='t', only_empty=True)], 'unclear': ''})
+    res = agent_edit.propose('điền các domain còn thiếu cho t thành Food hết', rows, fields)
+    assert [p['code'] for p in res['proposals']] == ['DA01', 'DA03', 'DA04']
+    assert all(p['field'] == 'domain' and p['to'] == 'Food' for p in res['proposals'])
+    assert res['applied'] is False
+
+
+def test_pronoun_rule_and_empty_synonyms_are_in_edit_prompt():
+    assert 'còn thiếu' in agent_edit.SYSTEM and 'KHÔNG BAO GIỜ là mã dự án' in agent_edit.SYSTEM

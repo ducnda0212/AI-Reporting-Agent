@@ -4,11 +4,11 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { transcribeAudio } from '@/lib/api';
 import { Recorder, voiceSupported } from '@/lib/voice';
+import { useAutoGrow } from '@/hooks/useAutoGrow';
 import { ASKQ } from '@/data/constants';
 import { agExamples } from '@/lib/ai';
 import { activeWkOf, displayText, fieldById } from '@/lib/cell';
 import { now, rowsOf, useAppState } from '@/store';
-import { looksLikeEdit } from '@/lib/agentEdit';
 import '@/styles/agent-extra.css';
 import { warmAgent, chatClear, chatDelete, chatHistory, chatNew, chatOpen, chatSearch, askSend, exGo, pendingList, stgApply, stgDrop, stgGo, stgMore, stgShow, stgToggle } from '@/store/actions/ai';
 import { groupChats, previewOf, whenLabel } from '@/lib/chatHistory';
@@ -143,8 +143,9 @@ export function AiAssistantPanel(): JSX.Element {
   useEffect(() => { const el = scroll.current; if (el) el.scrollTop = el.scrollHeight; }, [L.length, busy]);
   const send = (t: string): void => { if (t.trim()) { askSend(t); setQ(''); } };
   const busyRef = useRef(busy); busyRef.current = busy;
-  /* giọng nói: Alt+M (hoặc Ctrl+M) bật/tắt thu âm; nói xong chữ nhận được tự gửi cho Agent */
+  /* giọng nói: Ctrl+M (hoặc Alt+M) bật/tắt thu âm; nói xong chữ nhận được chỉ điền vào ô chat, người dùng kiểm tra rồi Enter hoặc Ctrl+M nói tiếp */
   const [mic, setMic] = useState<'idle' | 'rec' | 'busy'>('idle'), [micMsg, setMicMsg] = useState(''), rec = useRef<Recorder | null>(null), taRef = useRef<HTMLTextAreaElement>(null);
+  useAutoGrow(taRef, q);
   const micOk = voiceSupported();
   const finish = async (): Promise<void> => {
     const r = rec.current; rec.current = null; if (!r) return;
@@ -154,8 +155,7 @@ export function AiAssistantPanel(): JSX.Element {
     try {
       const out = await transcribeAudio(wav);
       if (!out.text) { setMicMsg('Không nhận ra lời nói. Hãy nói rõ hơn.'); }
-      else if (busyRef.current || looksLikeEdit(out.text)) { setQ((p) => (p.trim() ? p.trim() + ' ' : '') + out.text); setMicMsg(busyRef.current ? 'Agent đang trả lời, chữ đã điền vào ô chat.' : 'Lệnh sửa bảng: kiểm tra lại chữ trong ô chat rồi bấm Gửi.'); taRef.current?.focus(); }
-      else { askSend(out.text); setMicMsg('Đã gửi cho Trợ lý.'); }
+      else { setQ((p) => (p.trim() ? p.trim() + ' ' : '') + out.text); setMicMsg('Đã điền vào ô chat. Kiểm tra rồi nhấn Enter để gửi, hoặc Ctrl+M để nói tiếp.'); taRef.current?.focus(); }
     } catch (e) { setMicMsg(e instanceof Error ? e.message : 'Không nhận dạng được giọng nói.'); }
     setMic('idle');
   };
@@ -163,7 +163,7 @@ export function AiAssistantPanel(): JSX.Element {
     if (mic === 'busy') return;
     if (mic === 'rec') { await finish(); return; }
     try {
-      const r = new Recorder(); await r.start(() => { void finish(); }); rec.current = r; setMic('rec'); setMicMsg('Đang nghe… bấm Alt+M để dừng, Esc để hủy.');
+      const r = new Recorder(); await r.start(() => { void finish(); }); rec.current = r; setMic('rec'); setMicMsg('Đang nghe… bấm Ctrl+M để dừng, Esc để hủy.');
     } catch { setMicMsg('Chưa được dùng micro. Cho phép micro cho trang này trong trình duyệt.'); }
   };
   const micRef = useRef(toggleMic); micRef.current = toggleMic;
@@ -222,7 +222,7 @@ export function AiAssistantPanel(): JSX.Element {
         <textarea id="askIn" ref={taRef} rows={1} value={q} onChange={(e) => setQ(e.target.value)} placeholder={r0 ? 'Hỏi về ' + r0.ma + ' hoặc cả tuần…' : 'Hỏi về dữ liệu tuần này…'}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(q); } }} />
         <div className="r"><small className={mic === 'rec' ? 'rec' : ''} role="status">{micMsg || 'Trả lời từ bảng ' + wkName(activeWkOf(s), true).toLowerCase() + ', ghi rõ cột nguồn'}</small>
-          {micOk && <button className={'aimic' + (mic === 'rec' ? ' on' : '')} data-act="askMic" aria-label={mic === 'rec' ? 'Dừng ghi âm' : 'Nói để hỏi (Alt+M)'} title="Nói để hỏi (Alt+M)" disabled={mic === 'busy'} onClick={() => { void toggleMic(); }}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg></button>}
+          {micOk && <button className={'aimic' + (mic === 'rec' ? ' on' : '')} data-act="askMic" aria-label={mic === 'rec' ? 'Dừng ghi âm' : 'Nói để hỏi (Ctrl+M)'} title="Nói để hỏi (Ctrl+M)" disabled={mic === 'busy'} onClick={() => { void toggleMic(); }}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg></button>}
           <button data-act="askSend" aria-label="Gửi" onClick={() => send(q)}>↑</button></div>
       </div>
       </>}

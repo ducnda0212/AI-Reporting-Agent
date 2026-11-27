@@ -10,6 +10,7 @@ import { TopBar } from '@/components/layout/TopBar';
 import { Rail } from '@/components/layout/Rail';
 import { StatusBar } from '@/components/layout/StatusBar';
 import { Toast } from '@/components/layout/Toast';
+import { AiFab } from '@/components/layout/AiFab';
 import { EditBanner } from '@/components/layout/EditBanner';
 import { FormatBar } from '@/components/grid/FormatBar';
 import { SelBar } from '@/components/grid/SelBar';
@@ -84,6 +85,7 @@ export function App(): JSX.Element {
       <ExportModal /><AiDoneModal /><ProjectPopout /><HelpDrawer />
       <PickerPop /><FilterPopup /><ContextMenu /><FindCard /><PECard /><FillHandle /><AgentCursor />
       <Toast /><Spotlight />
+      {!onImp && <AiFab />}
     </>
   );
 }

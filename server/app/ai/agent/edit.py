@@ -31,18 +31,20 @@ Mỗi thao tác ("ops"):
 - Phạm vi dự án (các khoá codes, where_field, where_value, only_empty, all nằm ngay trong thao tác), chọn MỘT cách:
   "codes": các mã dự án người dùng nêu (chép đúng mã trong danh sách mã);
   hoặc "where_field" + "where_value": điều kiện lọc người dùng nêu (vd nhóm Food → where_field là id cột nhóm, where_value "Food");
-  "only_empty": true nếu người dùng nói "còn trống", "chưa có", "chưa điền".
+  "only_empty": true nếu người dùng nói "còn trống", "còn thiếu", "chưa có", "chưa điền", "đang trống". Khi đó chính điều kiện ô trống đã là phạm vi: KHÔNG cần codes, where hay all.
   "all": true CHỈ khi người dùng nói rõ "tất cả dự án". Không tự mở rộng phạm vi.
   Từ đồng nghĩa: "trễ", "chậm", "quá hạn" = giá trị "Chậm tiến độ" của cột Tiến độ; "rủi ro cao" = giá trị "Cao" của cột Mức độ rủi ro.
   Từ trong câu lệnh trùng một giá trị cho phép của cột KHÁC cột cần sửa (vd "các dự án Voice", Voice thuộc cột Nhóm) là điều kiện lọc:
   dùng where_field/where_value, không liệt kê mã, không dùng "all".
 Ví dụ (cột "ghichu" = Ghi chú, "td" = Tiến độ, "rui" = Mức độ rủi ro, "mang" = Nhóm):
+- "điền các domain còn thiếu thành Food" -> ops: [{field: id cột Domain, value: "Food", only_empty: true, các khoá phạm vi khác để rỗng/false}]
 - "dự án nào chưa có note thì ghi chờ CBLD" -> ops: [{field: ghichu, value: "chờ CBLD", only_empty: true, các khoá phạm vi khác để rỗng/false}]
 - "đổi tất cả dự án sang đúng tiến độ" -> ops: [{field: td, value: "Đúng tiến độ", all: true}]
 - "mấy dự án trễ thì ghi note chờ họp" -> ops: [{field: ghichu, value: "chờ họp", where_field: td, where_value: "Chậm tiến độ"}]
 - "cho I.A.1.1 và I.A.1.2 rủi ro cao" -> ops: [{field: rui, value: "Cao", codes: [I.A.1.1, I.A.1.2]}]
 - "đổi mức rủi ro thành cao" (không nói dự án nào) -> ops: [], unclear: "Bạn muốn đổi mức rủi ro cho dự án nào?"
 Điều kiện "chưa có / còn trống" là only_empty, KHÔNG phải where_value rỗng.
+Đại từ chỉ người nói (t, tao, tôi, mình, mk, tui, "cho t", "giúp t", "hộ t") là người đang ra lệnh, KHÔNG BAO GIỜ là mã dự án, tên dự án hay giá trị.
 Cột chữ tự do (ghi chú…): người dùng gõ không dấu thì viết lại có dấu tiếng Việt đúng ("cho hop khoi" -> "chờ họp khối", "cho gpu" -> "chờ GPU"); giữ nguyên mã dự án, tên riêng, từ viết tắt, số; không thêm hay bớt ý.
 Hiểu cả câu gõ không dấu, viết tắt, lỗi chính tả, tiếng lóng, thiếu động từ ("rui ro cao", "ghi chu cho i.a.1.1 cho hop", "dat tdo cham", "td: dung tien do", "cho mấy cái trễ note chờ nha"). Chỉ cần đọc đúng ý, giá trị chép theo danh sách cho phép.
 Người dùng hay gọi dự án bằng TÊN, không nêu mã ("dự án nhận diện và xác thực khuôn mặt"). Bảng đưa "du_an" gồm mã và tên: đọc cả câu, tìm dự án có tên khớp ý người dùng (kể cả gõ thiếu dấu, thiếu chữ, nói gọn)
@@ -183,7 +185,7 @@ def _mock_parse(question: str, fields: dict, rows: list[dict]) -> dict:
     return {'ops': [], 'unclear': 'Chế độ mock chỉ hiểu mẫu "Đổi <cột> của <mã> thành <giá trị>".'}
 
 
-SCOPE_CUE = re.compile(r'\b(du an|tat ca|toan bo|moi|cac|nhung|may|chua|dang|nhom|nao)\b')
+SCOPE_CUE = re.compile(r'\b(du an|tat ca|toan bo|moi|cac|nhung|may|chua|dang|nhom|nao|con thieu|con trong|bo trong)\b')
 ALL_WORDS = re.compile(r'\b(tat ca|toan bo|moi du an|het cac du an)\b')
 
 
@@ -328,11 +330,15 @@ def build_preview(plan: dict, fields: dict, rows: list[dict], question: str = ''
                         alt.append((g, hits[0]))
                 if len(alt) == 1:
                     wf, want = alt[0]
-            if want is None:
+            if want is None and t.get('only_empty'):
+                want, wf = None, None   # điều kiện lọc AI đọc ra không khớp giá trị nào (vd nhầm đại từ "t" thành mã): ô trống đã là phạm vi, bỏ điều kiện lọc
+                targets = rows
+            elif want is None:
                 why = (f" trong cột {wf['name']}. " + (f"Giá trị hiện có: {', '.join(vals)}." if vals else 'Cột này đang trống ở mọi dự án nên không lọc theo cột này được.')) if wf else '.'
                 skipped.append({'field': f['id'], 'reason': f"Không tìm thấy điều kiện \"{wv}\"" + why})
                 continue
-            targets = [r for r in rows if r['values'].get(wf['id']) == want]
+            if wf is not None and want is not None:
+                targets = [r for r in rows if r['values'].get(wf['id']) == want]
         elif t.get('all') is True or t.get('only_empty'):
             targets = rows  # "dự án nào chưa có note": điều kiện ô trống đã là phạm vi, lọc ở bước dưới
         else:

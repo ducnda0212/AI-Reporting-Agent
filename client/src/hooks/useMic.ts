@@ -1,5 +1,5 @@
 /* Ghi âm để hỏi bằng giọng nói (dùng cho màn Trợ lý). Alt+M hoặc Ctrl+M bật/tắt, Esc huỷ.
-   Nói xong chữ nhận được TỰ GỬI cho Agent (V-LLM đọc ý định), không cần bấm Enter. */
+   Nói xong chữ nhận được CHỈ ĐIỀN vào ô chat (không tự gửi): người dùng kiểm tra, Enter để gửi hoặc Ctrl+M để nói tiếp. */
 import { useEffect, useRef, useState } from 'react';
 import { transcribeAudio } from '@/lib/api';
 import { Recorder, voiceSupported } from '@/lib/voice';
@@ -18,7 +18,7 @@ export function useMic(onText: (t: string) => void): { mic: MicState; micMsg: st
     try {
       const out = await transcribeAudio(wav);
       if (!out.text) setMsg('Không nhận ra lời nói. Hãy nói rõ hơn.');
-      else { cb.current(out.text); setMsg('Đã gửi cho Trợ lý.'); }
+      else { cb.current(out.text); setMsg('Đã điền vào ô chat. Kiểm tra rồi nhấn Enter để gửi, hoặc Ctrl+M để nói tiếp.'); }
     } catch (e) { setMsg(e instanceof Error ? e.message : 'Không nhận dạng được giọng nói.'); }
     setMic('idle');
   };
@@ -26,7 +26,7 @@ export function useMic(onText: (t: string) => void): { mic: MicState; micMsg: st
     if (mic === 'busy') return;
     if (mic === 'rec') { await finish(); return; }
     try {
-      const r = new Recorder(); await r.start(() => { void finish(); }); rec.current = r; setMic('rec'); setMsg('Đang nghe… bấm Alt+M để dừng, Esc để hủy.');
+      const r = new Recorder(); await r.start(() => { void finish(); }); rec.current = r; setMic('rec'); setMsg('Đang nghe… bấm Ctrl+M để dừng, Esc để hủy.');
     } catch { setMsg('Chưa được dùng micro. Cho phép micro cho trang này trong trình duyệt.'); }
   };
   const ref = useRef(toggleMic); ref.current = toggleMic;

@@ -10,45 +10,72 @@ from ..settings import settings
 from . import qa
 
 MAX_STEPS = 3
+_choice = {'v': 'required'}   # ép V-LLM luôn chọn một công cụ (không quên gọi); nền tảng không nhận thì hạ về 'auto'
 RESULT_CHARS = 2500   # phần số liệu trả lại cho V-LLM đọc (đủ để tự đánh giá kết quả rỗng / sai hướng)
 
 _COT = {'type': 'string', 'enum': list(qa.FIELDS)}
 TOOLS = [
-    {'name': 'tong_quan', 'description': 'Số liệu tổng quan cả bảng tuần này: số dự án, chậm tiến độ, có nguy cơ chậm, đến hạn. Dùng khi hỏi chung về cả báo cáo, không nhắc dự án hay chủ đề nào.',
+    {'name': 'tong_quan', 'description': 'Số liệu tổng quan cả bảng tuần này: số dự án, chậm tiến độ, có nguy cơ chậm, đến hạn. Dùng khi hỏi chung về tình hình cả báo cáo (tuần này thế nào, có ổn không, tóm tắt), không nhắc dự án hay chủ đề nào. KHÔNG dùng khi người dùng nhờ SOẠN / VIẾT văn bản (dùng hoi_lai). KHÔNG dùng khi người dùng muốn NHÌN / XEM LẠI bảng (xem lại toàn bộ bảng, hiện hết các dòng): đó là đổi cách xem, dùng doi_cach_xem.',
      'parameters': {'type': 'object', 'properties': {}}},
     {'name': 'loc_du_an', 'description': 'Liệt kê / đếm / thống kê dự án theo điều kiện trên các cột Tiến độ, Trạng thái, Mức độ rủi ro, Nhóm, theo hạn, hoặc đếm theo từng giá trị của một cột. '
-     'Giá trị phải là giá trị CÓ SẴN trong cột đó. KHÔNG dùng để tìm theo nội dung chữ (mục tiêu, KPI, vướng mắc): việc đó dùng tim_noi_dung.',
+     'Chỉ dùng khi người dùng HỎI / XEM danh sách hoặc số liệu. Giá trị phải là giá trị CÓ SẴN trong cột đó. KHÔNG dùng để tìm theo nội dung chữ (mục tiêu, KPI, vướng mắc): dùng tim_noi_dung. '
+     'KHÔNG dùng khi người dùng đang GÁN / ĐỔI một giá trị cho các dự án đó (dùng sua_bang). Đếm theo từng giá trị của một cột (nhóm, tiến độ, người phụ trách…): dùng dem_theo; dem_theo = phu_trach chỉ khi hỏi về nhiều dự án / cả bảng. Hỏi về MỘT dự án cụ thể (kể cả "ai phụ trách I.A.1.1") thì dùng xem_du_an.',
      'parameters': {'type': 'object', 'properties': {
          'dieu_kien': {'type': 'array', 'maxItems': 4, 'items': {'type': 'object', 'properties': {'cot': _COT, 'gia_tri': {'type': 'string'}, 'phu_dinh': {'type': 'boolean', 'description': 'true nếu là KHÔNG PHẢI / CHƯA giá trị đó'}}, 'required': ['cot', 'gia_tri']}},
          'han': {'type': 'string', 'enum': ['', 'da_qua_han', '7_ngay', '14_ngay', '30_ngay']},
          'sap_xep': {'type': 'string', 'enum': ['', *qa.SORTS]},
          'gioi_han': {'type': 'integer', 'description': 'số dự án muốn xem, 0 nếu không nêu'},
          'dem_theo': {'type': 'string', 'enum': ['', *qa.GROUP_BY[1:]], 'description': 'đếm theo từng giá trị của cột này'}}}},
-    {'name': 'xem_du_an', 'description': 'Xem thông tin MỘT dự án cụ thể, theo mã hoặc theo tên (tên có thể viết thiếu, không dấu hoặc nói lái). Dùng khi người dùng đang nói về một dự án; '
-     'xem danh sách "Dự án có tên gần nghĩa nhất với câu" để biết mã.',
+    {'name': 'xem_du_an', 'description': 'Xem thông tin MỘT dự án cụ thể, theo mã hoặc theo tên (tên có thể viết thiếu, không dấu hoặc nói lái). Dùng khi người dùng HỎI / MUỐN XEM một dự án; '
+     'xem danh sách "Dự án có tên gần nghĩa nhất với câu" để biết mã. KHÔNG dùng khi người dùng đang GÁN / ĐỔI giá trị cho dự án đó (dùng sua_bang).',
      'parameters': {'type': 'object', 'properties': {'ma_hoac_ten': {'type': 'string'}, 'muc_chi_tiet': {'type': 'string', 'enum': ['ngan', 'vua', 'day_du']}}, 'required': ['ma_hoac_ten']}},
     {'name': 'tim_noi_dung', 'description': 'Tìm trong NỘI DUNG chữ của báo cáo (mục tiêu, KPI, milestone, công việc, kế hoạch, vấn đề / vướng mắc, comment) theo chủ đề; hoặc hỏi một ô cụ thể của một dự án.',
      'parameters': {'type': 'object', 'properties': {
          'chu_de': {'type': 'string'}, 'cach_noi_khac': {'type': 'array', 'maxItems': 2, 'items': {'type': 'string'}, 'description': 'đồng nghĩa, viết tắt, thuật ngữ thường gặp trong báo cáo'},
          'o_can_tim': {'type': 'array', 'items': {'type': 'string', 'enum': [k for k, _ in qa.CONTENT_FIELDS]}, 'description': 'chỉ tìm trong các ô này; bỏ trống = mọi ô'},
          'ma_du_an': {'type': 'string', 'description': 'nếu hỏi về một dự án cụ thể'}}, 'required': ['chu_de']}},
-    {'name': 'xep_uu_tien', 'description': 'Gợi ý nên giữ / dừng / hoãn / cắt dự án nào khi thiếu nguồn lực.',
+    {'name': 'xep_uu_tien', 'description': 'Gợi ý nên giữ / dừng / hoãn / cắt / tạm dừng dự án nào khi thiếu người hoặc nguồn lực.',
      'parameters': {'type': 'object', 'properties': {'gioi_han': {'type': 'integer'}}}},
     {'name': 'du_an_cho_duyet', 'description': 'Danh sách dự án có ô nháp AI đang chờ người duyệt.', 'parameters': {'type': 'object', 'properties': {}}},
-    {'name': 'sua_bang', 'description': 'Người dùng MUỐN ĐỔI giá trị trong bảng (đặt, ghi, sửa, cho, gán…, kể cả câu khẳng định "I.C.1.1 vẫn có nguy cơ chậm nha"). Chỉ báo ý định; bản xem trước sẽ do bước khác tạo, chưa ghi gì.',
+    {'name': 'sua_bang', 'description': 'Người dùng MUỐN GÁN / ĐỔI một giá trị trong bảng, chưa ghi gì (bước xem trước do nơi khác tạo). Nhận ra bằng: có một dự án (mã hoặc tên) hoặc một nhóm / điều kiện ("mấy dự án Voice", "dự án nào chậm thì…", "tất cả dự án") '
+     'kèm MỘT GIÁ TRỊ MỚI cho một cột (tiến độ, rủi ro, trạng thái, note, ghi chú…) đi với động từ gán (cho, để, đặt, ghi, note, sửa, đổi, gán…) hoặc CÂU KHẲNG ĐỊNH không có từ hỏi ("I.C.1.1 vẫn có nguy cơ chậm nha", "td i.c.1.1 la cham", '
+     '"i.a.1.1 note cho hop khoi"), kể cả viết tắt hoặc không dấu. Mẫu "cho / để / đặt + tên cột + giá trị" ("cho tiến độ có nguy cơ chậm") nghĩa là ĐẶT cột đó thành giá trị đó, không phải lọc dự án có giá trị đó. ĐIỀN / GÁN HÀNG LOẠT cũng là sửa: "điền các ô còn thiếu / còn trống / chưa có … thành X", "điền domain còn thiếu thành Food hết", "gán X cho mọi dự án chưa có nhóm" (tên cột có thể là tên tiếng Anh hoặc viết tắt: domain, nhóm, status, note, risk…; giá trị mới là một giá trị cụ thể như Food, Voice, Chậm tiến độ). Câu có từ hỏi (nào, bao nhiêu, ?, không) là hỏi, không phải sửa.',
      'parameters': {'type': 'object', 'properties': {}}},
-    {'name': 'soan_nhap', 'description': 'Người dùng nhờ AI gợi ý / soạn nháp cho các ô còn trống (vd mức rủi ro cho dự án chưa đánh giá). Chưa ghi gì.',
+    {'name': 'soan_nhap', 'description': 'Người dùng nhờ AI điền nháp CÁC Ô CÒN TRỐNG trong bảng (Mức độ rủi ro, Vấn đề & rủi ro, Progress Report của từng dự án; "soạn nháp các ô trống", "AI viết nháp giúp tôi", kể cả không dấu). Chưa ghi gì. KHÔNG dùng khi nhờ viết nhận xét / đoạn tổng kết bằng chữ cho tuần (dùng soan_nhan_xet).',
      'parameters': {'type': 'object', 'properties': {}}},
-    {'name': 'duyet_nhap', 'description': 'Người dùng muốn duyệt / chấp nhận nháp AI của một số dự án.', 'parameters': {'type': 'object', 'properties': {}}},
-    {'name': 'doi_cach_xem', 'description': 'Đổi cách xem bảng trên giao diện (ẩn / hiện cột, chỉ xem dòng còn lỗi, bỏ lọc), không lọc dữ liệu.',
-     'parameters': {'type': 'object', 'properties': {'hanh_dong': {'type': 'string', 'enum': qa.VIEW_ACTIONS}, 'cot': {'type': 'string'}}, 'required': ['hanh_dong']}},
+    {'name': 'duyet_nhap', 'description': 'Người dùng NÓI RÕ bằng chữ duyệt / chấp nhận / áp dụng nháp AI. Câu đồng ý chung chung hoặc mơ hồ ("ok", "ừ", "làm tiếp đi") KHÔNG phải duyệt.', 'parameters': {'type': 'object', 'properties': {}}},
+    {'name': 'doi_cach_xem', 'description': 'Đổi cách XEM bảng trên giao diện, không trả số liệu: ẩn / hiện một cột ("ẩn cột note đi", kể cả không dấu), chỉ xem dòng còn lỗi, hoặc bỏ lọc để hiện lại toàn bộ bảng / mọi dòng ("cho tôi nhìn lại toàn bộ bảng", "xem lại hết", "hiện tất cả các dòng": muốn THẤY bảng, không hỏi số liệu).',
+     'parameters': {'type': 'object', 'properties': {'hanh_dong': {'type': 'string', 'enum': qa.VIEW_ACTIONS, 'description': 'hide = ẩn cột; show = hiện cột; only_fix = chỉ xem dòng còn lỗi; show_all = bỏ lọc, hiện lại toàn bộ bảng'}, 'cot': {'type': 'string', 'description': 'tên cột (với hide / show)'}}, 'required': ['hanh_dong']}},
+    {'name': 'gioi_thieu', 'description': 'CHỈ khi người dùng hỏi trợ lý làm được gì, có tính năng nào (vẽ biểu đồ, ma trận, xuất file…) hoặc cách dùng. Một mệnh lệnh làm việc cụ thể trên bảng (điền, đổi, gán, soạn…) KHÔNG phải câu hỏi về tính năng. Cũng dùng khi hỏi trợ lý là ai / là gì ("bạn là ai", "bạn là gì").', 'parameters': {'type': 'object', 'properties': {}}},
+    {'name': 'soan_nhan_xet', 'description': 'Người dùng nhờ SOẠN / VIẾT nhận xét PMO bằng chữ cho tuần (mọi câu có "nhận xét" + soạn/viết đều vào đây, KHÔNG phải soan_nhap): tình hình chung, dự án chậm, rủi ro cần chú ý ("soạn nhận xét PMO ngắn", "viết đoạn nhận xét tuần này", "tổng kết tuần bằng vài câu"). Trả một đoạn văn ngắn có tên dự án cụ thể, không vẽ thẻ hay biểu đồ. '
+     'KHÔNG dùng khi chỉ hỏi số liệu hay xem tóm tắt (dùng tong_quan).',
+     'parameters': {'type': 'object', 'properties': {}}},
+    {'name': 'kiem_tra_du_lieu', 'description': 'Kiểm tra bảng còn thiếu hoặc mâu thuẫn gì trước khi chốt: ô rủi ro / tiến độ / nhóm còn trống, chậm tiến độ mà rủi ro thấp, quá hạn mà ghi đúng tiến độ, dự án chưa có hạn ("bảng còn thiếu gì", "kiểm tra giúp trước khi chốt", "có chỗ nào sai sai không", "đủ dữ liệu chưa"). Không sửa gì.',
+     'parameters': {'type': 'object', 'properties': {}}},
+    {'name': 'giai_thich_cot', 'description': 'Giải thích MỘT cột của bảng: cột đó là gì, Agent hoặc người dùng có điền tay được không, được chọn những giá trị nào ("cột Domain điền được không", "Tiến độ có những giá trị nào", "cột này lấy từ đâu"). Không dùng để hỏi về giá trị của một dự án.',
+     'parameters': {'type': 'object', 'properties': {'cot': {'type': 'string', 'description': 'Tên cột như người dùng gọi (vd Domain, Tiến độ, Note).'}}, 'required': ['cot']}},
+    {'name': 'chot_xuat', 'description': 'Người dùng muốn CHỐT báo cáo và XUẤT file ("chốt báo cáo", "xuất file", "xuất báo cáo cho tuần này", "qua bước chốt"). Chỉ báo ý định: giao diện mở bước Chốt & xuất cho người dùng tự xác nhận.',
+     'parameters': {'type': 'object', 'properties': {}}},
+    {'name': 'hoan_tac', 'description': 'Người dùng muốn HOÀN TÁC thay đổi vừa làm trên bảng ("hoàn tác", "undo", "quay lại như cũ", "khôi phục lần sửa vừa rồi"). Chỉ báo ý định; giao diện hướng dẫn và người dùng tự xác nhận.',
+     'parameters': {'type': 'object', 'properties': {}}},
+    {'name': 'hoi_lai', 'description': 'Hỏi lại người dùng. Dùng khi KHÔNG chắc người dùng muốn gì, hoặc khi họ nhờ một việc mà không công cụ nào làm đúng việc đó '
+     '(ví dụ nhờ SOẠN / VIẾT một đoạn văn bản, email, nhận xét, báo cáo bằng chữ: các công cụ khác chỉ đọc số liệu hoặc đổi bảng, không viết văn bản). '
+     'TUYỆT ĐỐI không thay bằng một công cụ khác chỉ để có gì đó trả lời (đừng đưa tóm tắt số liệu khi người dùng nhờ soạn văn bản). '
+     'Câu hỏi ngắn, nói thẳng điều mình chưa làm được (nếu có) rồi gợi ý việc gần nhất làm được; kèm 2-3 lựa chọn là các lệnh hợp lệ của trợ lý (vd "Soạn nhận xét PMO ngắn cho tuần này", "Liệt kê dự án chậm"), không dùng lựa chọn "khác".',
+     'parameters': {'type': 'object', 'properties': {'cau_hoi': {'type': 'string', 'description': 'Câu hỏi lại ngắn, tiếng Việt, xưng mình. Không liệt kê lựa chọn trong câu: lựa chọn đưa vào lua_chon.'},
+                                                   'lua_chon': {'type': 'array', 'items': {'type': 'string'}, 'description': '2-3 cách hiểu / việc làm được, mỗi cái viết thành một câu người dùng có thể gõ lại.'}},
+                    'required': ['cau_hoi']}},
+    {'name': 'khong_lien_quan', 'description': 'CHỈ dùng khi chắc chắn câu không liên quan đến bảng dự án: chào, cảm ơn, chuyện ngoài lề không dính tới bảng (thời tiết, giá vàng, kể chuyện). Câu cụt không nói rõ làm gì ("ok", "làm tiếp đi") hoặc nhờ viết thứ liên quan tới báo cáo mà không công cụ nào viết được (email báo cáo…): dùng hoi_lai, không dùng công cụ này. Câu viết không dấu, viết tắt mà có thể là về bảng thì KHÔNG dùng công cụ này.',
+     'parameters': {'type': 'object', 'properties': {}}},
 ]
-INTENT_TOOLS = {'sua_bang': 'edit', 'soan_nhap': 'draft', 'duyet_nhap': 'approve'}
+INTENT_TOOLS_HELP = {'gioi_thieu': 'help'}
+INTENT_TOOLS = {'sua_bang': 'edit', 'soan_nhap': 'draft', 'duyet_nhap': 'approve', 'khong_lien_quan': 'unknown'}
 
 SYSTEM = """Bạn là trợ lý PMO đọc bảng báo cáo dự án. Bạn không có số liệu trong đầu: mọi số liệu và nội dung phải lấy bằng công cụ, không đoán.
-Cách làm: hiểu người dùng muốn gì (hỏi thông tin hay muốn đổi / soạn / duyệt / xem bảng) và họ đang nói về cái gì (một dự án cụ thể, một chủ đề / vấn đề, hay cả bảng), rồi gọi MỘT công cụ phù hợp.
+Cách làm: hiểu người dùng muốn gì (hỏi thông tin hay muốn đổi / soạn / duyệt / xem bảng) và họ đang nói về cái gì (một dự án cụ thể, một chủ đề / vấn đề, hay cả bảng), rồi gọi MỘT công cụ phù hợp. LUÔN gọi một công cụ; câu chào, cảm ơn, ngoài lề thì gọi khong_lien_quan. Chưa rõ người dùng muốn gì, hoặc họ nhờ việc không công cụ nào làm đúng (soạn văn bản, viết email, nhận xét bằng chữ…) thì gọi hoi_lai: hỏi lại, đừng đoán và đừng đưa kết quả của việc khác.
 Giá trị của các cột phải lấy trong danh sách "Giá trị hiện có". Nếu công cụ báo lỗi hoặc kết quả rỗng, đọc lời nhắc và thử cách khác (đúng công cụ, đúng giá trị, cách nói khác); đừng lặp lại lệnh cũ.
-Câu chào hoặc không liên quan bảng báo cáo: trả lời ngắn bằng tiếng Việt, không gọi công cụ. Tiếng Việt, không dùng ký hiệu markdown."""
+Người dùng hay gõ không dấu, viết tắt, câu cụt: đọc ý rồi chọn công cụ, đừng vội xếp vào khong_lien_quan. Phân biệt: nhờ VIẾT nhận xét / đoạn tổng kết tuần → soan_nhan_xet; nhờ điền nháp các ô còn trống trong bảng → soan_nhap. Chỉ đọc bảng: bạn không tự ghi bảng, việc đổi bảng chỉ báo ý định qua sua_bang / soan_nhap / duyet_nhap.
+Ba trường hợp hay nhầm: (1) câu dạng "<điều kiện> thì <ghi / note / đặt / cho> <giá trị>" (vd "dự án nào chậm thì note chờ CBLD") là LỆNH gán giá trị cho các dự án thỏa điều kiện → sua_bang, KHÔNG phải loc_du_an; (2) "ai" viết không dấu thường là AI: "ai viet nhap giup t" = nhờ AI soạn nháp → soan_nhap, không hỏi lại; (3) câu ngắn nối tiếp ngay sau khi trợ lý vừa soạn nháp ("làm lại đi", "soạn tiếp các ô còn lại") → soan_nhap; còn câu chỉ đồng ý / cảm ơn ("ok", "ừ", "cảm ơn") không yêu cầu việc gì → khong_lien_quan, KHÔNG duyet_nhap."""
 
 
 def _empty(facts: dict) -> bool:
@@ -66,12 +93,22 @@ def _to_d(name: str, a: dict, rows: list[dict], question: str, cands: list[dict]
     """Đổi lời gọi công cụ thành dạng V-LLM-router đã có (để dùng lại toàn bộ bước kiểm tra). Trả (d, lỗi); lỗi viết để V-LLM đọc và tự sửa."""
     if name == 'tong_quan':
         return {'query': 'summary'}, ''
+    if name == 'soan_nhan_xet':
+        return {'query': 'nhan_xet'}, ''
+    if name == 'kiem_tra_du_lieu':
+        return {'query': 'kiem_tra'}, ''
+    if name == 'giai_thich_cot':
+        return {'query': 'giai_thich_cot', 'column': str(a.get('cot') or '').strip()}, ''
+    if name == 'chot_xuat':
+        return {'query': 'export'}, ''
+    if name == 'hoan_tac':
+        return {'query': 'undo'}, ''
     if name == 'du_an_cho_duyet':
         return {'query': 'pending'}, ''
     if name == 'xep_uu_tien':
         return {'query': 'prioritize', 'limit': a.get('gioi_han') if isinstance(a.get('gioi_han'), int) else 0}, ''
-    if name in INTENT_TOOLS:
-        return {'query': INTENT_TOOLS[name]}, ''
+    if name in INTENT_TOOLS or name in INTENT_TOOLS_HELP:
+        return {'query': {**INTENT_TOOLS, **INTENT_TOOLS_HELP}[name]}, ''
     if name == 'doi_cach_xem':
         return {'query': 'view', 'view_action': a.get('hanh_dong'), 'column': a.get('cot') or ''}, ''
     if name == 'loc_du_an':
@@ -112,6 +149,9 @@ def _to_d(name: str, a: dict, rows: list[dict], question: str, cands: list[dict]
 
 def run(question: str, rows: list[dict], timing: dict, history: list[dict]) -> tuple[dict, str, dict | None]:
     """Trả (spec, routedBy, facts). facts = None khi công cụ chỉ báo ý định (sửa/soạn/duyệt/xem) hoặc câu chào."""
+    if qa.is_who(question):   # "bạn là ai": code trả lời ngay, không qua V-LLM nên không bị hiểu nhầm là câu ngoài lề
+        timing['cong_cu'] = [{'cong_cu': 'gioi_thieu', 'ket_qua': 'co'}]
+        return {'query': 'help', 'field': '', 'value': ''}, 'rule', None
     m = qa._masker(rows)
     vals = {k: qa._values(rows, qa.FIELDS[k]) for k in qa.FIELDS}
     cands = qa._name_candidates(question, rows, m)
@@ -124,7 +164,14 @@ def run(question: str, rows: list[dict], timing: dict, history: list[dict]) -> t
     timing['routeMs'] = 0
     for _ in range(MAX_STEPS):
         try:
-            r = client.chat_tools(msgs, TOOLS, max_tokens=400, model=settings.agent_model)
+            try:
+                r = client.chat_tools(msgs, TOOLS, max_tokens=400, model=settings.agent_model, tool_choice=_choice['v'])
+            except VllmError as e:
+                if _choice['v'] == 'required' and e.status in (400, 422):
+                    _choice['v'] = 'auto'
+                    r = client.chat_tools(msgs, TOOLS, max_tokens=400, model=settings.agent_model, tool_choice='auto')
+                else:
+                    raise
         except VllmError as e:
             timing['error'] = str(e)
             return {'query': 'unknown', 'field': '', 'value': ''}, 'rule', None
@@ -132,7 +179,21 @@ def run(question: str, rows: list[dict], timing: dict, history: list[dict]) -> t
         if not r['tool_calls']:
             break
         call = r['tool_calls'][0]
+        if last and call['name'] in ('hoi_lai', 'khong_lien_quan') and last[0].get('query') == 'search':   # đã tìm nội dung mà không thấy: trả lời "không thấy" chứ không hỏi lại / coi là ngoài lề
+            steps.append({'cong_cu': call['name'], 'tham_so': call['arguments'], 'bo_qua': 'dùng kết quả tìm rỗng'})
+            timing['cong_cu'] = steps
+            return last[0], settings.agent_model, last[1]
         msgs.append({'role': 'assistant', 'content': r['content'] or None, 'tool_calls': [{'id': call['id'], 'type': 'function', 'function': {'name': call['name'], 'arguments': json.dumps(call['arguments'], ensure_ascii=False)}}]})
+        if call['name'] == 'hoi_lai':
+            ask = str((call['arguments'] or {}).get('cau_hoi') or '').strip()
+            opts = [str(x).strip() for x in ((call['arguments'] or {}).get('lua_chon') or []) if str(x).strip()][:3]
+            if ask:
+                steps.append({'cong_cu': 'hoi_lai', 'tham_so': call['arguments']})
+                timing['cong_cu'] = steps
+                return {'query': 'unknown', 'field': '', 'value': '', 'hoi_lai': {'cau_hoi': ask[:300], 'lua_chon': [o[:120] for o in opts]}}, settings.agent_model, None
+            steps.append({'cong_cu': 'hoi_lai', 'tham_so': call['arguments'], 'loi': 'thiếu cau_hoi'})
+            msgs.append({'role': 'tool', 'tool_call_id': call['id'], 'content': 'LỖI: thiếu cau_hoi'})
+            continue
         d, err = _to_d(call['name'], call['arguments'], rows, question, cands)
         step = {'cong_cu': call['name'], 'tham_so': call['arguments']}
         if d is None:
@@ -153,7 +214,7 @@ def run(question: str, rows: list[dict], timing: dict, history: list[dict]) -> t
                     spec['queries'] = qs
         if d.get('detail') in ('ngan', 'vua', 'day_du'):
             spec['detail'] = d['detail']
-        if spec['query'] in ('edit', 'draft', 'approve', 'view', 'unknown'):
+        if spec['query'] in ('edit', 'draft', 'approve', 'view', 'unknown', 'export', 'undo'):
             steps.append(step)
             timing['cong_cu'] = steps
             return spec, settings.agent_model, None
@@ -168,4 +229,4 @@ def run(question: str, rows: list[dict], timing: dict, history: list[dict]) -> t
     timing['cong_cu'] = steps
     if last:
         return last[0], settings.agent_model, last[1]
-    return {'query': 'help', 'field': '', 'value': ''}, settings.agent_model, None
+    return {'query': 'unknown', 'field': '', 'value': ''}, settings.agent_model, None

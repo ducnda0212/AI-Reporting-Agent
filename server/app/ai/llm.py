@@ -312,14 +312,16 @@ class VllmClient:
         raise last or VllmError('Gọi V-LLM thất bại.')
 
     def chat_tools(self, messages: list[dict], tools: list[dict], max_tokens: int | None = None, temperature: float = 0.0,
-                   model: str | None = None) -> dict:
+                   model: str | None = None, tool_choice: str = 'auto') -> dict:
         """Gọi chat completions kèm công cụ (function calling). Trả {'content', 'tool_calls': [{'id','name','arguments': dict}], 'finish', 'usage', 'ms'}.
         `tools`: [{'name','description','parameters': JSON schema}]. Nền tảng không nhận tham số `tools` thì VllmError (400/404/422)."""
         url = f'{self.cfg.base_url}/chat/completions'
         t0 = time.time()
         body = self._body(messages, None, max_tokens, temperature, model)
         body['tools'] = [{'type': 'function', 'function': t} for t in tools]
-        body['tool_choice'] = 'auto'
+        body['tool_choice'] = tool_choice
+        if self.openai:
+            body['parallel_tool_calls'] = False   # mỗi lượt một công cụ: kết quả của công cụ trước quyết định công cụ sau
         refreshed = False
         for attempt in range(3):
             status, raw = self._http('POST', url, body, headers=self._auth_headers())

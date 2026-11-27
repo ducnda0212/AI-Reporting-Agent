@@ -779,8 +779,15 @@ def test_analysis_deadline_buckets_group_rows_and_health(mock_mode, today):
 def test_question_about_assistant_abilities_gets_capabilities_not_unknown(monkeypatch):
     fake_ai(monkeypatch, route=dict(query='help'), answer={'answer': 'AI không được viết câu này', 'codes': []})
     out = agent.ask('Bạn có tạo được các biểu đồ hay thanh ma trận tóm tắt, hay là các dự án không?', ROWS)
-    assert out['intent'] == 'help' and out['facts'] == {'kieu': 'help'} and out['answer'].startswith('Có.') and 'ma trận' in out['answer']
+    assert out['intent'] == 'help' and out['facts'] == {'kieu': 'help'} and out['answer'].startswith('Mình là trợ lý PMO') and 'Áp dụng' in out['answer']
     assert 'chưa hiểu' not in out['answer']
+
+
+def test_who_are_you_gets_one_short_line_without_calling_ai(monkeypatch):
+    fake_ai(monkeypatch, route=dict(query='unknown'), answer={'answer': 'AI không được viết câu này', 'codes': []})
+    out = agent.ask('bạn là ai', ROWS)
+    assert out['intent'] == 'help' and out['facts'] == {'kieu': 'help', 've': 'who'}
+    assert out['answer'].startswith('Chào bạn, mình là trợ lý AI') and 'Áp dụng' not in out['answer'] and len(out['answer']) < 100
 
 
 def test_abilities_question_without_ai_uses_rule_fallback(ai_down):
@@ -1075,6 +1082,15 @@ def test_tools_mode_self_corrects_after_a_tool_error(monkeypatch):
     assert [s['cong_cu'] for s in out['timing']['cong_cu']] == ['loc_du_an', 'tim_noi_dung']
 
 
+def test_tools_mode_keeps_empty_search_instead_of_asking_back_or_chitchat(monkeypatch):
+    """Đã tìm nội dung mà không thấy: V-LLM có gọi tiếp hoi_lai / khong_lien_quan thì vẫn trả "không thấy trong báo cáo", không hỏi lại hay coi là ngoài lề."""
+    for tail in ('hoi_lai', 'khong_lien_quan'):
+        args = {'cau_hoi': 'Bạn muốn tìm cách khác không?', 'lua_chon': ['A', 'B']} if tail == 'hoi_lai' else {}
+        _tool_agent(monkeypatch, [('tim_noi_dung', {'chu_de': 'qwxzv khong co trong bang'}), (tail, args)])
+        out = agent.ask('dự án nào nói về qwxzv', ROWS)
+        assert out['intent'] == 'search' and out['facts'].get('tim_thay') is False, tail
+
+
 def test_tools_mode_filter_view_and_chitchat(monkeypatch):
     _tool_agent(monkeypatch, [('loc_du_an', {'dieu_kien': [{'cot': 'tien_do', 'gia_tri': 'chậm'}]})])
     out = agent.ask('dự án nào chậm', ROWS)
@@ -1084,10 +1100,94 @@ def test_tools_mode_filter_view_and_chitchat(monkeypatch):
     assert out['intent'] == 'view' and out['view'].get('action') == 'only_fix'
     _tool_agent(monkeypatch, [])
     out = agent.ask('xin chào', ROWS)
-    assert out['intent'] == 'help'
+    assert out['intent'] == 'unknown'
 
 
 def test_tools_mode_never_writes_and_edit_only_signals_intent(monkeypatch):
     _tool_agent(monkeypatch, [('sua_bang', {})])
     out = agent.ask('DA01 đúng tiến độ rồi nhé', ROWS)
     assert out['intent'] == 'edit' and 'cong_cu' in out.get('timing', {}) or out['intent'] == 'edit'
+
+
+def test_tools_mode_asks_back_instead_of_substituting_a_summary(monkeypatch):
+    """Người dùng nhờ SOẠN văn bản: không công cụ nào viết văn bản, V-LLM gọi hoi_lai; hệ thống hỏi lại, không tự đưa bản tóm tắt."""
+    seen = _tool_agent(monkeypatch, [('hoi_lai', {'cau_hoi': 'Bạn muốn mình soạn đoạn nhận xét bằng chữ hay xem số liệu tóm tắt?', 'lua_chon': ['Xem tóm tắt số liệu tuần', 'Liệt kê dự án chậm']})])
+    out = agent.ask('Soạn nhận xét PMO ngắn cho tuần này', ROWS)
+    assert out['intent'] == 'unknown' and out['facts']['kieu'] == 'hoi_lai'
+    assert 'soạn đoạn nhận xét' in out['answer'] and out['facts']['lua_chon'] == ['Xem tóm tắt số liệu tuần', 'Liệt kê dự án chậm'] and 'Liệt kê dự án chậm' not in out['answer']
+    assert out['codes'] == [] and out['scope'] == []
+    assert [s['cong_cu'] for s in out['timing']['cong_cu']] == ['hoi_lai']
+
+
+def test_hoi_lai_tool_exists_and_summary_tool_refuses_writing_requests():
+    from server.app.ai.agent import tools
+    names = [t['name'] for t in tools.TOOLS]
+    assert 'hoi_lai' in names
+    summary = next(t for t in tools.TOOLS if t['name'] == 'tong_quan')
+    assert 'hoi_lai' in summary['description']
+
+
+def test_nhan_xet_writes_prose_from_computed_facts_and_names_real_projects(monkeypatch):
+    seen = _tool_agent(monkeypatch, [('soan_nhan_xet', {})])
+    sent = {}
+
+    def fake_json(msgs, schema, max_tokens=None, **k):
+        sent['system'], sent['user'] = msgs[0]['content'], msgs[-1]['content']
+        return {'model': 'm', 'data': {'answer': 'Tuần này có 4 dự án, 2 chậm tiến độ. Cần chú ý DA01 và DA03.', 'codes': ['DA01', 'DA03']}}
+    monkeypatch.setattr(agent.client, 'chat_json', fake_json)
+    out = agent.ask('Soạn nhận xét PMO ngắn cho tuần này', ROWS)
+    assert out['intent'] == 'nhan_xet' and out['facts']['kieu'] == 'nhan_xet'
+    assert 'NHẬN XÉT PMO' in sent['system'] and 'du_an_chu_y' in sent['user']
+    assert {x['code'] for x in out['facts']['du_an_chu_y']} >= {'DA01', 'DA03'}
+    assert out['grounded'] is True and 'DA01' in out['answer']
+    assert out['by'] != 'rule'
+
+
+def test_nhan_xet_falls_back_to_template_when_ai_invents_a_number_or_project(monkeypatch):
+    _tool_agent(monkeypatch, [('soan_nhan_xet', {})])
+    monkeypatch.setattr(agent.client, 'chat_json', lambda msgs, schema, max_tokens=None, **k: {'model': 'm', 'data': {'answer': 'Có 77 dự án chậm, nhất là DA99.', 'codes': ['DA99']}})
+    out = agent.ask('viết nhận xét tuần này', ROWS)
+    assert out['grounded'] is False and out['by'] == 'rule'
+    assert '77' not in out['answer'] and 'DA99' not in out['answer'] and 'DA01' in out['answer']
+
+
+def test_kiem_tra_lists_gaps_deterministically_without_ai(monkeypatch):
+    _tool_agent(monkeypatch, [('kiem_tra_du_lieu', {})])
+    monkeypatch.setattr(agent.client, 'chat_json', lambda *a, **k: pytest.fail('kiểm tra bảng do code làm, không gọi AI'))
+    out = agent.ask('bảng còn thiếu gì trước khi chốt', ROWS)
+    assert out['intent'] == 'kiem_tra'
+    names = {i['van_de']: i for i in out['facts']['van_de']}
+    assert names['Chưa đánh giá mức độ rủi ro']['ma'] == ['DA04'] and names['Có ô nháp AI chờ duyệt']['so'] == 2
+    assert 'Trước khi chốt' in out['answer'] and 'DA04' in out['answer']
+
+
+def test_giai_thich_cot_uses_the_columns_the_ui_sends(monkeypatch):
+    _tool_agent(monkeypatch, [('giai_thich_cot', {'cot': 'domain'})])
+    cols = [{'id': 'domain', 'name': 'Domain', 'options': ['Food', 'Voice'], 'editable': True}, {'id': 'tt', 'name': 'Trạng thái Jira', 'editable': False, 'lockedWhy': 'lấy thẳng từ Jira'}]
+    out = agent.ask('cột domain điền được không', ROWS, columns=cols)
+    assert out['facts']['cot']['id'] == 'domain' and out['facts']['cot']['sua_duoc'] is True
+    assert 'Food' in out['answer'] and 'Voice' in out['answer']
+    _tool_agent(monkeypatch, [('giai_thich_cot', {'cot': 'trạng thái jira'})])
+    out = agent.ask('cột trạng thái jira lấy từ đâu', ROWS, columns=cols)
+    assert out['facts']['cot']['sua_duoc'] is False and 'Jira' in out['answer']
+    _tool_agent(monkeypatch, [('giai_thich_cot', {'cot': 'không có cột này'})])
+    out = agent.ask('cột zzz là gì', ROWS, columns=cols)
+    assert out['facts']['cot'] is None and 'Domain' in out['answer']
+    _tool_agent(monkeypatch, [('giai_thich_cot', {'cot': 'domain'})])
+    out = agent.ask('cột domain điền được không', ROWS)      # giao diện không gửi cột: không đoán
+    assert out['facts']['cot'] is None
+
+
+def test_export_and_undo_only_signal_intent(monkeypatch):
+    for tool, intent in (('chot_xuat', 'export'), ('hoan_tac', 'undo')):
+        _tool_agent(monkeypatch, [(tool, {})])
+        monkeypatch.setattr(agent.client, 'chat_json', lambda *a, **k: pytest.fail('chỉ báo ý định, không gọi AI'))
+        out = agent.ask('chốt báo cáo giúp t' if intent == 'export' else 'hoàn tác', ROWS)
+        assert out['intent'] == intent and out['answer'] == '' and out['facts'] == {'kieu': intent}
+
+
+def test_new_tools_are_declared_and_router_enum_is_unchanged():
+    from server.app.ai.agent import tools
+    names = {t['name'] for t in tools.TOOLS}
+    assert {'soan_nhan_xet', 'kiem_tra_du_lieu', 'giai_thich_cot', 'chot_xuat', 'hoan_tac', 'hoi_lai'} <= names
+    assert 'nhan_xet' not in agent.ROUTE_SCHEMA['properties']['query']['enum']

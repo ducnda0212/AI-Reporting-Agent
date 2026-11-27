@@ -9,7 +9,7 @@ import { rowsOf, useAppState } from '@/store';
 import { askSend, chatNew, exGo, warmAgent } from '@/store/actions/ai';
 import { wkName } from '@/store/actions/versions';
 import { useMic } from '@/hooks/useMic';
-import { looksLikeEdit } from '@/lib/agentEdit';
+import { useAutoGrow } from '@/hooks/useAutoGrow';
 import { AgentRun } from '@/components/panels/AgentRun';
 import { History, Stage } from '@/components/panels/AiAssistantPanel';
 import '@/styles/ai-answer.css';
@@ -44,7 +44,8 @@ export function AssistantView(): JSX.Element {
   };
   const L = s.askLog, busy = !!L[L.length - 1]?.busy, r0 = s.sel ? s.allRows[s.sel.i] : null;
   const scroll = useRef<HTMLDivElement>(null), ta = useRef<HTMLTextAreaElement>(null);
-  const { mic, micMsg, micOk, toggleMic } = useMic((t) => { if (!busy && !looksLikeEdit(t)) askSend(t); else { setQ((p) => (p.trim() ? p.trim() + ' ' : '') + t); ta.current?.focus(); } });   // nói xong tự gửi; đang bận thì giữ chữ trong ô
+  useAutoGrow(ta, q, L.length ? 1 : 0);
+  const { mic, micMsg, micOk, toggleMic } = useMic((t) => { setQ((p) => (p.trim() ? p.trim() + ' ' : '') + t); ta.current?.focus(); });   // nói xong chỉ điền vào ô chat; người dùng kiểm tra rồi Enter, hoặc Ctrl+M nói tiếp (chữ mới nối vào sau)
   useEffect(() => { void warmAgent(); }, []);   // nạp sẵn embeddings cho bảng: câu hỏi đầu tiên không phải chờ
   useEffect(() => { const el = scroll.current; if (el) el.scrollTop = el.scrollHeight; }, [L.length, busy]);
   const send = (t: string): void => { if (t.trim() && !busy) { askSend(t); setQ(''); } };
@@ -67,7 +68,7 @@ export function AssistantView(): JSX.Element {
         placeholder={r0 ? 'Hỏi về ' + r0.ma + ' hoặc cả tuần…' : 'Hỏi về dữ liệu ' + wk.toLowerCase() + ' hoặc nhờ Agent sửa bảng…'}
         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(q); } }} />
       <div className="r"><small className={mic === 'rec' ? 'rec' : ''} role="status">{micMsg || 'Trả lời từ bảng ' + wk.toLowerCase() + ', ghi rõ cột nguồn'}</small>
-        {micOk && <button className={'aimic' + (mic === 'rec' ? ' on' : '')} data-act="askMic" aria-label={mic === 'rec' ? 'Dừng ghi âm' : 'Nói để hỏi (Alt+M)'} title="Nói để hỏi (Alt+M)" disabled={mic === 'busy'} onClick={() => { void toggleMic(); }}>{MIC_I}</button>}
+        {micOk && <button className={'aimic' + (mic === 'rec' ? ' on' : '')} data-act="askMic" aria-label={mic === 'rec' ? 'Dừng ghi âm' : 'Nói để hỏi (Ctrl+M)'} title="Nói để hỏi (Ctrl+M)" disabled={mic === 'busy'} onClick={() => { void toggleMic(); }}>{MIC_I}</button>}
         <button className="asv-send" data-act="askSend" aria-label="Gửi" disabled={busy || !q.trim()} onClick={() => send(q)}>↑</button></div>
     </div>
   );
