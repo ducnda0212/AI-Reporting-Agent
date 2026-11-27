@@ -15,14 +15,15 @@ from server.app.modules.mapping.wiki_parser import (
 )
 from server.app.schemas.row import JiraPeople, ReportRow, WeekReportEntry
 
-CODE_RE = re.compile(r"^\s*([IVX]+\.[A-Z0-9]+(?:\.[0-9]+)+)\s+(.*)$", re.S)
+CODE_RE = re.compile(r"^\s*((?:[IVX]+\.[A-Z0-9]+|x\.x)(?:\.[0-9]+)+)\s+(.*)$", re.S)
 PHASE_COLUMNS = ("Custom field (AI Lifecycle)", "Custom field (Phase)")
 DEV_COLUMNS = ("Custom field (Dev-BE)", "Custom field (Dev-FE)", "Custom field (Developer)", "Custom field (Developers)")
 PRD_COLUMN = re.compile(r"Custom field \(PRD( \(URL\))?\)(_\d+)?")
 URL_RE = re.compile(r"https?://[^\s\]|)]+")
 LABELS_COLUMN = re.compile(r"Labels(_\d+)?")
 DATE_FIELDS = ("start", "end")
-CODE_ONLY_RE = re.compile(r"\s*([IVX]+\.[A-Z0-9]+(?:\.[0-9]+)+)\s*")
+CODE_ONLY_RE = re.compile(r"\s*((?:[IVX]+\.[A-Z0-9]+|x\.x)(?:\.[0-9]+)+)\s*")
+_GROUP_CODE = re.compile(r"^[IVX]+\.[A-Z0-9]+\.\d+")
 # Columns computed by a built-in parser from their default Jira column; re-pointing one at any other column reads that
 # column verbatim, while keeping the default still runs the parser.
 SMART_SOURCES = {
@@ -172,8 +173,13 @@ def map_jira_issue_to_row(
     prw = {f"w{e['week']}": WeekReportEntry(date=e["date"], done=e["done"], plan=e["plan"])
            for e in sorted(entries, key=lambda e: e["date"]) if e["week"] in (1, 2, 3, 4)}
 
+    g = ma.rsplit(".", 1)[0] if ma else ""
+    mang = (catalog_entry or {}).get("mang_viec") or ""
+    # blank column A in the template makes rows inherit the previous workstream; ignore a name of another group
+    if not mang or ((m := _GROUP_CODE.match(mang)) and m.group() != g):
+        mang = g
     v: dict[str, str] = {
-        "mang": (catalog_entry or {}).get("mang_viec") or (ma.rsplit(".", 1)[0] if ma else ""),
+        "mang": mang,
         "ma": ma, "viec": viec, "muctieu": _goal(issue),
         "kpi": _kpi(_get(issue, *src("kpi", ("Custom field (KPI/Outcome)",)))),
         "pic": _get(issue, *src("pic", ("Assignee", "Custom field (PO)", "Custom field (Tech lead)"))),
@@ -202,7 +208,7 @@ def map_jira_issue_to_row(
 
     poff = _get(issue, "Custom field (PO)")
     return ReportRow(
-        i=i, key=issue.get("Issue key", ""), g=ma.rsplit(".", 1)[0] if ma else "",
+        i=i, key=issue.get("Issue key", ""), g=g,
         tplRow=(catalog_entry or {}).get("template_row") or 0,
         rawStatus=_get(issue, "Status"), rawProgress=_get(issue, "Custom field (Progress)"), rawPhase=raw_phase,
         labels=", ".join(val.strip() for k, val in issue.items() if LABELS_COLUMN.fullmatch(k) and (val or "").strip()),

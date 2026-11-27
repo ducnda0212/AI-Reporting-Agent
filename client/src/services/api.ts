@@ -4,7 +4,7 @@ import type {
   SessionDraftIn, SessionDraftOut, SessionDraftSaveRes, VersionItem
 } from '@/types';
 
-const BASE = '/api/v1';
+const BASE = (import.meta.env.VITE_API_URL ?? '') + '/api/v1';
 
 const FRIENDLY: Record<string, string> = {
   E_FILE_INVALID_SCHEMA: 'File thiếu cột Summary hoặc Issue key nên không đọc được. Có thể đây không phải file export từ Jira, hãy kiểm tra lại file rồi chọn lại.',

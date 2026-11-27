@@ -45,10 +45,10 @@ def test_e2e_golden_dataset_processing():
     assert data["success"] is True
     assert data["file_stats"]["total_rows"] == 19
     assert data["file_stats"]["total_cols"] == 88
-    assert data["file_stats"]["matched_projects"] == 6
+    assert data["file_stats"]["matched_projects"] == 7
 
     rows = {r["ma"]: r for r in data["rows"]}
-    assert set(rows) == {"I.A.3.1", "I.A.4.1", "I.A.4.2", "I.A.4.3", "I.A.5.2", "I.C.1.2"}
+    assert set(rows) == {"I.A.3.1", "I.A.4.1", "I.A.4.2", "I.A.4.3", "I.A.5.2", "I.C.1.2", "IV.Z.99.99"}
 
     # Choice A: children (incl. grandchildren and the x.x.x placeholder) are audit subtasks only
     assert [s["key"] for s in rows["I.C.1.2"]["subtasks"]] == [f"PMOGOLD-{n}" for n in (15, 16, 17, 21, 22)]
@@ -56,7 +56,9 @@ def test_e2e_golden_dataset_processing():
     assert [s["key"] for s in rows["I.A.5.2"]["subtasks"]] == ["PMOGOLD-13", "PMOGOLD-14"]
     assert rows["I.A.5.2"]["tt"] == "Đang thực hiện"  # not rolled up from Done/Monitoring children
 
-    assert [(o["key"], o["reason"]) for o in data["orphans"]] == [("PMOGOLD-18", "CODE_NOT_IN_CATALOG")]
+    assert data["orphans"] == []
+    assert rows["IV.Z.99.99"]["isNew"] is True and rows["IV.Z.99.99"]["key"] == "PMOGOLD-18"
+    assert all(r["g"] in {g["k"] for g in data["groups"]} for r in data["rows"])
     assert not any(b["code"] == "E_NO_CODE" for b in data["blockers"])
 
     # Progress Report wiki table split over W1..W4 (I.C.1.2 has entries 10-16 .. 11-15)
@@ -87,7 +89,7 @@ def test_e2e_issue_without_da_code_is_blocker_and_orphan():
     data = _upload(_edited_csv(add_issue), cycle="2026_11_w2")
     assert any(o["key"] == "PKD-202" and o["reason"] == "NO_DA_CODE" for o in data["orphans"])
     assert any(b["code"] == "E_NO_CODE" and b["key"] == "PKD-202" for b in data["blockers"])
-    assert len(data["rows"]) == 6  # pipeline did not crash or lose projects
+    assert len(data["rows"]) == 7  # pipeline did not crash or lose projects
 
 
 def test_e2e_reupload_keeps_user_override_and_flags_changed_source():

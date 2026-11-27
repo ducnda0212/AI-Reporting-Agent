@@ -3,7 +3,7 @@
 import { FIELDS, GRP } from '@/data/constants';
 import type { AppState, Field, PreviewSheet, Row } from '@/types';
 import { displayText, type CellCtx } from './cell';
-import { sortRows, visibleFields } from './grid';
+import { groupedRows, sortRows, visibleFields } from './grid';
 
 export interface ParsedFile { kind: 'csv' | 'xlsx'; enc?: string; delim?: string; sheets: PreviewSheet[] }
 
@@ -290,7 +290,7 @@ const HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
 export function exXlsx(rows: Row[], cols: Field[], ctx: CellCtx & Pick<AppState, 'sort' | 'groups'>): Blob {
   const X = (t: unknown): string => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
   const cl = (n: number): string => { let s = ''; n++; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
-  const list = ctx.groups.flatMap((g) => sortRows(rows.filter((r) => r.g === g.k), ctx.sort, ctx));
+  const list = groupedRows(ctx.groups, rows).flatMap(({ gr }) => sortRows(gr, ctx.sort, ctx));
   const c = (ci: number, ri: number, t: unknown, s: number): string => '<c r="' + cl(ci) + ri + '" t="inlineStr" s="' + s + '"><is><t xml:space="preserve">' + X(t) + '</t></is></c>';
   const sd = '<row r="1">' + cols.map((f, i) => c(i, 1, !i || cols[i - 1].grp !== f.grp ? GRP[f.grp] || f.grp : '', 1)).join('') + '</row>'
     + '<row r="2">' + cols.map((f, i) => c(i, 2, f.name, 1)).join('') + '</row>'

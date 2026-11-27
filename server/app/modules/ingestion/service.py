@@ -46,6 +46,17 @@ def catalog_groups(catalog: dict) -> list[GroupInfo]:
     return [GroupInfo(k=m[1] if (m := _GROUP_CODE.match(n)) else n, name=n) for n in names]
 
 
+def build_groups(catalog: dict, rows: list[ReportRow]) -> list[GroupInfo]:
+    """Template workstreams, then any group a row (e.g. a project new to the template) brings that they lack."""
+    groups = catalog_groups(catalog)
+    seen = {g.k for g in groups}
+    for r in rows:
+        if r.g and r.g not in seen:
+            seen.add(r.g)
+            groups.append(GroupInfo(k=r.g, name=r.mang or r.g))
+    return groups
+
+
 def run_pipeline(
     file_bytes: bytes, filename: str, cycle_id: str, baseline: IngestSession | None,
     mapping=None, assignments: dict[str, str] | None = None, overrides: dict[str, dict[str, str]] | None = None,
@@ -87,7 +98,7 @@ def run_pipeline(
             total_rows=len(tab.records), total_cols=len(headers), skipped_empty_rows=tab.skipped_empty_rows,
             matched_projects=len(rows), dup_groups=tab.dup_groups, dup_cols=tab.dup_cols, used_cols=mp.used(file_cols),
         ),
-        file_cols=tab.unique_raw_cols, groups=catalog_groups(catalog),
+        file_cols=tab.unique_raw_cols, groups=build_groups(catalog, rows),
         applied_mapping=AppliedMappingInfo(
             id=getattr(mapping, "id", ""), name=getattr(mapping, "name", ""),
             matched_cols=mp.matched(file_cols), total_cols=len(COLUMN_FIELDS),

@@ -4,7 +4,7 @@
 import { useEffect, useRef, type MouseEvent } from 'react';
 import { FIELDS, GRP } from '@/data/constants';
 import { cellValue, ck, fieldById } from '@/lib/cell';
-import { headerWidth, needsFix, scopeHas, selKeys, sortRows, tplColor, visibleFields } from '@/lib/grid';
+import { groupedRows, headerWidth, needsFix, scopeHas, selKeys, sortRows, tplColor, visibleFields } from '@/lib/grid';
 import { rowsOf, useAppState } from '@/store';
 import { setView } from '@/store/actions/flow';
 import { poOpen } from '@/store/actions/popout';
@@ -123,7 +123,7 @@ export function Grid(): JSX.Element {
   const bandLeft = 40 + 92 + (s.pinViec ? 215 : 0) + 10;
 
   /* thứ tự dòng (theo nhóm, đã sắp xếp), vùng chọn, ô Agent đang đề xuất */
-  const groups = s.groups.map((g) => ({ g, gr: sortRows(list.filter((r) => r.g === g.k), s.sort, s) })).filter((x) => x.gr.length);
+  const groups = groupedRows(s.groups, list).map(({ g, gr }) => ({ g, gr: sortRows(gr, s.sort, s) }));
   const order: number[] = [];
   groups.forEach((x) => { if (!s.collapsed[x.g.k]) x.gr.forEach((r) => order.push(r.i)); });
   const picked = new Set(s.range ? selKeys(s.sel, s.range, order, vf.map((f) => f.id)) : []);

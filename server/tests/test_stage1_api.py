@@ -79,3 +79,18 @@ def test_default_mapping_cannot_be_deleted_and_clone_is_independent():
     clone = client.post("/api/v1/mappings/map_default_pmo_49col/clone", json={}).json()
     assert clone["is_default"] is False and clone["id"] != "map_default_pmo_49col"
     assert settings.FIXTURES_DIR
+
+
+def test_upload_includes_dynamic_groups_for_all_returned_rows():
+    csv_bytes = (
+        "Summary,Issue key,Issue Type,Status\n"
+        "I.1.6.5 Chuẩn hóa sự cố,PMO-1,Epic,In Progress\n"
+        "x.x.20 Cảnh báo SLA,PMO-2,Epic,To Do\n"
+        "I.Z.9.1 Dự án mới ngoài mẫu,PMO-3,Epic,To Do\n"
+    ).encode("utf-8")
+    res = _upload(csv_bytes, name="extra.csv", cycle="2026_03_w1")
+    assert res.status_code == 200
+    body = res.json()
+    group_keys = {g["k"] for g in body["groups"]}
+    assert {r["ma"] for r in body["rows"]} == {"I.1.6.5", "x.x.20", "I.Z.9.1"}
+    assert all(r["g"] in group_keys for r in body["rows"])

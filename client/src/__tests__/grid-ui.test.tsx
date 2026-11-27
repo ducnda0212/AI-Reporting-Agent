@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import { getState, mutate, resetStore } from '@/store';
 import { loadFixture } from './fixtures';
-import { startReview } from '@/store/actions/ai';
+import { pendingList, startReview } from '@/store/actions/ai';
 import {
   applyEdit, approveRows, arrow, autofitCol, clearRowSel, edgeJump, fillTo, findSet, fixGo, gridOrder, grpSel, peSave, pkClose, pkOpen, pkPick,
   rowSelAll, selectCell, selectRange, setColW, startEdit, svflashClear, toggleCol, togglePin, toggleRowSel, typeKey
@@ -347,5 +347,18 @@ describe('Lớp nổi của bảng render sạch (SSR)', () => {
     expect(fc).toContain('Cột đang chọn');
     expect(fc).toContain('<mark>I.A.3.1</mark>');
     expect(renderToString(<FillHandle />)).toContain('id="fillh"');
+  });
+
+  it('Grid, gridOrder và pendingList vẫn hiển thị dòng có nhóm ngoài s.groups', () => {
+    load();
+    mutate((d) => {
+      const extra = { ...d.allRows[0], i: d.allRows.length, ma: 'I.1.6.5', g: 'I.1.6', mang: 'I.1.6', viec: 'Chuẩn hóa sự cố', ai: { rui: { text: 'Cao', why: '', src: '', ok: false } } };
+      d.allRows.push(extra as never);
+    });
+    const html = renderToString(<Grid />);
+    const last = getState().allRows.length - 1;
+    expect(html).toContain('I.1.6.5');
+    expect(gridOrder(getState())).toContain(last);
+    expect(pendingList(getState())).toContain(last + '|rui');
   });
 });
