@@ -9,6 +9,7 @@ from server.app.modules.mapping.router import router as mapping_router
 from server.app.modules.mapping.seed import migrate_schema, seed_default_mapping
 from server.app.modules.reporting.router import router as reporting_router
 from server.app.modules.session.router import router as session_router
+import os
 
 Base.metadata.create_all(bind=engine)
 migrate_schema(engine)
@@ -17,7 +18,7 @@ with SessionLocal() as _db:  # import-time (like create_all) so TestClient(app) 
 
 app = FastAPI(title="PMO Reporting Agent API", version="0.1.0")
 app.add_middleware(
-    CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "https://ai-reporting-agent-lpis.vercel.app"],
+    CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", os.getenv("WEB_URL")],
     allow_methods=["*"], allow_headers=["*"], expose_headers=["Content-Disposition", "X-Exported-Filename"],
 )
 app.include_router(ingest_router)
