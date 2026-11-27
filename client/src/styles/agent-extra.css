@@ -281,3 +281,55 @@
 .asv-side .chhr:hover .chhx,.asv-side .chhr:focus-within .chhx{opacity:1}
 .asv-side .chhx:hover:not(:disabled){background:#fee2e2;color:#dc2626}
 @media (hover:none){.asv-side .chhx{opacity:.7}}
+
+/* Thẻ "làm được gì" và nút chọn khi trợ lý hỏi lại */
+.hp{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.hp-g{padding:8px 0 2px;border-top:1px solid #eef2f7}
+.hp-g:first-child{border-top:0;padding-top:0}
+.hp-t{font-size:12.5px;font-weight:700;color:#475569}
+.hp .fx-fu{margin:6px 0 4px}
+
+/* ===== Làm đẹp (tham chiếu Mobbin: Remote/Intercom danh sách hành động, Contra/Productboard chip + ô nhập bo tròn) ===== */
+/* Chip gợi ý: dùng biến theme để đúng cả chế độ tối */
+.askai .fx-fu button{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:7px 13px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.askai .fx-fu button span{color:var(--ai)}
+.askai .fx-fu button:hover{border-color:var(--aiLine);background:var(--aiBg);box-shadow:0 8px 16px -12px color-mix(in srgb,var(--ai) 70%,transparent)}
+.askai .fx-fu button:focus-visible{outline:2px solid var(--ai)}
+
+/* Thẻ "Mình làm được gì": mỗi nhóm một thẻ, mỗi gợi ý là một hàng (biểu tượng, câu mẫu, mũi tên) */
+.hp{gap:10px;margin-top:12px}
+.hp-g{padding:0;border:1px solid var(--line);border-radius:14px;background:var(--bg);overflow:hidden}
+.hp-g:first-child{border-top:1px solid var(--line);padding-top:0}
+.hp-t{display:flex;align-items:center;gap:8px;padding:9px 12px;font-size:12px;font-weight:700;color:var(--ink2);background:linear-gradient(90deg,var(--aiBg),transparent 85%);border-bottom:1px solid var(--line2)}
+.hp-t::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--ai);flex:none}
+.hp .fx-fu{display:flex;flex-direction:column;gap:0;margin:0}
+.askai .hp .fx-fu button{width:100%;justify-content:flex-start;border:0;border-radius:0;background:none;box-shadow:none;padding:9px 12px;font-size:13px;color:var(--ink);position:relative;transform:none}
+.askai .hp .fx-fu button+button{border-top:1px solid var(--line2)}
+.askai .hp .fx-fu button::after{content:"›";margin-left:auto;padding-left:10px;color:var(--mut2);font-size:16px;line-height:1;transition:transform .15s,color .15s}
+.askai .hp .fx-fu button:hover{background:var(--aiBg);box-shadow:none;transform:none}
+.askai .hp .fx-fu button:hover::after{transform:translateX(3px);color:var(--ai)}
+.askai .hp .fx-fu button span{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:7px;background:var(--aiBg);color:var(--ai);font-size:11px;flex:none}
+
+/* Câu trả lời của trợ lý: nền sáng, bóng nhẹ, góc mềm hơn; câu của người dùng có sắc tím rất nhạt */
+.askai{border-radius:16px 16px 16px 5px;box-shadow:0 1px 2px rgba(15,23,42,.04),0 10px 24px -20px rgba(15,23,42,.35)}
+.askme{border-radius:16px 16px 5px 16px;background:linear-gradient(135deg,var(--ink),color-mix(in srgb,var(--ink) 80%,var(--ai)))}
+
+/* Ô nhập: bo tròn lớn, bóng mềm, viền tím khi focus */
+.aiin{border-radius:18px;padding:10px 10px 8px 14px;box-shadow:0 1px 2px rgba(15,23,42,.05),0 12px 26px -20px color-mix(in srgb,var(--ai) 55%,transparent)}
+.aiin:focus-within{box-shadow:0 0 0 4px var(--aiBg),0 14px 28px -20px color-mix(in srgb,var(--ai) 70%,transparent)}
+.aiin .r button{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--ai),#2563eb);transition:transform .15s,filter .15s}
+.aiin .r button:hover:not(:disabled){transform:translateY(-1px) scale(1.06);filter:brightness(1.08)}
+
+/* Nút AI nổi: viên thuốc kính mờ với biểu tượng trong vòng tròn; vòng sáng lặp chậm, dừng khi rê chuột */
+.aifab{position:fixed;right:22px;bottom:52px;z-index:40;display:inline-flex;align-items:center;gap:9px;height:48px;padding:0 18px 0 6px;border:1px solid color-mix(in srgb,var(--ai) 35%,transparent);border-radius:24px;background:color-mix(in srgb,var(--bg) 88%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);color:var(--ink);font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;box-shadow:0 10px 26px -10px color-mix(in srgb,var(--ai) 70%,transparent),0 2px 6px rgba(15,23,42,.08);animation:aifab-in .4s cubic-bezier(.2,.8,.2,1) both,aifab-ring 3.2s ease-out 1.2s infinite;transition:transform .18s,box-shadow .18s,border-color .18s}
+.aifab-i{width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;background:conic-gradient(from 210deg,var(--ai),#e879f9,#38bdf8,var(--ai));box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.35)}
+.aifab:hover{transform:translateY(-2px);border-color:var(--ai);box-shadow:0 14px 30px -10px color-mix(in srgb,var(--ai) 85%,transparent),0 2px 6px rgba(15,23,42,.1);animation:aifab-in .4s both}
+.aifab:hover .aifab-i svg{animation:aifab-spark .7s ease-in-out}
+.aifab:active{transform:scale(.97)}
+.aifab:focus-visible{outline:3px solid var(--aiLine);outline-offset:2px}
+.aifab svg{flex:none}
+@keyframes aifab-in{from{opacity:0;transform:translateY(12px) scale(.9)}to{opacity:1;transform:none}}
+@keyframes aifab-ring{0%{box-shadow:0 10px 26px -10px color-mix(in srgb,var(--ai) 70%,transparent),0 0 0 0 color-mix(in srgb,var(--ai) 40%,transparent)}70%,100%{box-shadow:0 10px 26px -10px color-mix(in srgb,var(--ai) 70%,transparent),0 0 0 14px transparent}}
+@keyframes aifab-spark{0%{transform:rotate(0) scale(1)}50%{transform:rotate(25deg) scale(1.2)}100%{transform:rotate(0) scale(1)}}
+@media (max-width:640px){.aifab{right:14px;bottom:56px;padding:0 6px}.aifab-t{display:none}}
+@media (prefers-reduced-motion:reduce){.aifab,.aifab:hover{animation:none}.aifab:hover .aifab-i svg{animation:none}.askai .hp .fx-fu button::after{transition:none}}

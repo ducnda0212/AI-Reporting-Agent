@@ -1,5 +1,6 @@
 """Máy chủ V-LLM giả để kiểm thử: OAuth token, /models, /chat/completions (chuẩn OpenAI)."""
 import json
+import re
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -27,8 +28,11 @@ def _answer(body):
         return json.dumps({'ops': [{'field': 'rui', 'value': 'Trung bình', 'target': {'codes': [], 'where_field': 'mang', 'where_value': 'Food',
                                                                                   'only_empty': True, 'all': False}}], 'unclear': ''}, ensure_ascii=False)
     if name == 'agent_route' or 'Giá trị hiện có trong bảng' in user:
-        q = user.split('Câu hỏi:', 1)[-1].lower()
-        spec = {'query': 'filter', 'field': 'tien_do', 'value': 'chậm'} if 'chậm' in q else {'query': 'summary', 'field': '', 'value': ''}
+        q = (user.split('Câu của người dùng:', 1)[-1] if 'Câu của người dùng:' in user else user.split('Câu hỏi:', 1)[-1]).lower().strip()
+        if re.match(r'(điền|đổi|sửa|cập nhật|gán)\b', q):
+            spec = {'query': 'edit', 'field': '', 'value': ''}
+        else:
+            spec = {'query': 'filter', 'field': 'tien_do', 'value': 'chậm'} if 'chậm' in q else {'query': 'summary', 'field': '', 'value': ''}
         return json.dumps(spec, ensure_ascii=False)
     if name == 'agent_answer' or 'so_lieu:' in user:
         facts = json.loads(user.split('so_lieu:\n', 1)[1])
@@ -91,6 +95,12 @@ class H(BaseHTTPRequestHandler):
         self._send(404, {})
 
     def do_POST(self):
+        if self.path.endswith('/audio/transcriptions'):   # nhận dạng giọng nói: multipart, không phải JSON
+            if not self._auth_ok():
+                self.rfile.read(int(self.headers.get('Content-Length', 0)))
+                return self._send(401, {'error': 'unauthorized'})
+            STATE['asr_raw'] = self.rfile.read(int(self.headers.get('Content-Length', 0)))
+            return self._send(200, {'text': 'cho i chấm a chấm 1 chấm 1 rủi ro cao', 'language': 'vi', 'duration': 1.5})
         body = json.loads(self.rfile.read(int(self.headers.get('Content-Length', 0))) or b'{}')
         if self.path.endswith('/oauth/token'):
             if body.get('client_secret') != 'secret':

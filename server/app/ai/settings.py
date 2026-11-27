@@ -125,7 +125,7 @@ def load(env: dict | None = None) -> Settings:
         port=int(g('PORT', '8000')),
         embed_model=(g('OPENAI_EMBED_MODEL', 'text-embedding-3-small') if oa else g('AI_EMBED_MODEL', '')).strip(),
         rag_embeddings=b('AI_RAG_EMBEDDINGS', '1'),
-        rerank_model='' if oa else g('AI_RERANK_MODEL', 'v-llm-v1-rerank-medium').strip(),   # OpenAI không có rerank: chỉ V-LLM
+        rerank_model=(g('AI_RERANK_MODEL', '') if oa else g('AI_RERANK_MODEL', 'v-llm-v1-rerank-medium')).strip(),   # openai: chỉ bật khi tự đặt AI_RERANK_MODEL (endpoint {base}/rerank)
         rag_rerank=b('AI_RAG_RERANK', '1'),
         agent_mode='tools' if g('AI_AGENT_MODE', 'router').strip().lower() == 'tools' else 'router',
         embed_base_url='' if oa else g('AI_EMBED_BASE_URL', '').strip().rstrip('/'),   # openai: embeddings đi cùng base và key với chat

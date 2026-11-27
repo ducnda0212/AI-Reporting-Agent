@@ -1,4 +1,4 @@
-/* Khung bên phải dùng chung (prototype pnDecorate L10127): tay kéo .pnrz (rộng tối thiểu 300px, tối đa 75% màn, nhấp đúp = phóng to),
+/* Khung bên phải dùng chung (độ phóng to bằng đúng mức zoom của bảng, nên chữ và độ rộng khung đổi cùng bảng; độ rộng lưu theo đơn vị ở mức 100%) (prototype pnDecorate L10127): tay kéo .pnrz (rộng tối thiểu 300px, tối đa 75% màn, nhấp đúp = phóng to),
    nút phóng to .pnexp (62% màn, tối đa 980px) và mục gập .pnsh (nhớ ở pmo-proto-panel-v1). Trạng thái ở state.pn. */
 import { useRef, type ReactNode } from 'react';
 import { useAppState } from '@/store';
@@ -18,14 +18,14 @@ export const PnClose = (): JSX.Element => <button className="pclose" data-act="p
 
 export function PanelShell({ k, cls, label, children }: { k: string; cls: string; label?: string; children: ReactNode }): JSX.Element {
   const ref = useRef<HTMLElement>(null);
-  const big = useAppState((s) => s.pn.big === k), w = useAppState((s) => s.pn.w[k]);
-  const width = big ? (typeof window === 'undefined' ? 600 : Math.round(Math.min(window.innerWidth * 0.62, 980))) : w;
+  const big = useAppState((s) => s.pn.big === k), w = useAppState((s) => s.pn.w[k]), z = (useAppState((s) => s.gx.zoom) || 100) / 100;
+  const width = big ? (typeof window === 'undefined' ? 600 : Math.round(Math.min(window.innerWidth * 0.62, 980) / z)) : w;
   const drag = (e: React.MouseEvent): void => {
     const el = ref.current; if (!el) return;
     e.preventDefault();
     const right = el.getBoundingClientRect().right; let nw = 0;
     document.body.classList.add('pnresizing');
-    const mv = (ev: MouseEvent): void => { nw = Math.max(300, Math.min(window.innerWidth * 0.75, right - ev.clientX)); el.style.width = nw + 'px'; };
+    const mv = (ev: MouseEvent): void => { nw = Math.max(300, Math.min(window.innerWidth * 0.75 / z, (right - ev.clientX) / z)); el.style.width = nw + 'px'; };
     const up = (): void => {
       document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up);
       document.body.classList.remove('pnresizing');
@@ -34,7 +34,7 @@ export function PanelShell({ k, cls, label, children }: { k: string; cls: string
     document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up);
   };
   return (
-    <aside ref={ref} className={'panel ' + cls + (big ? ' pnbig' : '')} aria-label={label} style={width ? { width } : undefined}>
+    <aside ref={ref} className={'panel ' + cls + (big ? ' pnbig' : '')} aria-label={label} style={{ ...(width ? { width } : {}), ...(z !== 1 ? { zoom: z, maxWidth: 75 / z + 'vw' } : {}) }}>
       <div className="pnrz" title="Kéo để đổi độ rộng · nhấp đúp để phóng to / thu nhỏ" aria-hidden="true" onMouseDown={drag} onDoubleClick={() => pnToggleBig(k)}><i /></div>
       {children}
     </aside>

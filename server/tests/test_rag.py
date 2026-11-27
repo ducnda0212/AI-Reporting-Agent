@@ -328,7 +328,7 @@ def test_search_gives_follow_up_scope(monkeypatch):
 
 def test_status_reports_embeddings_setting(api):
     code, body = api('/api/ai/status')
-    assert code == 200 and body['rag'] == {'embeddings': False, 'model': None}
+    assert code == 200 and body['rag']['embeddings'] is False and body['rag']['model'] is None
 
 
 def test_weak_keyword_match_returns_nothing_without_embeddings():
@@ -479,10 +479,14 @@ def test_rerank_floor_can_drop_weak_passages(rerank, monkeypatch):
     assert rag.search('chờ GPU', CLEAN)['passages'] == []
 
 
-def test_openai_provider_never_calls_rerank(rerank, monkeypatch):
+def test_openai_provider_calls_rerank_only_when_a_model_is_set(rerank, monkeypatch):
     monkeypatch.setattr(settings, 'provider', 'openai')
     rag.search('chờ GPU', CLEAN)
-    assert rerank['rerank_calls'] == 0
+    assert rerank['rerank_calls'] == 1          # đã đặt AI_RERANK_MODEL: dùng như V-LLM
+    monkeypatch.setattr(settings, 'rerank_model', '')
+    n = rerank['rerank_calls']
+    rag.search('chờ GPU', CLEAN)
+    assert rerank['rerank_calls'] == n and not rag.rerank_enabled()   # không đặt model: tắt, không gọi nhầm
 
 
 def test_rerank_setting_follows_the_provider():

@@ -62,7 +62,7 @@ export interface AgentRow {
 }
 /** Một dự án trong số liệu backend tính (đã là giá trị đúng như bảng). */
 export interface FactProject { code: string; name?: string; tien_do?: string; rui_ro?: string; trang_thai?: string; nhom?: string; han?: string; ly_do?: string }
-/** Một nhóm gợi ý ưu tiên: số dự án và các dự án đầu danh sách. */
+/** Một nhóm dự án backend xếp (so = tổng số trong nhóm, du_an = các dự án được liệt kê). */
 export interface FactBucket { so: number; du_an: FactProject[] }
 /** Một đoạn chữ tìm được trong bảng (RAG). */
 export interface FactPassage { code: string; ten?: string; truong?: string; noi_dung?: string }
@@ -83,14 +83,7 @@ export interface FactAnalysis {
 export interface AgentFacts {
   kieu?: string; so_luong?: number; so_doan?: number; tong?: number; con_lai?: number; tim_thay?: boolean; khop?: boolean;
   du_an?: FactProject | FactProject[] | null;
-  /** Gợi ý ưu tiên khi cắt giảm (kieu 'prioritize'): nên giữ / cần xem lại / có thể hoãn, kèm tiêu chí và lưu ý. */
-  nen_giu?: FactBucket; can_xem_lai?: FactBucket; co_the_hoan?: FactBucket; dang_chay?: number; tieu_chi?: string[]; luu_y?: string;
-  /** Khi người dùng nêu sức chứa / nhóm bảo vệ: danh sách giữ - hoãn theo sức chứa và nhóm được giữ nguyên. */
-  suc_chua?: { giu_toi_da: number; giu: FactBucket; hoan: FactBucket; du_cho?: boolean; bao_ve_vuot_suc_chua?: boolean };
-  bao_ve?: FactBucket & { nhom: string[] };
   doan?: FactPassage[];
-  /** Câu hỏi "so với tuần trước": các đoạn `doan` gồm ô tuần trước và các ô tuần này của một dự án. */
-  so_sanh?: boolean; ma_hoi?: string;
   theo_tien_do?: Record<string, number>; theo_muc_do_rui_ro?: Record<string, number>;
   du_an_cham?: string[]; so_du_an_cham?: number; so_du_an_co_o_nhap_ai_cho_duyet?: number;
   phan_nhom?: { truong: string; theo: Record<string, number>; con_lai_nhom?: number };
@@ -98,6 +91,12 @@ export interface AgentFacts {
   phan_tich?: FactAnalysis;
   /** Mức chi tiết V-LLM chọn theo ý người dùng: ngan = chỉ thẻ số, vua = thẻ số + nhận xét + biểu đồ chính (mặc định), day_du = tất cả. */
   muc_chi_tiet?: 'ngan' | 'vua' | 'day_du';
+  /** Mã dự án người dùng hỏi (câu hỏi theo mã). */
+  ma_hoi?: string; ve?: string; lua_chon?: string[]; truong_hoi?: string[]; so_sanh?: boolean; dang_chay?: number;
+  /** Gợi ý ưu tiên khi cắt giảm (kieu = 'prioritize'). */
+  nen_giu?: FactBucket; can_xem_lai?: FactBucket; co_the_hoan?: FactBucket; bao_ve?: FactBucket & { nhom?: string[] };
+  suc_chua?: { giu_toi_da: number; giu: FactBucket; hoan: FactBucket; du_cho?: boolean; bao_ve_vuot_suc_chua?: boolean };
+  tieu_chi?: string[]; luu_y?: string;
   du_an_theo_nhom?: { nhom: string; so_luong: number; du_an: FactProject[]; con_lai?: number }[];
 }
 /** Câu trả lời của Agent: số liệu do backend tính, AI chỉ diễn đạt. `grounded` false = AI lệch số liệu nên dùng câu mẫu. */
@@ -116,16 +115,17 @@ export interface AgentAnswer {
 /** Một câu trước đó gửi kèm để backend hiểu câu nối tiếp. */
 export interface AgentTurn { q: string; codes: string[]; a?: string }
 
-export const agentAsk = (question: string, rows: AgentRow[], history: AgentTurn[] = []) =>
-  req<AgentAnswer>('/api/agent/ask', { method: 'POST', body: JSON.stringify({ question, rows, history }) }, 60000);
+/** `columns` (tên cột, sửa được không, giá trị cho phép) để Agent trả lời "cột này là gì / điền được không"; chỉ là thông tin, không làm câu hỏi thành lệnh sửa. */
+export const agentAsk = (question: string, rows: AgentRow[], history: AgentTurn[] = [], columns: AgentEditField[] = []) =>
+  req<AgentAnswer>('/api/agent/ask', { method: 'POST', body: JSON.stringify({ question, rows, history, columns }) }, 60000);
 
-/** Nạp sẵn embeddings cho bảng để câu hỏi đầu tiên không phải chờ. Backend không bao giờ trả lỗi cho việc này. */
+/** Nạp sẵn embeddings cho bảng khi mở Trợ lý; không bao giờ làm hỏng luồng chính. */
 export const agentWarm = (rows: AgentRow[]) =>
-  req<{ ok: boolean; enabled?: boolean; passages?: number; error?: string }>('/api/agent/warm', { method: 'POST', body: JSON.stringify({ rows }) }, 180000);
+  req<{ ok: boolean; enabled?: boolean; error?: string }>('/api/agent/warm', { method: 'POST', body: JSON.stringify({ rows }) }, 60000);
 
 /** Lệnh sửa bảng do V-LLM đọc ý (backend chỉ đề xuất, không ghi). */
 export interface AgentEditField { id: string; name: string; options: string[]; editable: boolean; lockedWhy: string }
-export interface AgentEditRow { code: string; name?: string; values: Record<string, string> }
+export interface AgentEditRow { code: string; values: Record<string, string> }
 export interface AgentProposal { code: string; field: string; fieldName: string; from: string; to: string }
 export interface AgentEditAnswer {
   intent: 'edit'; answer: string; proposals: AgentProposal[]; skipped: { reason: string; field?: string }[]; unclear?: string; by: string; model?: string; mode?: string;

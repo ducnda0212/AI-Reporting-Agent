@@ -397,8 +397,23 @@ function analytics(f: AgentFacts): string {
   return inner ? '<div class="ax">' + inner + '</div>' : '';
 }
 
+/** Các việc trợ lý làm được, chia nhóm; mỗi câu là một nút gửi lại câu đó (hiện khi hỏi "làm được gì", "bạn là ai", hoặc khi trợ lý chưa hiểu ý). */
+const CAPS: { t: string; qs: string[] }[] = [
+  { t: 'Xem tình hình', qs: ['Tuần này tình hình chung thế nào?', 'Dự án nào quá hạn?', 'Dự án nào chậm mà rủi ro cao?', 'Thống kê dự án theo nhóm'] },
+  { t: 'Tìm trong báo cáo', qs: ['Dự án nào đang vướng mắc?', 'Thiếu người thì nên hoãn dự án nào?', 'Còn dự án nào chờ duyệt không?'] },
+  { t: 'Soạn và kiểm tra', qs: ['Soạn nhận xét PMO ngắn cho tuần này', 'Soạn nháp các ô còn trống', 'Bảng còn thiếu gì trước khi chốt?'] },
+  { t: 'Sửa bảng (xem trước, bấm Áp dụng mới đổi)', qs: ['Cột Domain điền được không?', 'Ẩn cột note đi', 'Chốt báo cáo'] },
+];
+const chipBtns = (qs: string[], mark = '↳'): string => '<div class="fx-fu">' + qs.map((t, k) => '<button type="button" data-act="askIdea" data-q="' + esc(t) + '" style="--i:' + k + '"><span aria-hidden="true">' + mark + '</span>' + esc(t) + '</button>').join('') + '</div>';
+function capsCard(groups: { t: string; qs: string[] }[]): string {
+  return '<div class="hp">' + groups.map((g) => '<div class="hp-g"><div class="hp-t">' + esc(g.t) + '</div>' + chipBtns(g.qs) + '</div>').join('') + '</div>';
+}
+
 /** Phần "chi tiết" dưới câu dẫn, dựng từ số liệu backend: danh sách dự án, thống kê, đoạn nguồn. Rỗng khi không có gì để hiện. */
 function details(f: AgentFacts, byCode: Map<string, number>, aiText: boolean): string {
+  if (f.kieu === 'help') return f.ve === 'who' ? '' : capsCard(CAPS);
+  if (f.kieu === 'unknown') return capsCard(CAPS.slice(0, 3));
+  if (f.kieu === 'hoi_lai') return f.lua_chon?.length ? chipBtns(f.lua_chon, '✦') : capsCard(CAPS.slice(0, 3));
   if (f.kieu === 'summary') {
     let h = f.phan_tich?.so_du_an ? analytics(f) : statRow('Tiến độ', f.theo_tien_do || {}, progressTone) + statRow('Mức độ rủi ro', f.theo_muc_do_rui_ro || {}, riskTone);
     const cham = f.du_an_cham || [];
@@ -481,7 +496,7 @@ export function agentHtml(res: AgentAnswer, rows: Pick<Row, 'i' | 'ma'>[]): stri
   const extra = res.facts ? details(res.facts, byCode, ai) : '';
   const why = res.warnings.length ? ' title="' + esc(res.warnings.slice(0, 3).join('; ')) + '"' : '';
   const src = ai
-    ? 'Số liệu tính từ bảng hiện tại · lời văn do ' + esc(res.by) + ', đã kiểm tra mã dự án và con số'
+    ? 'Số liệu tính từ bảng hiện tại · lời văn do ' + (/^v-?llm/i.test(res.by) ? 'VLLM' : 'AI') + ', đã kiểm tra mã dự án và con số'
     : res.grounded
       ? 'Số liệu tính từ bảng hiện tại'
       : 'Số liệu tính từ bảng hiện tại · AI trả lời lệch số liệu nên dùng câu mẫu';

@@ -170,7 +170,7 @@ _rr_down: dict = {'until': 0.0, 'why': ''}
 
 
 def rerank_enabled() -> bool:
-    return bool(settings.rag_rerank and settings.rerank_model and settings.mode == 'vllm' and getattr(settings, 'provider', 'vllm') == 'vllm' and time.time() >= _rr_down['until'])
+    return bool(settings.rag_rerank and settings.rerank_model and settings.mode == 'vllm' and time.time() >= _rr_down['until'])
 
 
 def rerank_problem() -> str:

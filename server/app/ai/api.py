@@ -132,7 +132,8 @@ async def agent_ask(request: Request):
     try:
         fields = body.get('fields') if isinstance(body.get('fields'), list) else None
         history = body.get('history') if isinstance(body.get('history'), list) else None
-        return JSONResponse(await run_in_threadpool(agent.ask, question, rows, fields, history, body.get('edit') is True))
+        columns = body.get('columns') if isinstance(body.get('columns'), list) else None   # danh sách cột để giải thích cột; khác `fields` (có `fields` thì hiểu là lệnh sửa)
+        return JSONResponse(await run_in_threadpool(agent.ask, question, rows, fields, history, body.get('edit') is True, columns))
     except VllmError as e:
         return err(str(e), 502, e.detail)
 

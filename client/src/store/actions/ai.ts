@@ -13,6 +13,7 @@ import { groupedRows } from '@/lib/grid';
 import type { AgStageItem, AiFieldId, AppState, ChatRec, FieldId, Row, TraceTarget } from '@/types';
 import { getState, inBrowser, log, mutate, now, rowsOf, toast } from '@/store';
 import { editCell } from './grid';
+import { goStep } from './flow';
 
 /* ---------- con trỏ ✦ Agent: UI đọc `walk` (đổi `seq` mỗi lần) để cuộn bảng và nháy ô ---------- */
 function walk(d: Draft<AppState>, items: (Pick<AgStageItem, 'i' | 'f' | 'off'> & Partial<Pick<AgStageItem, 'to' | 'kind'>>)[], cls: 'aiflash' | 'aiwalk', n: number): void {
@@ -137,7 +138,7 @@ async function remoteAsk(q: string): Promise<AgentAnswer | null> {
   const sel = s.sel ? s.allRows[s.sel.i] : null;
   const hist = memoryOf(s);
   const history = sel && rows.some((r) => r.ma === sel.ma) ? [{ q: '(dòng đang chọn trên bảng)', codes: [sel.ma] }, ...hist] : hist;
-  try { return await agentAsk(q, rows.map((r) => agentRow(r, s)), history); } catch { return null; }
+  try { return await agentAsk(q, rows.map((r) => agentRow(r, s)), history, editFields()); } catch { return null; }
 }
 
 /** Nạp sẵn embeddings cho bảng khi mở Trợ lý, để câu hỏi đầu tiên không phải chờ. Chạy ngầm, lỗi thì bỏ qua (câu hỏi tự nạp lúc cần); nội dung bảng không đổi thì không gửi lại. */
@@ -195,6 +196,8 @@ type Decision =
   | { kind: 'local'; cmd: string | string[] }
   | { kind: 'say'; html: string }
   | { kind: 'draft' }
+  | { kind: 'export' }
+  | { kind: 'undo' }
   | { kind: 'fallback' };
 
 const EDIT_DOWN = 'Mình hiểu đây là lệnh sửa bảng nhưng chưa đọc được ý vì V-LLM đang lỗi, nên mình chưa sửa gì. Bạn thử lại sau ít phút, hoặc gõ theo mẫu: <i>Đổi Note "Chờ họp" cho các dự án chậm tiến độ</i> hoặc <i>Đổi Tiến độ của I.A.3.1, I.A.4.1 thành Chậm tiến độ</i>.';
@@ -210,6 +213,8 @@ async function decide(q: string): Promise<Decision> {
     return edit ? { kind: 'edit', edit } : { kind: 'say', html: EDIT_DOWN };
   }
   if (res.intent === 'draft') return { kind: 'draft' };
+  if (res.intent === 'export') return { kind: 'export' };
+  if (res.intent === 'undo') return { kind: 'undo' };
   if (res.intent === 'view' || res.intent === 'approve') {
     const cmd = intentCommand(res);
     return cmd ? { kind: 'local', cmd } : { kind: 'say', html: 'Mình hiểu bạn muốn đổi cách xem bảng nhưng chưa rõ cột nào. Bạn nói tên hoặc ký hiệu cột nhé, ví dụ: <i>Ẩn cột Note</i>.' };
@@ -231,6 +236,16 @@ async function respond(q: string): Promise<void> {
   if (d0.kind === 'edit') { answerEdit(q, d0.edit); return; }
   if (d0.kind === 'local') { answer(q, true, d0.cmd); return; }
   if (d0.kind === 'say') { say(d0.html); return; }
+  if (d0.kind === 'export') {
+    say('Mình mở bước <b>Chốt &amp; xuất</b>. Bạn kiểm tra lại rồi tự bấm <b>Xuất file</b>; mình không tự chốt hay xuất báo cáo.');
+    goStep(4); return;
+  }
+  if (d0.kind === 'undo') {
+    say(getState().undoStack.length
+      ? 'Mình không tự hoàn tác. Bạn bấm <b>Ctrl+Z</b> để hoàn tác thay đổi gần nhất (Ctrl+Y để làm lại).'
+      : 'Chưa có thay đổi nào trên bảng để hoàn tác.');
+    return;
+  }
   if (d0.kind === 'draft') {
     say('Mình đang nhờ AI soạn nháp các ô còn trống (Mức độ rủi ro, Vấn đề &amp; rủi ro, Progress Report). Nháp chưa ghi vào báo cáo cho tới khi bạn duyệt từng ô.');
     aiStart(); return;
