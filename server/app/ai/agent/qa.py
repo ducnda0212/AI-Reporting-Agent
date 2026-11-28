@@ -50,7 +50,7 @@ EDIT_WORDS = re.compile(r'^\s*(?:(?:hãy|nhờ|giúp|vui lòng|agent|bạn)\s+)*
 
 CONTENT_FIELDS = (
     ('goal', ('muc tieu',)), ('kpi', ('kpi',)), ('milestone', ('milestone', 'moc')),
-    ('issue', ('van de', 'vuong mac', 'blocker', 'kho khan', 'de xuat')),
+    ('issue', ('van de', 'vuong mac', 'vuong', 'blocker', 'kho khan', 'de xuat')),
     ('plan', ('ke hoach',)), ('done', ('cong viec', 'da lam', 'da hoan thanh')),
     ('prev', ('tuan truoc',)), ('comment', ('comment', 'binh luan')), ('note', ('ghi chu',)),
     ('subtasks', ('subtask', 'sub task', 'task con', 'viec con', 'dau viec')),
@@ -294,7 +294,7 @@ def _clean_history(raw, rows: list[dict]) -> list[dict]:
     for h in (raw if isinstance(raw, list) else [])[-MAX_HISTORY:]:
         if not isinstance(h, dict):
             continue
-        q_, a_ = str(h.get('q') or '')[:300], str(h.get('a') or '')[:400]
+        q_, a_ = str(h.get('q') or '')[:600], str(h.get('a') or '')[:1500]   # chế độ chat đọc lại cả câu trả lời trước
         codes = [c for c in (h.get('codes') or []) if isinstance(c, str) and c in known]
         for c in sorted(known, key=len, reverse=True):   # dự án được nhắc trong câu hỏi hoặc lời Agent trả lời (vd Agent hỏi lại "dự án I.A.3.1 sang bước nào?") cũng là dự án đang bàn
             if c not in codes and any(re.search(r'(?<![\w.])' + re.escape(c) + r'(?!\w)(?!\.\d)', t) for t in (q_, a_)):
@@ -1096,7 +1096,10 @@ def _explain_col(name: str, raw_fields: list | None) -> dict:
 
 # Chữ chỉ dùng để gọi tên một cột nội dung (vướng mắc, kế hoạch, KPI…) và chỉ thời điểm: câu hỏi chỉ có các chữ này là hỏi CẢ CỘT, không phải một chủ đề.
 FIELD_CUE_TOKENS = {w for _, cues in CONTENT_FIELDS for c in cues for w in c.split()} | {
-    'van', 'rui', 'ro', 'kho', 'khan', 'tuan', 'toi', 'nay', 'sau', 'tiep', 'theo', 'hien', 'tai', 'gap', 'con', 'moi', 'nhat', 'gan'}
+    'van', 'rui', 'ro', 'kho', 'khan', 'vuong', 'tuan', 'toi', 'nay', 'sau', 'tiep', 'theo', 'hien', 'tai', 'gap', 'con', 'moi', 'nhat', 'gan',
+    # chữ dùng để YÊU CẦU, không phải chủ đề: "ý tôi là liệt kê ra mỗi dự án…", "cho mình xem … của từng dự án", "tóm tắt tất cả…"
+    'y', 'la', 'liet', 'ke', 'ra', 'tung', 'cho', 'xem', 'show', 'list', 'tat', 'ca', 'tom', 'minh', 'muon', 'biet', 'thi', 'giup', 'danh', 'sach',
+    'nhung', 'bi', 'dang', 'noi', 'hoi', 'het', 'toan', 'bo', 'chi', 'tiet', 'cu', 'the', 'neu'}
 SEVERITY = {'Chậm tiến độ': 0, 'Có nguy cơ chậm': 1}
 
 
@@ -1483,7 +1486,21 @@ def _ask(question: str, raw_rows: list, fields: list | None = None, history: lis
     m = _masker(rows)
     timing: dict = {'routeMs': 0, 'answerMs': 0}
     pre = None   # số liệu đã tính sẵn khi V-LLM tự gọi công cụ (AI_AGENT_MODE=tools)
-    if settings.mode == 'vllm' and getattr(settings, 'agent_mode', 'router') == 'tools':
+    mode = getattr(settings, 'agent_mode', 'router')
+    got = None
+    if settings.mode == 'vllm' and mode == 'chat':   # V-LLM thấy bảng + cả hội thoại, tự tra; lỗi thì chuyển sang chế độ tools
+        from . import chat as agent_chat
+        try:
+            got = agent_chat.run(question, rows, timing, _clean_history(history, rows))
+        except VllmError as e:
+            timing['chatError'] = str(e)
+        if got and got['kind'] == 'answer':
+            return {'intent': 'chat', 'answer': got['answer'], 'lead': got['answer'], 'codes': got['codes'], 'scope': got['codes'][:MAX_LIST], 'facts': got['facts'],
+                    'route': {'query': 'chat'}, 'by': got['by'], 'routedBy': got['by'], 'grounded': not got['warnings'], 'warnings': got['warnings'],
+                    'timing': timing, 'mode': settings.mode, 'model': settings.agent_model}
+    if got:
+        spec, routed_by = got['spec'], settings.agent_model
+    elif settings.mode == 'vllm' and mode in ('tools', 'chat'):
         from . import tools as agent_tools
         spec, routed_by, pre = agent_tools.run(question, rows, timing, _clean_history(history, rows))
     else:

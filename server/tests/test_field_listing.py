@@ -35,3 +35,11 @@ def test_fields_chosen_by_the_tool_are_respected():
     f = _ask('các dự án thế nào rồi', {**SPEC, 'fields': ['plan']})
     assert f.get('cach_tim') != 'theo cột'                       # còn chữ "thế nào" không phải tên cột → vẫn tìm như cũ
     assert _ask('kế hoạch', {**SPEC, 'fields': ['plan']})['so_du_an'] == 2
+
+
+def test_request_phrasings_still_list_the_column():
+    for q in ('ý tôi là liệt kê ra mỗi dự án đang gặp vấn đề gì', 'cho mình xem vướng mắc của từng dự án', 'liệt kê tất cả vấn đề',
+              'mỗi dự án đang gặp khó khăn gì', 'show blocker của các dự án', 'các dự án đang bị vướng gì'):
+        f = _ask(q)
+        assert f['cach_tim'] == 'theo cột' and [d['code'] for d in f['doan']] == ['B2', 'A1'], q
+    assert _ask('mỗi dự án gặp vấn đề GPU gì').get('cach_tim') != 'theo cột'   # có chủ đề: vẫn tìm theo nội dung

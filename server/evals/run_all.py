@@ -38,6 +38,7 @@ def _steps(ai: bool, tests: bool) -> list[tuple[str, list[str] | str, Path, dict
             ('V-LLM: cấu hình + đo tốc độ', [PY, '-m', 'evals.run_all', '--status'], SERVER, {}),
             ('Chatbot trả lời đúng file 64DA (router)', [PY, '-m', 'evals.qa_truth', '--mode', 'live'], SERVER, {'AI_AGENT_MODE': 'router'}),
             ('Chatbot trả lời đúng file 64DA (tools)', [PY, '-m', 'evals.qa_truth', '--mode', 'live'], SERVER, {'AI_AGENT_MODE': 'tools'}),
+            ('Chatbot trả lời đúng file 64DA (chat)', [PY, '-m', 'evals.qa_truth', '--mode', 'live'], SERVER, {'AI_AGENT_MODE': 'chat'}),
             ('V-LLM chọn công cụ (tools_eval)', [PY, '-m', 'evals.tools_eval'], SERVER, {}),
             ('V-LLM đọc ý định + sửa nối tiếp (robust_eval)', [PY, '-m', 'evals.robust_eval', '--mode', 'live'], SERVER, {}),
             (EXPERIMENT, [PY, '-m', 'evals.ingest_probe'], SERVER, {'VLLM_TIMEOUT': '300'}),

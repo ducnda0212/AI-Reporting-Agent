@@ -830,10 +830,10 @@ def test_history_keeps_projects_named_in_agent_reply_so_followup_edit_knows_whic
 
 
 def test_history_keeps_eight_recent_turns_with_longer_text():
-    hist = [{'q': f'câu {i} ' + 'x' * 400, 'codes': [], 'a': 'y' * 500} for i in range(10)]
+    hist = [{'q': f'câu {i} ' + 'x' * 800, 'codes': [], 'a': 'y' * 2000} for i in range(10)]
     out = agent._clean_history(hist, ROWS)
     assert len(out) == 8 and out[-1]['q'].startswith('câu 9') and out[0]['q'].startswith('câu 2')
-    assert len(out[0]['q']) == 300 and len(out[0]['a']) == 400
+    assert len(out[0]['q']) == 600 and len(out[0]['a']) == 1500   # chế độ chat đọc lại gần đủ câu trả lời trước
 
 
 def test_detailed_report_of_one_project_includes_its_content_cells(monkeypatch):

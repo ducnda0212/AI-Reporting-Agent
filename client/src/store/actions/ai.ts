@@ -70,7 +70,10 @@ function memoryOf(s: AppState, n = 8): AgentTurn[] {
   return s.askLog.filter((m) => !m.busy).slice(-n).map((m) => {
     const st = m.stage ? s.stages[m.stage] : undefined;
     const staged = st ? [...new Set(st.items.map((x) => s.allRows[x.i]?.ma).filter((c): c is string => !!c))].slice(0, 20) : [];
-    return { q: m.q.slice(0, 300), codes: m.scope?.length ? m.scope : staged, a: m.a.html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 400) };
+    // bỏ dòng nguồn và nút gợi ý hỏi tiếp: chỉ gửi nội dung câu trả lời (chế độ chat đọc lại gần đủ câu trả lời trước)
+    const a = m.a.html.replace(/<div class="(?:src|fx-fu)"[^>]*>[\s\S]*?<\/div>/g, ' ').replace(/<\/(?:p|li|div)>/g, '\n').replace(/<[^>]*>/g, ' ')
+      .replace(/[ \t]+/g, ' ').replace(/\s*\n\s*/g, '\n').trim().slice(0, 1500);
+    return { q: m.q.slice(0, 600), codes: m.scope?.length ? m.scope : staged, a };
   });
 }
 

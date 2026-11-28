@@ -44,7 +44,7 @@ class Settings:
     rag_embeddings: bool = True  # tắt hẳn embeddings dù đã đặt model
     rerank_model: str = ''       # model xếp hạng lại (V-LLM /rerank): sau khi tìm xong, chấm lại độ liên quan của từng đoạn với câu hỏi; trống = tắt
     rag_rerank: bool = True      # tắt hẳn rerank dù đã đặt model
-    agent_mode: str = 'router'   # 'router' = V-LLM chọn một loại truy vấn có sẵn; 'tools' = V-LLM tự gọi công cụ, đọc kết quả, thử lại (AI_AGENT_MODE)
+    agent_mode: str = 'router'   # 'router' = V-LLM chọn một loại truy vấn có sẵn; 'tools' = V-LLM tự gọi công cụ, đọc kết quả, thử lại; 'chat' = V-LLM thấy bảng + hội thoại (AI_AGENT_MODE)
     provider: str = 'vllm'       # 'vllm' | 'openai': AI_PROVIDER chọn bộ cấu hình nào được dùng (VLLM_* hay OPENAI_*)
     embed_base_url: str = ''     # dịch vụ embeddings RIÊNG, vd https://api.openai.com/v1 (chỉ dùng với dữ liệu mẫu/giả); trống = dùng V-LLM
     embed_api_key: str = ''      # khoá của dịch vụ embeddings riêng, chỉ để trong server/.env
@@ -127,7 +127,7 @@ def load(env: dict | None = None) -> Settings:
         rag_embeddings=b('AI_RAG_EMBEDDINGS', '1'),
         rerank_model=(g('AI_RERANK_MODEL', '') if oa else g('AI_RERANK_MODEL', 'v-llm-v1-rerank-medium')).strip(),   # openai: chỉ bật khi tự đặt AI_RERANK_MODEL (endpoint {base}/rerank)
         rag_rerank=b('AI_RAG_RERANK', '1'),
-        agent_mode='tools' if g('AI_AGENT_MODE', 'router').strip().lower() == 'tools' else 'router',
+        agent_mode=(lambda v: v if v in ('tools', 'chat') else 'router')(g('AI_AGENT_MODE', 'router').strip().lower()),   # chat = V-LLM đọc bảng và cả hội thoại, tự tra bằng 3 công cụ tổng quát
         embed_base_url='' if oa else g('AI_EMBED_BASE_URL', '').strip().rstrip('/'),   # openai: embeddings đi cùng base và key với chat
         embed_api_key='' if oa else g('AI_EMBED_API_KEY', '').strip(),
         embed_cache=_cache_path(g('AI_EMBED_CACHE', 'storage/embed_cache.db')),

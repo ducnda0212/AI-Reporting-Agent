@@ -219,6 +219,23 @@ def build_cases(rows: list, arows: list[dict], today: date, wk: str) -> list[dic
     # Jira ghi "Late" = Chậm tiến độ (bảng quy đổi mặc định)
     cases.append(_case('C27', 'Dự án nào chậm tiến độ?', 'ma', sorted(a['code'] for a in arows if a['progress'] == 'Chậm tiến độ'),
                        'gồm các dự án Jira ghi Late'))
+    # Cách hỏi tự nhiên, nói tiếp câu trước, gọi tên tắt: đo xem chatbot có hiểu ý như người thật không (không có luật riêng cho từng câu)
+    issue_codes = sorted(a['code'] for a in arows if a['issue'].strip())
+    cases.append(_case('C28', 'ý tôi là liệt kê ra mỗi dự án đang gặp vấn đề gì', 'ma_mot_phan', issue_codes,
+                       f'{len(issue_codes)} dự án có ô vấn đề tuần này; cần nêu ít nhất 5, không nêu dự án không có vấn đề', ai_only=True))
+    pic1_codes = sorted(r.ma for r in rows if r.pic == pic1)
+    hi = sorted(r.ma for r in rows if r.pic == pic1 and r.prio == 'High')
+    cases.append(_case('C29', 'cô ấy có dự án nào ưu tiên High không?', 'ma', hi, f'nói tiếp câu hỏi về {pic1}',
+                       history=[{'q': f'{pic1} phụ trách những dự án nào?', 'codes': pic1_codes, 'a': f'{pic1} phụ trách {len(pic1_codes)} dự án.'}], ai_only=True))
+    given = pic1.split()[-1]
+    if sum(1 for p in pics if p.split()[-1] == given) == 1:
+        cases.append(_case('C30', f'{given} đang ôm mấy dự án vậy', 'so', pics[pic1], f'gọi tên tắt của {pic1}', ai_only=True))
+    cases.append(_case('C31', 'mấy dự án đang được ưu tiên cao vậy', 'so', sum(1 for r in rows if r.prio == 'High'), 'ưu tiên cao = High', ai_only=True))
+    late = [(a['code'], _vn(by[a['code']].end)) for a in arows if a['progress'] == 'Chậm tiến độ' and _vn(by[a['code']].end)]
+    if late:
+        first = sorted(late, key=lambda x: (x[1], x[0]))[0][0]
+        cases.append(_case('C32', 'trong mấy dự án chậm, cái nào hạn gần nhất', 'ma', [first], 'xếp các dự án chậm theo hạn', ai_only=True))
+    cases.append(_case('C33', 'tóm lại tuần này có bao nhiêu dự án đang chậm', 'so', prog['Chậm tiến độ'], 'nói kiểu hội thoại', ai_only=True))
     return cases
 
 
@@ -247,10 +264,17 @@ def score(case: dict, resp: dict) -> tuple[bool | None, str]:
         extra = sorted(got - set(exp))
         ok = not miss
         return ok, ('' if ok else f'thiếu {len(miss)}/{len(exp)}: {miss[:6]}') + (f' | thừa {extra[:6]}' if extra else '')
+    if kind == 'ma_mot_phan':   # danh sách dài: nêu đủ một phần là được, nhưng không được nêu dự án ngoài đáp án
+        got = _codes_in(resp)
+        hit, extra = [c for c in exp if c in got], sorted(got - set(exp))
+        need = min(5, len(exp))
+        ok = len(hit) >= need and not extra
+        return ok, ('' if ok else f'nêu {len(hit)}/{need} mã cần có') + (f' | thừa {extra[:6]}' if extra else '')
     if kind == 'chu':
         # mỗi mục là một cụm, hoặc một bộ cách nói tương đương (tuple); mã dự án đọc cả ở "codes"
         hay = ans + ' ' + plain(' '.join(_codes_in(resp)))
-        hit = lambda w: any(plain(str(x)) in hay for x in (w if isinstance(w, tuple) else (w,)))  # noqa: E731
+        flat = hay.replace(' ', '')
+        hit = lambda w: any(plain(str(x)) in hay or plain(str(x)).replace(' ', '') in flat for x in (w if isinstance(w, tuple) else (w,)))  # noqa: E731
         miss = [w for w in exp if not hit(w)]
         need = 1 if len(exp) >= 3 else len(exp)   # 3 từ đặc trưng của một ô: câu tóm tắt có ít nhất một từ là đã dùng đúng ô đó
         ok = len(exp) - len(miss) >= need
@@ -285,11 +309,11 @@ def _run(qa, path: Path, cycle: str, today: date, verbose: bool, only: list[str]
     for c in cases:
         t0 = time.perf_counter()
         try:
-            resp = qa.ask(c['q'], arows)
+            resp = qa.ask(c['q'], arows, history=c.get('history'))
         except Exception as e:  # một ca lỗi không dừng cả bộ
             resp = {'answer': f'LỖI: {e}'}
         times.append(time.perf_counter() - t0)
-        ok, why = score(c, resp)
+        ok, why = (None, 'chỉ chấm khi có V-LLM (cách hỏi tự nhiên)') if mode == 'offline' and c.get('ai_only') else score(c, resp)
         exp = c['expect'] if not isinstance(c['expect'], list) or len(c['expect']) <= 8 else c['expect'][:8] + [f'… ({len(c["expect"])})']
         mark = {True: 'ĐẠT ', False: 'SAI ', None: '--  '}[ok]
         print(f'{mark} {c["id"]} {c["q"]}\n      đáp án: {exp}' + (f'  ({c["note"]})' if c['note'] else '') + (f'\n      {why}' if why else ''))

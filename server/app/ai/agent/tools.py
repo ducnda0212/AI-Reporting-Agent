@@ -83,7 +83,8 @@ Ba trường hợp hay nhầm: (1) câu dạng "<điều kiện> thì <ghi / not
 def _empty(facts: dict) -> bool:
     k = facts.get('kieu')
     if k in ('filter', 'analyze'):
-        if facts.get('khop') and not facts.get('so_luong') and facts.get('so_du_an_khong_co_han'):
+        if facts.get('khop') and not facts.get('so_luong') and facts.get('so_du_an_khong_co_han') and not facts.get('dieu_kien') \
+                and facts['so_du_an_khong_co_han'] >= facts.get('tong', 0) - facts.get('da_loai_du_an_hoan_thanh_hoac_huy', 0):
             return False   # xếp / lọc theo hạn mà các dự án chưa có ngày hạn: đó chính là câu trả lời, không đổi sang công cụ khác
         return not (facts.get('khop') and facts.get('so_luong'))
     if k == 'search':

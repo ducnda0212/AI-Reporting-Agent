@@ -36,7 +36,8 @@ def test_cases_are_computed_from_the_file():
     assert cases['C21']['expect'] == ['I.A.4.3', 'I.A.5.2', 'II.A.2.2']
     assert cases['C24']['expect'] == ['10.Đánh giá An ninh Bảo mật (ANBM)'] and cases['C25']['expect'] == 32 and cases['C26']['expect'] == 2
     assert cases['C05']['expect'] == 3 and cases['C27']['expect'] == ['I.A.4.3', 'I.A.5.2', 'II.A.2.2']   # Jira "Late" = Chậm tiến độ
-    assert {c['kind'] for c in cases.values()} == {'so', 'ma', 'chu'}
+    assert {c['kind'] for c in cases.values()} == {'so', 'ma', 'chu', 'ma_mot_phan'}
+    assert cases['C29']['history'] and all(cases[k].get('ai_only') for k in ('C28', 'C29', 'C31', 'C33'))   # cách hỏi tự nhiên: chỉ chấm khi có V-LLM
 
 
 def test_step_priority_and_subtasks_reach_the_assistant():
@@ -53,6 +54,10 @@ def test_score_rules():
     assert T.score({'kind': 'ma', 'expect': ['I.A.4.3']}, {'answer': 'x', 'scope': ['I.A.4.3']})[0]
     assert not T.score({'kind': 'ma', 'expect': ['I.A.4.3', 'I.A.5.2']}, {'answer': 'chỉ I.A.4.3'})[0]
     assert T.score({'kind': 'thieu_du_lieu', 'expect': 1}, {})[0] is None
+    many = {'kind': 'ma_mot_phan', 'expect': ['A.1', 'A.2', 'A.3', 'A.4', 'A.5', 'A.6']}
+    assert T.score(many, {'answer': 'x', 'codes': ['A.1', 'A.2', 'A.3', 'A.4', 'A.5']})[0]
+    assert not T.score(many, {'answer': 'x', 'codes': ['A.1', 'A.2']})[0]
+    assert not T.score(many, {'answer': 'x', 'codes': ['A.1', 'A.2', 'A.3', 'A.4', 'A.5', 'B.9']})[0]
 
 
 def test_code_layer_answers_every_scored_case(monkeypatch, capsys):
