@@ -25,6 +25,7 @@ DEFAULT_STATUS_MAP = {
 DEFAULT_PROGRESS_MAP = {
     "On Track": "Đúng tiến độ", "Đúng tiến độ": "Đúng tiến độ",
     "Off Track": "Chậm tiến độ", "Delayed": "Chậm tiến độ", "Trễ hạn": "Chậm tiến độ", "Chậm tiến độ": "Chậm tiến độ",
+    "Late": "Chậm tiến độ", "Behind": "Chậm tiến độ", "Behind Schedule": "Chậm tiến độ",
     "At Risk": "Có rủi ro", "Rủi ro": "Có rủi ro", "Có rủi ro": "Có rủi ro",
     "On Hold": "Tạm dừng", "Tạm dừng": "Tạm dừng",
 }

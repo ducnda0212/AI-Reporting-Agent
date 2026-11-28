@@ -83,7 +83,7 @@ export const STATUS_MAP: Record<string, string> = { 'TO DO':'Chưa thực hiện
 
 export const PROG_VALUES: readonly string[] = ['Đúng tiến độ','Chậm tiến độ','Tạm dừng','Có rủi ro'];
 
-export const PROG_MAP: Record<string, string> = { 'On-track':'Đúng tiến độ', 'On Track':'Đúng tiến độ', 'Off-track':'Chậm tiến độ', 'Off Track':'Chậm tiến độ', 'Delayed':'Chậm tiến độ', 'At Risk':'Có rủi ro', 'Rủi ro':'Có rủi ro', 'On Hold':'Tạm dừng' };
+export const PROG_MAP: Record<string, string> = { 'On-track':'Đúng tiến độ', 'On Track':'Đúng tiến độ', 'Off-track':'Chậm tiến độ', 'Off Track':'Chậm tiến độ', 'Delayed':'Chậm tiến độ', 'Late':'Chậm tiến độ', 'Behind':'Chậm tiến độ', 'Behind Schedule':'Chậm tiến độ', 'At Risk':'Có rủi ro', 'Rủi ro':'Có rủi ro', 'On Hold':'Tạm dừng' };
 
 /* Hướng dẫn tương tác (bản gọn: 3 bước Nhập file → Điền & duyệt → Chốt & xuất, không có bước Kiểm tra).
    `view` / `ver` thay cho hàm prep của prototype: màn cần mở sẵn trước khi chạy bước. */

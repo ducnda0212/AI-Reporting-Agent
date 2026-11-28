@@ -148,7 +148,9 @@ export function aiOpt(f: Field, v: string): string | null {
   const k = aiNorm(v);
   return o.find((x) => aiNorm(x) === k) || o.find((x) => aiNorm(x).indexOf(k) === 0) || null;
 }
-export const aiCanFill = (f: Field): boolean => !(locked(f) || ['cfg', 'calc', 'jira', 'future', 'past', 'none', 'report'].includes(f.kind));
+/* Trạng thái (I) là trạng thái thật trên Jira: Agent không đổi trên bảng (người dùng vẫn sửa tay được nếu cần); muốn đổi thì sửa trên Jira rồi nhập lại file. */
+const AI_LOCKED: ReadonlySet<string> = new Set(['tt']);
+export const aiCanFill = (f: Field): boolean => !(locked(f) || AI_LOCKED.has(f.id) || ['cfg', 'calc', 'jira', 'future', 'past', 'none', 'report'].includes(f.kind));
 
 export function agExamples(r0: Row | null | undefined, rows: Row[]): string[] {
   const ma = r0 ? r0.ma : rows[0] ? rows[0].ma : 'I.A.3.1';
@@ -175,17 +177,21 @@ type Stage = (r: Row, f: Field, to: string, kind?: AgStageItem['kind']) => void;
 const codeBtn = (r: Row): string => '<button class="cd" data-act="exGo" data-i="' + r.i + '">' + esc(r.ma) + '</button>';
 const aiText = (r: Row, k: AiFieldId): string => r.ai[k]?.text || '';
 const exPct = (r: Row): number => Math.round((r.done / r.total) * 100);
-/* Có nguy cơ chậm: còn ≤ 14 ngày tới hạn mà chưa xong, hoặc Mức độ rủi ro (AC) = Cao */
+/* Trạng thái đã kết thúc: không còn tính chậm / sắp tới hạn theo ngày (dự án xong đúng hạn 15/11 không phải "chậm" vào 25/11). */
+const CLOSED_TT = new Set(['Đã hoàn thành', 'Hủy']);
+const openDue = (r: Row, ctx: CellCtx): Date | null => (CLOSED_TT.has(cv(r, 'tt', ctx) || '') ? null : parseVN(cv(r, 'end', ctx)));
+/* Chậm tiến độ: Tiến độ (J) = Chậm, hoặc quá hạn mà chưa xong.
+   Có nguy cơ chậm: Tiến độ (J) = Có rủi ro, còn ≤ 14 ngày tới hạn mà chưa xong, hoặc Mức độ rủi ro (AC) = Cao */
 export function exTT(r: Row, ctx: CellCtx): string {
-  const due = parseVN(cv(r, 'end', ctx));
-  if (cv(r, 'td', ctx) === 'Chậm tiến độ' || (due && due < TODAY)) return 'Chậm tiến độ';
-  if ((due && (due.getTime() - TODAY.getTime()) / 864e5 <= 14) || aiText(r, 'rui') === 'Cao') return 'Có nguy cơ chậm';
+  const due = openDue(r, ctx), td = cv(r, 'td', ctx);
+  if (td === 'Chậm tiến độ' || (due && due < TODAY)) return 'Chậm tiến độ';
+  if (td === 'Có rủi ro' || (due && (due.getTime() - TODAY.getTime()) / 864e5 <= 14) || aiText(r, 'rui') === 'Cao') return 'Có nguy cơ chậm';
   return 'Đúng tiến độ';
 }
 function exWhy(r: Row, ctx: CellCtx): string {
-  const due = parseVN(cv(r, 'end', ctx)), t = exTT(r, ctx);
-  if (t === 'Chậm tiến độ') return due && due < TODAY ? 'đã quá hạn ' + cv(r, 'end', ctx) : 'Tiến độ (J) = Chậm tiến độ';
-  if (t === 'Có nguy cơ chậm') return aiText(r, 'rui') === 'Cao' ? 'Mức độ rủi ro (AC) = Cao' : 'còn ≤ 14 ngày tới hạn ' + cv(r, 'end', ctx);
+  const t = exTT(r, ctx), td = cv(r, 'td', ctx);
+  if (t === 'Chậm tiến độ') return td === 'Chậm tiến độ' ? 'Tiến độ (J) = Chậm tiến độ' : 'đã quá hạn ' + cv(r, 'end', ctx);
+  if (t === 'Có nguy cơ chậm') return aiText(r, 'rui') === 'Cao' ? 'Mức độ rủi ro (AC) = Cao' : td === 'Có rủi ro' ? 'Tiến độ (J) = Có rủi ro' : 'còn ≤ 14 ngày tới hạn ' + cv(r, 'end', ctx);
   return '';
 }
 const uniq = (arr: Row[]): Row[] => arr.filter((r, k) => arr.findIndex((x) => x.ma === r.ma) === k);

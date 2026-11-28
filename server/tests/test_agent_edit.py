@@ -428,3 +428,12 @@ def test_vague_name_does_not_guess_a_project(monkeypatch):
     ai_returns(monkeypatch, {'ops': [op('domain', 'Driver')], 'unclear': ''})
     out = agent_edit.propose('chỉnh domain của dự án liên quan đến khuôn thành Driver', R3, F3)
     assert out['proposals'] == []   # "khuôn" chỉ 1 từ: không đủ căn cứ chọn dự án
+
+
+def test_near_match_name_with_typos_and_extra_words_still_finds_the_project(monkeypatch):
+    ai_returns(monkeypatch, {'ops': [op('domain', 'Driver')], 'unclear': ''})
+    out = agent_edit.propose('chinh domain cua cong viec lien quan den he thong canh bao som lai xe thanh Driver', R3, F3)
+    assert [p['code'] for p in out['proposals']] == ['I.A.6.1']
+    ai_returns(monkeypatch, {'ops': [op('domain', 'Driver')], 'unclear': ''})
+    out = agent_edit.propose('đổi domain của dự án nền tảng thực nghiệm khuyến mãi AB thành Driver', R3, F3)   # "khuyến mãi" ≈ "khuyến mại", "AB" ≈ "A/B"
+    assert [p['code'] for p in out['proposals']] == ['I.A.5.1']

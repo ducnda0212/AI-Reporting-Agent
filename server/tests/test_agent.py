@@ -1137,7 +1137,7 @@ def test_nhan_xet_writes_prose_from_computed_facts_and_names_real_projects(monke
     monkeypatch.setattr(agent.client, 'chat_json', fake_json)
     out = agent.ask('Soạn nhận xét PMO ngắn cho tuần này', ROWS)
     assert out['intent'] == 'nhan_xet' and out['facts']['kieu'] == 'nhan_xet'
-    assert 'NHẬN XÉT PMO' in sent['system'] and 'du_an_chu_y' in sent['user']
+    assert sent['system'] == agent.COMMENT_SYSTEM and 'du_an_chu_y' in sent['user']   # đúng lời dặn viết nhận xét
     assert {x['code'] for x in out['facts']['du_an_chu_y']} >= {'DA01', 'DA03'}
     assert out['grounded'] is True and 'DA01' in out['answer']
     assert out['by'] != 'rule'

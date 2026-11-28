@@ -21,6 +21,7 @@ DEV_COLUMNS = ("Custom field (Dev-BE)", "Custom field (Dev-FE)", "Custom field (
 PRD_COLUMN = re.compile(r"Custom field \(PRD( \(URL\))?\)(_\d+)?")
 URL_RE = re.compile(r"https?://[^\s\]|)]+")
 LABELS_COLUMN = re.compile(r"Labels(_\d+)?")
+COMMENT_COLUMN = re.compile(r"Comment(_\d+)?")  # Jira xuất nhiều cột "Comment"; bộ đọc file đánh số lại thành Comment_0, Comment_1...
 DATE_FIELDS = ("start", "end")
 CODE_ONLY_RE = re.compile(r"\s*((?:[IVX]+\.[A-Z0-9]+|x\.x)(?:\.[0-9]+)+)\s*")
 _GROUP_CODE = re.compile(r"^[IVX]+\.[A-Z0-9]+\.\d+")
@@ -51,6 +52,13 @@ def issue_code(issue: dict, mp) -> str | None:
 
 def _get(issue: dict, *cols: str) -> str:
     return next((str(issue[c]).strip() for c in cols if issue.get(c) and str(issue[c]).strip()), "")
+
+
+def _comments(issue: dict) -> str:
+    """Mọi cột comment (Comment, Comment_0, Comment_1, ...) theo thứ tự cột, mỗi comment một dòng. Cột "Custom field (Comments)" đứng trước."""
+    parts = [str(issue.get("Custom field (Comments)") or "").strip()]
+    parts += [str(v or "").strip() for k, v in issue.items() if COMMENT_COLUMN.fullmatch(k)]
+    return "\n".join(p for p in parts if p)
 
 
 def _fmt(d: date | None) -> str:
@@ -214,7 +222,7 @@ def map_jira_issue_to_row(
         labels=", ".join(val.strip() for k, val in issue.items() if LABELS_COLUMN.fullmatch(k) and (val or "").strip()),
         jira=JiraPeople(pic=_get(issue, "Assignee"), po=poff, gdk=_get(issue, "Custom field (Team Name)")),
         tl=_get(issue, "Custom field (Tech lead)"), poField=poff,
-        pr=pr, prw=prw, comment=sanitize_jira_markup(_get(issue, "Custom field (Comments)", "Comment")),
+        pr=pr, prw=prw, comment=sanitize_jira_markup(_comments(issue)),
         updated=_fmt(parse_jira_date(issue.get("Updated"))),
         done=step, total=len(PHASE_NAMES), stages=_stages(step), **v,
     )

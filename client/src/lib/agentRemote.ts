@@ -2,7 +2,8 @@
    Quy tắc: mọi câu chat đi qua V-LLM (backend) trước để đọc Ý ĐỊNH (hỏi gì, sửa bảng, soạn nháp, duyệt, đổi cách xem); sau đó giao diện gọi đúng chức năng
    (`intentCommand` đổi ý định thành lệnh chuẩn cho lib/ai.ts). Luật từ khóa (`keepLocal`, lib/ai.ts) chỉ còn là dự phòng khi V-LLM tắt hoặc lỗi. */
 import type { AgentAnswer, AgentFacts, AgentRow, AgentTurn, FactAnalysis, FactBucket, FactPassage, FactProject } from './api';
-import type { AskMessage, Row } from '@/types';
+import type { AskMessage, Row, WeekKey } from '@/types';
+import { WK_TXT } from '@/data/constants';
 
 /** Backend nhận tối đa 300 dòng và câu hỏi tối đa 500 ký tự. */
 export const REMOTE_MAX_ROWS = 300;
@@ -21,19 +22,32 @@ export const keepLocal = (q: string): boolean => COMMAND.test(q) || SELECTION.te
 /** Mỗi ô chữ gửi lên tối đa ngần này ký tự (backend cũng cắt lại). */
 export const REMOTE_MAX_TEXT = 1200;
 
-const PREV_WEEKS: [string, string][] = [['Tuần 1', 'w1'], ['Tuần 2', 'w2']];
+const WEEK_ORDER: WeekKey[] = ['w1', 'w2', 'w3', 'w4'];
 
-/** Các cột chữ của một dòng để Trợ lý tìm theo nội dung. `show` đọc giá trị đang hiển thị của một cột theo id; ô trống để chuỗi rỗng. */
-export function textColumns(show: (id: string) => string, comment: string): Pick<AgentRow, 'goal' | 'kpi' | 'milestone' | 'note' | 'done' | 'plan' | 'issue' | 'prev' | 'comment'> {
+/** Các cột chữ của một dòng để Trợ lý tìm theo nội dung. `show` đọc giá trị đang hiển thị của một cột theo id; ô trống để chuỗi rỗng.
+ *  `wk` là tuần đang báo cáo của kỳ (w1..w4): "đã làm / kế hoạch / vấn đề" lấy từ tuần đó, các tuần còn lại có nội dung vào `prev`. Mặc định w3 (cột ht/kh/vd). */
+export function textColumns(show: (id: string) => string, comment: string, wk: WeekKey = 'w3'): Pick<AgentRow, 'goal' | 'kpi' | 'milestone' | 'note' | 'done' | 'plan' | 'issue' | 'prev' | 'comment'> {
   const cut = (s: string): string => (s || '').trim().slice(0, REMOTE_MAX_TEXT);
-  const prev = PREV_WEEKS.map(([label, k]) => {
-    const parts = [['đã làm', show(k + 'ht')], ['kế hoạch', show(k + 'kh')], ['vấn đề', show(k + 'vd')]].filter(([, v]) => (v || '').trim()).map(([n, v]) => n + ': ' + v.trim());
-    return parts.length ? label + ' – ' + parts.join('; ') : '';
+  const [ht, kh, vd] = WK_TXT[wk] ?? WK_TXT.w3;
+  const prev = WEEK_ORDER.filter((k) => k !== wk).map((k) => {
+    const [h, p, v] = WK_TXT[k];
+    const parts = [['đã làm', show(h)], ['kế hoạch', show(p)], ['vấn đề', show(v)]].filter(([, x]) => (x || '').trim()).map(([n, x]) => n + ': ' + x.trim());
+    return parts.length ? 'Tuần ' + k.slice(1) + ' – ' + parts.join('; ') : '';
   }).filter(Boolean).join('\n');
   return {
     goal: cut(show('muctieu')), kpi: cut(show('kpi')), milestone: cut(show('milestone')), note: cut(show('note')),
-    done: cut(show('ht')), plan: cut(show('kh')), issue: cut(show('vd')), prev: cut(prev), comment: cut(comment),
+    done: cut(show(ht)), plan: cut(show(kh)), issue: cut(show(vd)), prev: cut(prev), comment: cut(comment),
   };
+}
+
+const SUB_DONE = /^(done|closed|resolved|đã hoàn thành|hoàn thành)$/i;
+/** Subtask của một dự án thành một ô chữ cho Trợ lý: "3/5 subtask đã xong, còn 2 chưa xong" rồi từng subtask kèm trạng thái.
+ *  Không gửi người được giao (tên người ngoài cột Phụ trách không được che). */
+export function subtaskText(list: { summary: string; status: string }[] | undefined): string {
+  if (!list?.length) return '';
+  const done = list.filter((t) => SUB_DONE.test((t.status || '').trim())).length;
+  const head = done + '/' + list.length + ' subtask đã xong, còn ' + (list.length - done) + ' chưa xong';
+  return [head, ...list.map((t) => '- ' + (t.summary || '').trim() + ' (' + ((t.status || '').trim() || 'chưa rõ trạng thái') + ')')].join('\n').slice(0, REMOTE_MAX_TEXT);
 }
 
 /** Vài câu gần nhất kèm mã dự án đã nêu, để backend hiểu câu nối tiếp ("dự án đó là dự án gì"). Bỏ tin nhắn đang gõ. */

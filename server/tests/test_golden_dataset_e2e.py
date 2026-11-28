@@ -73,7 +73,7 @@ def test_e2e_golden_dataset_processing():
 
     warn = {(w["code"], w["key"]) for w in data["warnings"]}
     assert ("W_PROGRESS_CONFLICT", "PMOGOLD-7") in warn  # on-track but Blockers recorded
-    assert ("W_UNMAPPED_VALUE", "PMOGOLD-5") in warn  # progress 'Late' is not in the PMO table
+    assert ("W_UNMAPPED_VALUE", "PMOGOLD-5") not in warn and rows["I.A.4.1"]["td"] == "Chậm tiến độ"  # Jira 'Late' = Chậm tiến độ
     assert ("W_UNMAPPED_VALUE", "PMOGOLD-14") in warn  # spec §8.1 example: subtask status 'Monitoring'
     assert ("W_UNMAPPED_VALUE", "PMOGOLD-17") in warn  # spec §7.5 example: typo 'Cancled'
     assert "Phạm D" not in ic["muctieu"] and ic["muctieu"].startswith("1. BÀI TOÁN")

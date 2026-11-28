@@ -14,6 +14,7 @@ import pytest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(os.path.dirname(HERE)))  # gốc repo: import server.app...
+sys.path.insert(0, os.path.dirname(HERE))                   # thư mục server: import evals... (chạy pytest ở đâu cũng được)
 sys.path.insert(0, HERE)                                    # import fake_vllm
 
 # --- 1. backend: DB + uploads cách ly

@@ -28,3 +28,14 @@ def test_disabled_passthrough():
     m.add('Nguyễn Văn An')
     assert m.mask('Nguyễn Văn An') == 'Nguyễn Văn An'
     assert m.unmask('[Người 1]') == '[Người 1]'
+
+
+def test_comment_authors_are_masked_even_when_not_the_pic():
+    from server.app.ai.agent import qa
+    rows = qa._clean_rows([{'code': 'I.A.1.1', 'name': 'Dự án A', 'pic': 'Lê Ngọc Anh',
+                            'comment': '14/Nov/26 3:20 PM;Lưu Quốc Tuấn;Đề nghị PO bổ sung số liệu.\n19/Nov/26 10:15 AM;Lê Ngọc Anh;Đã cập nhật.'}])
+    m = qa._masker(rows)
+    out = m.mask(rows[0]['comment'])
+    assert 'Lưu Quốc Tuấn' not in out and 'Lê Ngọc Anh' not in out
+    assert m.unmask(out) == rows[0]['comment']
+    assert qa._masker(qa._clean_rows([{'code': 'X.1.1', 'name': 'n', 'comment': 'không có dạng ngày;tên'}])).fwd == {}

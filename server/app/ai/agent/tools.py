@@ -17,7 +17,7 @@ _COT = {'type': 'string', 'enum': list(qa.FIELDS)}
 TOOLS = [
     {'name': 'tong_quan', 'description': 'Số liệu tổng quan cả bảng tuần này: số dự án, chậm tiến độ, có nguy cơ chậm, đến hạn. Dùng khi hỏi chung về tình hình cả báo cáo (tuần này thế nào, có ổn không, tóm tắt), không nhắc dự án hay chủ đề nào. KHÔNG dùng khi người dùng nhờ SOẠN / VIẾT văn bản (dùng hoi_lai). KHÔNG dùng khi người dùng muốn NHÌN / XEM LẠI bảng (xem lại toàn bộ bảng, hiện hết các dòng): đó là đổi cách xem, dùng doi_cach_xem.',
      'parameters': {'type': 'object', 'properties': {}}},
-    {'name': 'loc_du_an', 'description': 'Liệt kê / đếm / thống kê dự án theo điều kiện trên các cột Tiến độ, Trạng thái, Mức độ rủi ro, Nhóm, theo hạn, hoặc đếm theo từng giá trị của một cột. '
+    {'name': 'loc_du_an', 'description': 'Liệt kê / đếm / thống kê dự án theo điều kiện trên các cột Tiến độ, Trạng thái, Mức độ rủi ro, Nhóm, Bước (giai đoạn vòng đời AI, chỉ khi hỏi "đang ở bước / giai đoạn nào"), Ưu tiên, theo hạn, hoặc đếm theo từng giá trị của một cột. '
      'Chỉ dùng khi người dùng HỎI / XEM danh sách hoặc số liệu. Giá trị phải là giá trị CÓ SẴN trong cột đó. KHÔNG dùng để tìm theo nội dung chữ (mục tiêu, KPI, vướng mắc): dùng tim_noi_dung. '
      'KHÔNG dùng khi người dùng đang GÁN / ĐỔI một giá trị cho các dự án đó (dùng sua_bang). Đếm theo từng giá trị của một cột (nhóm, tiến độ, người phụ trách…): dùng dem_theo; dem_theo = phu_trach chỉ khi hỏi về nhiều dự án / cả bảng. Hỏi về MỘT dự án cụ thể (kể cả "ai phụ trách I.A.1.1") thì dùng xem_du_an.',
      'parameters': {'type': 'object', 'properties': {
@@ -29,7 +29,9 @@ TOOLS = [
     {'name': 'xem_du_an', 'description': 'Xem thông tin MỘT dự án cụ thể, theo mã hoặc theo tên (tên có thể viết thiếu, không dấu hoặc nói lái). Dùng khi người dùng HỎI / MUỐN XEM một dự án; '
      'xem danh sách "Dự án có tên gần nghĩa nhất với câu" để biết mã. KHÔNG dùng khi người dùng đang GÁN / ĐỔI giá trị cho dự án đó (dùng sua_bang).',
      'parameters': {'type': 'object', 'properties': {'ma_hoac_ten': {'type': 'string'}, 'muc_chi_tiet': {'type': 'string', 'enum': ['ngan', 'vua', 'day_du']}}, 'required': ['ma_hoac_ten']}},
-    {'name': 'tim_noi_dung', 'description': 'Tìm trong NỘI DUNG chữ của báo cáo (mục tiêu, KPI, milestone, công việc, kế hoạch, vấn đề / vướng mắc, comment) theo chủ đề; hoặc hỏi một ô cụ thể của một dự án.',
+    {'name': 'tim_noi_dung', 'description': 'Tìm trong NỘI DUNG chữ của báo cáo (mục tiêu, KPI, milestone, công việc, kế hoạch, vấn đề / vướng mắc, comment, subtask) theo chủ đề; hoặc hỏi một ô cụ thể của một dự án. '
+     'Dùng cho câu hỏi dự án nào ĐANG CHỜ / VƯỚNG / CẦN HỖ TRỢ / ĐỀ XUẤT / NHẮC TỚI điều gì ("dự án nào đang chờ rà soát bảo mật", "dự án nào cần PMO hỗ trợ escalate", "dự án nào nhắc tới GPU"), '
+     'kể cả khi chữ đó trùng tên một bước hay một giá trị của cột: đó là nội dung báo cáo, không phải lọc theo cột.',
      'parameters': {'type': 'object', 'properties': {
          'chu_de': {'type': 'string'}, 'cach_noi_khac': {'type': 'array', 'maxItems': 2, 'items': {'type': 'string'}, 'description': 'đồng nghĩa, viết tắt, thuật ngữ thường gặp trong báo cáo'},
          'o_can_tim': {'type': 'array', 'items': {'type': 'string', 'enum': [k for k, _ in qa.CONTENT_FIELDS]}, 'description': 'chỉ tìm trong các ô này; bỏ trống = mọi ô'},
@@ -81,6 +83,8 @@ Ba trường hợp hay nhầm: (1) câu dạng "<điều kiện> thì <ghi / not
 def _empty(facts: dict) -> bool:
     k = facts.get('kieu')
     if k in ('filter', 'analyze'):
+        if facts.get('khop') and not facts.get('so_luong') and facts.get('so_du_an_khong_co_han'):
+            return False   # xếp / lọc theo hạn mà các dự án chưa có ngày hạn: đó chính là câu trả lời, không đổi sang công cụ khác
         return not (facts.get('khop') and facts.get('so_luong'))
     if k == 'search':
         return not facts.get('tim_thay')
@@ -152,6 +156,10 @@ def run(question: str, rows: list[dict], timing: dict, history: list[dict]) -> t
     if qa.is_who(question):   # "bạn là ai": code trả lời ngay, không qua V-LLM nên không bị hiểu nhầm là câu ngoài lề
         timing['cong_cu'] = [{'cong_cu': 'gioi_thieu', 'ket_qua': 'co'}]
         return {'query': 'help', 'field': '', 'value': ''}, 'rule', None
+    fix = qa.edit_follow_up(question, rows, history)
+    if fix:   # "thôi bỏ I.A.1.1 ra" ngay sau khi Agent đề xuất sửa: soạn lại lệnh sửa, không mở xem dự án
+        timing['cong_cu'] = [{'cong_cu': 'sua_bang', 'ket_qua': 'luat'}]
+        return fix, 'rule', None
     m = qa._masker(rows)
     vals = {k: qa._values(rows, qa.FIELDS[k]) for k in qa.FIELDS}
     cands = qa._name_candidates(question, rows, m)
@@ -202,6 +210,9 @@ def run(question: str, rows: list[dict], timing: dict, history: list[dict]) -> t
             msgs.append({'role': 'tool', 'tool_call_id': call['id'], 'content': 'LỖI: ' + err})
             continue
         code = d.pop('_code', '')
+        if not code and d.get('query') == 'search':
+            in_q = qa._find_codes(question, rows)
+            code = in_q[0] if len(in_q) == 1 else ''   # câu nêu đúng một mã dự án: tìm trong ô của dự án đó
         spec = qa._from_ai(d, rows, question)
         if spec['query'] == 'search':
             fields = list(d.get('fields') or [])

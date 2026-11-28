@@ -6,7 +6,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
 from server.app.models.mapping import MappingConfig
-from server.app.modules.mapping.normalizer import DEFAULT_PHASE_MAP, DEFAULT_PROGRESS_MAP, DEFAULT_STATUS_MAP
+from server.app.modules.mapping.normalizer import DEFAULT_PHASE_MAP, DEFAULT_PROGRESS_MAP, DEFAULT_STATUS_MAP, _key
 from server.app.schemas.row import COLUMN_FIELDS
 
 DEFAULT_MAPPING_ID = "map_default_pmo_49col"
@@ -134,11 +134,31 @@ def _upgrade_stored(db: Session) -> None:
     db.commit()
 
 
+def _add_new_default_values(cfg: MappingConfig) -> bool:
+    """The stored default mapping was copied from the defaults when the DB was created: add values the defaults learned later
+    (e.g. Jira "Late" = Chậm tiến độ). Never changes a value the user already set or mapped differently."""
+    vm = json.loads(cfg.value_mappings_json)
+    changed = False
+    for name, defaults in (("status_map", DEFAULT_STATUS_MAP), ("progress_map", DEFAULT_PROGRESS_MAP)):
+        table = dict(vm.get(name) or {})
+        have = {_key(k) for k in table}
+        for k, v in defaults.items():
+            if _key(k) not in have:
+                table[k] = v
+                changed = True
+        vm[name] = table
+    if changed:
+        cfg.value_mappings_json = json.dumps(vm, ensure_ascii=False)
+    return changed
+
+
 def seed_default_mapping(db: Session) -> MappingConfig:
     """Idempotent: create the default mapping on an empty table, otherwise return the existing one."""
     _upgrade_stored(db)
     existing = db.get(MappingConfig, DEFAULT_MAPPING_ID)
     if existing is not None:
+        if _add_new_default_values(existing):
+            db.commit()
         return existing
     cfg = MappingConfig(
         id=DEFAULT_MAPPING_ID, name=DEFAULT_MAPPING_NAME, description="77 quy tắc mapping chuẩn của PMO (Chặng 1)",

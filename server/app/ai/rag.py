@@ -33,7 +33,7 @@ from .settings import settings
 TEXT_FIELDS = {
     'name': 'Tên dự án', 'goal': 'Mục tiêu', 'kpi': 'KPI', 'milestone': 'Milestone', 'note': 'Ghi chú',
     'done': 'Công việc đã hoàn thành trong tuần', 'plan': 'Kế hoạch tuần sau', 'issue': 'Vấn đề, rủi ro và đề xuất',
-    'prev': 'Báo cáo các tuần trước', 'comment': 'Comment',
+    'prev': 'Báo cáo các tuần trước', 'comment': 'Comment', 'subtasks': 'Subtask',
 }
 MAX_FIELD_CHARS = 1200   # mỗi ô chữ
 CHUNK = 450              # độ dài tối đa một đoạn
@@ -67,6 +67,14 @@ def norm(s: str) -> str:
 def content_tokens(text: str) -> list[str]:
     """Các từ có nghĩa của câu hỏi hoặc đoạn, đã bỏ dấu và bỏ từ nối."""
     return [t for t in re.findall(r'[a-z0-9]+', norm(text)) if t not in STOP]
+
+
+# Cách hỏi "dự án nào nhắc tới / nói về / liên quan đến X": phần hỏi không phải nội dung cần tìm, chỉ X mới là chủ đề
+ASK_WORDS = re.compile(r'(?<![a-z0-9])(nhac (toi|den)|noi (ve|toi|den)|de cap( (toi|den))?|lien quan( (toi|den))?|co chu|co cum)(?![a-z0-9])')
+
+
+def _ask(question: str) -> str:
+    return ASK_WORDS.sub(' ', norm(question))
 
 
 def _terms(text: str) -> list[str]:
@@ -105,7 +113,7 @@ def build_passages(rows: list[dict]) -> list[dict]:
 # ---------- từ khoá (BM25) ----------
 def lexical(question: str, passages: list[dict]) -> list[tuple[int, float, set]]:
     """[(vị trí đoạn, điểm, các từ khoá khớp)] giảm dần theo điểm; chỉ gồm đoạn khớp ít nhất một từ."""
-    q = set(_terms(question))
+    q = set(_terms(_ask(question)))
     if not q or not passages:
         return []
     docs = [Counter(_terms(f"{p['name']} {p['text']}" if p['field'] != 'name' else p['text'])) for p in passages]
@@ -134,7 +142,7 @@ def lexical(question: str, passages: list[dict]) -> list[tuple[int, float, set]]
 
 def confident(question: str, passages: list[dict], ranked: list | None = None) -> bool:
     """Câu hỏi có nói đúng nội dung có trong bảng không (để quyết định có đi nhánh tìm kiếm mà không cần hỏi AI)."""
-    toks = set(content_tokens(question))
+    toks = set(content_tokens(_ask(question)))
     if not toks:
         return False
     ranked = lexical(question, passages) if ranked is None else ranked
@@ -371,6 +379,29 @@ def _keep_lex(ranked: list) -> list[int]:
     return [i for i, sc, _ in ranked[:30] if sc >= LEX_KEEP * ranked[0][1]] if ranked else []
 
 
+EXACT_EXTRA = 4      # số dự án tối đa được thêm vì có đúng thuật ngữ hiếm của câu hỏi
+EXACT_MAX_CODES = 3  # thuật ngữ chỉ tính là "hiếm" khi xuất hiện ở tối đa ngần này dự án
+
+
+def _exact_rare(question: str, passages: list[dict]) -> list[int]:
+    """Đoạn tốt nhất của từng dự án có chứa một thuật ngữ HIẾM của câu hỏi: viết hoa (GPU, ANBM), có chữ số, hoặc từ dài ≥ 5 chữ ít gặp (escalate)."""
+    words = re.findall(r'[A-Za-z0-9À-ỹ]+', question)
+    acr = {norm(w) for w in words if len(w) >= 3 and (w.isupper() or any(ch.isdigit() for ch in w))}
+    toks = [t for t in dict.fromkeys(content_tokens(_ask(question))) if len(t) >= 3]
+    out: list[int] = []
+    for t in toks:
+        hits = [i for i, p in enumerate(passages) if re.search(r'(?<![a-z0-9])' + re.escape(t) + r'(?![a-z0-9])', norm(p['text']))]
+        codes = list(dict.fromkeys(passages[i]['code'] for i in hits))
+        if not hits or len(codes) > EXACT_MAX_CODES or not (t in acr or len(t) >= 5):
+            continue
+        seen: set[str] = set()
+        for i in hits:   # mỗi dự án lấy đoạn đầu tiên có chữ đó
+            if passages[i]['code'] not in seen:
+                seen.add(passages[i]['code'])
+                out.append(i)
+    return out
+
+
 def search(question: str, rows: list[dict], mask=lambda s: s, timing: dict | None = None, extra: list[str] | None = None) -> dict:
     """Trả {'passages': [đoạn], 'how': 'tu_khoa' | 'tu_khoa+embedding', 'confident': bool}.
     Trộn nhiều bảng xếp hạng bằng RRF có trọng số: từ khoá và embeddings cho CÂU HỎI GỐC (trọng số đầy đủ), cộng với các cách diễn đạt khác
@@ -466,6 +497,12 @@ def search(question: str, rows: list[dict], mask=lambda s: s, timing: dict | Non
         picked.append(i)
         if len(picked) >= TOP_K:
             break
+    # Câu hỏi nêu đúng một thuật ngữ hiếm (GPU, escalate, mã…): mọi dự án có đúng chữ đó phải có mặt, dù rerank hay embeddings xếp thấp.
+    have = {passages[i]['code'] for i in picked}
+    for i in _exact_rare(question, passages):
+        if passages[i]['code'] not in have and len(picked) < TOP_K + EXACT_EXTRA:
+            picked.append(i)
+            have.add(passages[i]['code'])
     if timing is not None:
         timing['ragTrace'] = [{'code': passages[i]['code'], 'truong': passages[i]['label'], 'diem': round(final[i], 4), 'hang': where.get(i, {}), **({'cos': round(sims[i], 3)} if i in sims else {}), **({'rr': round(rr[i], 3)} if i in rr else {})} for i in picked]
         if sims:

@@ -10,6 +10,7 @@ Duyệt hay chốt nháp AI không thuộc Agent: người rà tự làm trên g
 """
 from __future__ import annotations
 
+import difflib
 import json
 import re
 import unicodedata
@@ -206,12 +207,13 @@ def _name_hints(question: str, fields: dict, rows: list[dict], m: Masker) -> lis
 
 
 def parse_ai(question: str, fields: dict, rows: list[dict], m: Masker, timing: dict, history: list[dict] | None = None) -> tuple[dict, str]:
+    hints = _name_hints(question, fields, rows, m)
     ctx = {'cot': [{'id': f['id'], 'ten': f['name'], 'duoc_sua': f['editable'], 'gia_tri_cho_phep': f['options'][:40] or 'chữ tự do',
                     **({'dau': f['options'][0], 'cuoi': f['options'][-1]} if len(f['options']) >= 3 else {})}
                    for f in fields.values()],
            'du_an': [{'ma': r['code'], 'ten': r['name']} if r['name'] else {'ma': r['code']} for r in rows][:300],
            'gia_tri_cac_cot_chu': _value_hints(question, fields, rows, m),
-           'du_an_gan_nghia_voi_cau': _name_hints(question, fields, rows, m)}
+           'du_an_gan_nghia_voi_cau': hints}
     msgs = [{'role': 'system', 'content': SYSTEM},
             {'role': 'user', 'content': 'Bảng:\n' + json.dumps(ctx, ensure_ascii=False)
              + ('\ncau_truoc:\n' + json.dumps([{'cau': m.mask(h['q']), 'ma_du_an_vua_nhac': h['codes'], 'tra_loi': m.mask(h.get('a', ''))} for h in history], ensure_ascii=False) if history else '')
@@ -223,14 +225,17 @@ def parse_ai(question: str, fields: dict, rows: list[dict], m: Masker, timing: d
         return {'ops': [], 'unclear': 'Agent chưa đọc được câu lệnh này. Bạn thử nói lại ngắn hơn, theo mẫu "Đổi <cột> của <mã dự án> thành <giá trị>".'}, 'rule'
     timing['parseMs'], timing['parseTokens'] = res.get('ms'), (res.get('usage') or {}).get('completion_tokens')
     d = res['data'] if isinstance(res['data'], dict) else {}
-    return m.unmask(d), res.get('model') or settings.agent_model
+    plan = m.unmask(d)
+    if isinstance(plan, dict):
+        plan['hint_codes'] = [h['ma'] for h in hints]   # dự án khớp tên / gần nghĩa (embeddings): bằng chứng để chấp nhận mã V-LLM chọn từ đoạn tên nói gọn
+    return plan, res.get('model') or settings.agent_model
 
 
 def _mock_parse(question: str, fields: dict, rows: list[dict]) -> dict:
     return {'ops': [], 'unclear': 'Chế độ mock chỉ hiểu mẫu "Đổi <cột> của <mã> thành <giá trị>".'}
 
 
-SCOPE_CUE = re.compile(r'\b(du an|tat ca|toan bo|moi|cac|nhung|may|chua|dang|nhom|nao|con thieu|con trong|bo trong)\b')
+SCOPE_CUE = re.compile(r'\b(du an|cong viec|tat ca|toan bo|moi|cac|nhung|may|chua|dang|nhom|nao|con thieu|con trong|bo trong)\b')
 ALL_WORDS = re.compile(r'\b(tat ca|toan bo|moi du an|het cac du an)\b')
 
 
@@ -255,7 +260,7 @@ def _infer_where(question: str, fields: dict, rows: list[dict], target: str, val
     return None if hits else _infer_where_part(q, fields, rows, target)
 
 
-_STOP = set('toi muon chinh cot cua du an lien quan den thanh sang la doi sua cap nhat gan dien ghi cho giup nhe nha voi cac nhung may moi tat ca nao thi thuoc'.split())
+_STOP = set('toi muon chinh cot cua du an cong viec lien quan den thanh sang la doi sua cap nhat gan dien ghi cho giup nhe nha voi cac nhung may moi tat ca nao thi thuoc'.split())
 
 
 def _infer_where_part(q: str, fields: dict, rows: list[dict], target: str) -> tuple[dict, str] | None:
@@ -338,31 +343,40 @@ def _closest_values(wv: str, vals: list[str], k: int = 4) -> str:
     return 'Gần nhất: ' + '; '.join(near) + (f' (còn {len(vals) - len(near)} giá trị khác).' if len(vals) > len(near) else '.')
 
 
+def _tok_eq(a: str, b: str) -> bool:
+    """Hai từ coi là một: giống hệt, hoặc gõ thiếu / sai vài chữ (từ đủ dài), hoặc một từ là phần đầu của từ kia."""
+    if a == b:
+        return True
+    if min(len(a), len(b)) < 4:
+        return False
+    if a.startswith(b) or b.startswith(a):
+        return True
+    return difflib.SequenceMatcher(None, a, b).ratio() >= 0.84
+
+
 def _name_matches(question: str, rows: list[dict], skip: set | None = None, value: str = '') -> list[str]:
-    """Người dùng gọi dự án bằng một đoạn TÊN ("dự án liên quan đến Nền tảng thực nghiệm"): các dự án có tên chứa đoạn chữ liền nhau dài nhất
-    của câu (ít nhất 2 từ có nghĩa). Quá nhiều dự án khớp ngang nhau thì không đoán."""
+    """Người dùng gọi dự án bằng một đoạn TÊN, nói gọn hoặc gần đúng ("dự án liên quan đến Nền tảng thực nghiệm"): các từ có nghĩa của câu
+    (bỏ từ lệnh, tên cột, giá trị mới) được so với tên từng dự án, cho phép gõ lệch vài chữ. Dự án khớp gần hết các từ đó là dự án được nhắc;
+    lấy các dự án khớp cao nhất. Quá nhiều dự án khớp ngang nhau thì không đoán."""
     qn, vn = _norm(question), _norm(value)
     i = qn.rfind(vn) if vn else -1
     if i >= 0:
         qn = qn[:i] + ' ' + qn[i + len(vn):]   # bỏ giá trị MỚI ở cuối câu
-    qw = qn.split()
     stop = _STOP | (skip or set())
-    best, hit = 0, []
+    phrase = [w for w in qn.split() if w not in stop and len(w) >= 2]
+    if not phrase:
+        return []
+    best, hit = 0.0, []
     for r in rows:
         nw = _norm(r.get('name') or '').split()
         if not nw:
             continue
-        run, prev = 0, [0] * (len(nw) + 1)
-        for a in qw:   # độ dài đoạn liền nhau dài nhất, chỉ tính các từ không phải từ lệnh
-            cur = [0] * (len(nw) + 1)
-            for j, b in enumerate(nw, 1):
-                if a == b and a not in stop:
-                    cur[j] = prev[j - 1] + 1
-                    run = max(run, cur[j])
-            prev = cur
-        if run >= 2 and run >= best:
-            if run > best:
-                best, hit = run, []
+        got = sum(1 for w in phrase if any(_tok_eq(w, b) for b in nw))
+        cov = got / len(phrase)
+        ok = got >= 2 and cov >= 0.75 or (got == 1 == len(phrase) and len(phrase[0]) >= 7)   # 1 từ chỉ khi đủ dài và là từ duy nhất của câu
+        if ok and cov >= best:
+            if cov > best:
+                best, hit = cov, []
             hit.append(r['code'])
     return hit if 0 < len(hit) <= 8 else []
 
@@ -403,8 +417,12 @@ def build_preview(plan: dict, fields: dict, rows: list[dict], question: str = ''
             # AI không thấy tên dự án, nên mã hợp lệ phải có trong câu lệnh; mã AI tự thêm thì bỏ
             ref = bool(prev_codes) and bool(REF_CUE.search(qn))  # "dự án đó", "thêm … nữa": được dùng mã người dùng vừa nhắc ở câu trước
             by_name = set(_name_matches(question, rows, set(_norm(f['name']).split()), val))
+            if SCOPE_CUE.search(qn):
+                by_name |= {str(c) for c in plan.get('hint_codes') or []}   # câu có nói "dự án / công việc": chấp nhận mã V-LLM chọn trong các dự án gần nghĩa
             codes = [c for c in codes if _mentioned(c, qn) or (ref and c in prev_codes) or c in by_name or (c in by_code and _name_hit(by_code[c]['name'], qn))]
         ask_scope = ''   # phạm vi V-LLM đọc ra nhưng câu chưa nói rõ: hỏi lại người dùng thay vì tự làm
+        if t.get('all') is True and ALL_WORDS.search(qn) and t.get('where_field') and _norm(str(t.get('where_value') or '')) not in qn:
+            t['where_field'], t['where_value'] = '', ''   # câu nói "tất cả dự án": điều kiện V-LLM tự thêm (câu không nhắc) thì bỏ
         if question and t.get('all') is True and not ALL_WORDS.search(qn) and not confirmed:
             ask_scope = _scope_desc(t, fields, rows)
             t['all'] = False
