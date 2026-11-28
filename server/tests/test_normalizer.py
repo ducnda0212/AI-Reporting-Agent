@@ -29,13 +29,14 @@ def test_keys_are_case_and_separator_insensitive_and_real_jira_values():
     assert normalize_status("  done ") == "Đã hoàn thành"
     assert normalize_status("Pending") == "Tạm dừng"
     assert normalize_progress("Delayed") == "Chậm tiến độ"
+    assert normalize_progress("Late") == normalize_progress("late") == normalize_progress("Behind schedule") == "Chậm tiến độ"
 
 
 def test_unmapped_and_empty_values_are_never_guessed():
     assert normalize_status("Monitoring") == "Monitoring"
     assert normalize_status("Cancled") == "Cancled"
     assert normalize_status("Blocked") == "Blocked"  # PMO has not decided yet
-    assert normalize_progress("Late") == "Late"
+    assert normalize_progress("Not tracking") == "Not tracking"
     assert normalize_status(None) == "" and normalize_progress("") == ""
     assert "Monitoring" not in STATUS_VALUES and "Có rủi ro" in PROGRESS_VALUES
 

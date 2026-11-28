@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { REMOTE_MAX_TEXT, agentHtml, historyOf, keepLocal, textColumns } from '@/lib/agentRemote';
+import { agentHtml, historyOf, keepLocal, REMOTE_MAX_TEXT, subtaskText, textColumns } from '@/lib/agentRemote';
 import type { AgentAnswer, AgentFacts } from '@/lib/api';
 
 const rows = [{ i: 3, ma: 'I.A.1.1' }, { i: 7, ma: 'II.B.2.4' }];
@@ -69,6 +69,21 @@ describe('Cột chữ gửi cho Trợ lý tìm theo nội dung', () => {
       goal: 'Xây nền tảng thực nghiệm', kpi: '', milestone: 'UAT 12/12', note: '', done: 'Xong API', plan: 'Chạy thử', issue: 'Chờ GPU',
       prev: 'Tuần 1 – đã làm: Tuần đầu xong thiết kế\nTuần 2 – kế hoạch: Review; vấn đề: Thiếu người', comment: 'Jira comment',
     });
+  });
+
+  it('kỳ đang ở Tuần 4: "tuần này" là Tuần 4, Tuần 3 vào các tuần trước (không bị bỏ sót)', () => {
+    const c: Record<string, string> = { ht: 'Xong tuần 3', kh: 'Kế hoạch 3', vd: '', w4ht: 'Xong tuần 4', w4kh: 'Kế hoạch 4', w4vd: 'Chờ phê duyệt', w1ht: 'Tuần đầu', w2vd: 'Thiếu người' };
+    const t = textColumns((id) => c[id] ?? '', '', 'w4');
+    expect(t.done).toBe('Xong tuần 4');
+    expect(t.plan).toBe('Kế hoạch 4');
+    expect(t.issue).toBe('Chờ phê duyệt');
+    expect(t.prev).toBe('Tuần 1 – đã làm: Tuần đầu\nTuần 2 – vấn đề: Thiếu người\nTuần 3 – đã làm: Xong tuần 3; kế hoạch: Kế hoạch 3');
+  });
+
+  it('kỳ đang ở Tuần 1: các tuần sau còn trống nên prev rỗng', () => {
+    const t = textColumns((id) => (id === 'w1ht' ? 'Mở đầu' : ''), '', 'w1');
+    expect(t.done).toBe('Mở đầu');
+    expect(t.prev).toBe('');
   });
 
   it('không có báo cáo tuần trước thì prev rỗng, ô quá dài bị cắt', () => {
@@ -256,5 +271,22 @@ describe('Câu trả lời gọn: câu dẫn ngắn + danh sách dựng từ s�
     const h = agentHtml(ans({ by: 'rule', answer: 'Có 3 dự án.' }), rows);
     expect(h).toContain('<p>Có 3 dự án.</p>');
     expect(h).not.toContain('class="pl"');
+  });
+});
+
+describe('subtaskText: subtask gửi cho Trợ lý', () => {
+  it('đếm số đã xong / chưa xong và liệt kê từng subtask, không gửi người được giao', () => {
+    const t = subtaskText([
+      { summary: 'Thu thập dữ liệu', status: 'Done' },
+      { summary: 'Huấn luyện mô hình', status: 'In Progress' },
+      { summary: 'Kiểm thử tải', status: 'Done' },
+    ]);
+    expect(t.split('\n')[0]).toBe('2/3 subtask đã xong, còn 1 chưa xong');
+    expect(t).toContain('- Huấn luyện mô hình (In Progress)');
+  });
+
+  it('không có subtask thì để trống', () => {
+    expect(subtaskText(undefined)).toBe('');
+    expect(subtaskText([])).toBe('');
   });
 });

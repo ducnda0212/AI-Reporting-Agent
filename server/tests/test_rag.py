@@ -476,7 +476,13 @@ def test_forbidden_rerank_model_pauses_rerank_only(rerank):
 
 def test_rerank_floor_can_drop_weak_passages(rerank, monkeypatch):
     monkeypatch.setattr(rag, 'RERANK_MIN', 2.0)   # điểm giả tối đa 1.0
-    assert rag.search('chờ GPU', CLEAN)['passages'] == []
+    assert rag.search('thiếu card', CLEAN)['passages'] == []   # không có thuật ngữ hiếm: mọi đoạn dưới sàn đều bị bỏ
+
+
+def test_rare_exact_term_survives_rerank_floor(rerank, monkeypatch):
+    monkeypatch.setattr(rag, 'RERANK_MIN', 2.0)
+    got = rag.search('chờ GPU', CLEAN)['passages']   # "GPU" chỉ có ở một dự án: luôn giữ dự án đó dù rerank chấm thấp
+    assert [p['code'] for p in got] == ['II.B.2.4']
 
 
 def test_openai_provider_calls_rerank_only_when_a_model_is_set(rerank, monkeypatch):

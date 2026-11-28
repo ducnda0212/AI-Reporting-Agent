@@ -59,6 +59,8 @@ export interface AgentRow {
   pic: string; start: string; end: string; pending: boolean;
   /** Cột chữ để Trợ lý tìm theo nội dung (RAG): mục tiêu, KPI, milestone, ghi chú, báo cáo tuần này/tuần trước, vấn đề, comment. */
   goal?: string; kpi?: string; milestone?: string; note?: string; done?: string; plan?: string; issue?: string; prev?: string; comment?: string;
+  /** Bước (AJ), Ưu tiên (Z), Tiến độ gốc trên Jira trước khi quy đổi, và tóm tắt subtask ("3/5 subtask đã xong…"). */
+  step?: string; priority?: string; jiraProgress?: string; subtasks?: string;
 }
 /** Một dự án trong số liệu backend tính (đã là giá trị đúng như bảng). */
 export interface FactProject { code: string; name?: string; tien_do?: string; rui_ro?: string; trang_thai?: string; nhom?: string; han?: string; ly_do?: string }

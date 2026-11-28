@@ -7,8 +7,8 @@ import { agentAsk, agentEdit, agentWarm, aiStatus, draftRemote, type AgentAnswer
 import { editFields, editHtml, editRows, looksLikeEdit, toStageItems } from '@/lib/agentEdit';
 import { DRAFT_CHUNK, draftRequestRow, mergeRemote, type RemoteDrafts } from '@/lib/draftRemote';
 import { fromRec, toRec, upsert } from '@/lib/chatHistory';
-import { REMOTE_MAX_QUESTION, REMOTE_MAX_ROWS, agentHtml, intentCommand, keepLocal, textColumns } from '@/lib/agentRemote';
-import { ck, displayText, fieldById } from '@/lib/cell';
+import { REMOTE_MAX_QUESTION, REMOTE_MAX_ROWS, agentHtml, intentCommand, keepLocal, subtaskText, textColumns } from '@/lib/agentRemote';
+import { activeWkOf, ck, displayText, fieldById } from '@/lib/cell';
 import { groupedRows } from '@/lib/grid';
 import type { AgStageItem, AiFieldId, AppState, ChatRec, FieldId, Row, TraceTarget } from '@/types';
 import { getState, inBrowser, log, mutate, now, rowsOf, toast } from '@/store';
@@ -131,7 +131,8 @@ function agentRow(r: Row, s: AppState): AgentRow {
   return {
     code: r.ma, name: r.viec, group: show('mang'), status: show('tt'), progress: exTT(r, s), risk: r.ai.rui?.text || show('rui'),
     pic: show('pic'), start: show('start'), end: show('end'), pending: (['rui', 'kh', 'vd'] as const).some((k) => !!r.ai[k] && !r.ai[k]!.ok),
-    ...textColumns(show, r.comment),
+    ...textColumns(show, r.comment, activeWkOf(s)),
+    step: show('buoc'), priority: show('prio'), jiraProgress: (r.rawProgress || '').trim(), subtasks: subtaskText(r.subtasks),
   };
 }
 

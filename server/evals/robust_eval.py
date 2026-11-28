@@ -57,7 +57,7 @@ ROUTE = [
     ('mấy dự án Voice cho tiến độ có nguy cơ chậm', [], ('edit',), None),
     # chứa chữ "đổi/sửa" nhưng là HỎI
     ('ai đã sửa dự án I.A.1.1 lần cuối', [], ('project', 'search', 'summary', 'unknown'), None),
-    ('đổi tiến độ có ảnh hưởng gì tới báo cáo không', [], ('unknown', 'summary', 'search', 'help'), None),
+    ('đổi tiến độ có ảnh hưởng gì tới báo cáo không', [], ('unknown', 'summary', 'search', 'help', 'giai_thich_cot'), None),   # giải thích cột Tiến độ cũng là trả lời đúng
     # nối tiếp / nhớ hội thoại
     ('còn rủi ro cao thì sao', H_ASK, ('filter', 'analyze'), None),
     ('trong số đó cái nào rủi ro cao', H_ASK, ('analyze', 'filter'), None),
@@ -138,7 +138,7 @@ def main() -> int:
     print('== Phần 1: đọc ý định ==')
     for q, hist, accept, view in ROUTE:
         spec, by = run_route(q, hist, accept, view, args.mode)
-        good = bool(spec) and spec['query'] in accept and (view is None or spec.get('action') == view) and by != 'rule'
+        good = bool(spec) and spec['query'] in accept and (view is None or spec.get('action') == view) and (by != 'rule' or (spec['query'] == 'help' and agent.is_who(q)) or (spec['query'] == 'edit' and agent.edit_follow_up(q, agent._clean_rows(ROWS), hist) is not None))
         ok += good
         if args.verbose or not good:
             print(('PASS' if good else 'FAIL'), q)

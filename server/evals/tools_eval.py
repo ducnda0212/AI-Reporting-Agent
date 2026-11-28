@@ -43,7 +43,7 @@ def main(keys: list[str]) -> int:
     for q, hist, accept, view in cases:
         spec, by = rb.run_route(q, hist, accept, view, 'live')
         kind = 'hoi_lai' if spec and spec.get('hoi_lai') else (spec or {}).get('query')   # hỏi lại cũng tính là 'unknown' khi ca chấp nhận 'unknown'
-        good = bool(spec) and (kind in accept or (kind == 'hoi_lai' and 'unknown' in accept)) and (view is None or spec.get('action') == view) and by != 'rule'
+        good = bool(spec) and (kind in accept or (kind == 'hoi_lai' and 'unknown' in accept)) and (view is None or spec.get('action') == view) and (by != 'rule' or (spec.get('query') == 'help' and qa.is_who(q)) or (spec.get('query') == 'edit' and qa.edit_follow_up(q, qa._clean_rows(rb.ROWS), hist) is not None))
         bad += not good
         if not good:
             steps = [(x.get('cong_cu'), x.get('tham_so'), x.get('loi') or x.get('ket_qua')) for x in LAST.get('cong_cu') or []]

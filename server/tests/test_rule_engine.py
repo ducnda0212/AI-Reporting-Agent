@@ -154,3 +154,17 @@ def test_extract_numeric_xx_code_and_workstream_mismatch_fallback():
     assert row.g == "I.1.6" and row.mang == "I.1.6"
     ok = map_jira_issue_to_row(issue, {"mang_viec": "I.1.6.Chuẩn hóa", "template_row": 42}, WEEKS, i=0)
     assert ok.mang == "I.1.6.Chuẩn hóa"
+
+
+def test_comments_from_every_comment_column_are_kept():
+    # Jira xuất 3 cột "Comment"; bộ đọc file đổi thành Comment_0/1/2: comment không được mất.
+    issue = {
+        "Issue key": "PMO-1", "Summary": "I.C.1.2 Thuật toán gợi ý điểm đỗ", "Status": "In Progress",
+        "Comment_0": "14/Nov/26 3:20 PM;An;Kết quả pilot đợt 1 vượt kỳ vọng.",
+        "Comment_1": "",
+        "Comment_2": "24/Nov/26 4:40 PM;Bình;Chốt phương án rollout.",
+    }
+    row = map_jira_issue_to_row(issue, None, WEEKS, i=0)
+    assert "Kết quả pilot đợt 1" in row.comment and "Chốt phương án rollout" in row.comment
+    assert row.comment.index("pilot") < row.comment.index("rollout")
+    assert map_jira_issue_to_row({**issue, "Comment_0": "", "Comment_2": "", "Comment": "Một cột duy nhất"}, None, WEEKS, i=0).comment == "Một cột duy nhất"
